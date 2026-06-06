@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIVEK GOUD ADULA | CINEMATIC</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://unpkg.com/lenis@1.0.45/dist/lenis.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Italiana&family=Manrope:wght@300;400&display=swap');
+
+        :root {
+            --bg: #111111;
+            --text: #e1e1e1;
+            --accent: #d4af37;
+            /* Gold */
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Manrope', sans-serif;
+        }
+
+        h1,
+        h2,
+        h3 {
+            font-family: 'Italiana', serif;
+            /* Elegant Serif */
+            font-weight: 400;
+        }
+
+        .scroll-container {
+            overflow: hidden;
+        }
+
+        .hero {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .hero-title-wrapper {
+            overflow: hidden;
+        }
+
+        .hero h1 {
+            font-size: 15vw;
+            line-height: 1;
+            margin: 0;
+            text-transform: uppercase;
+            text-align: center;
+            mix-blend-mode: difference;
+            transform: translateY(100%);
+        }
+
+        .role-text {
+            font-size: 1.5rem;
+            letter-spacing: 0.5em;
+            text-transform: uppercase;
+            opacity: 0;
+            margin-top: 2rem;
+            color: var(--accent);
+        }
+
+        .spotlight {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 50vw;
+            height: 50vw;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.15) 0%, transparent 70%);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .section {
+            padding: 10rem 5vw;
+        }
+
+        .section-header {
+            font-size: 5vw;
+            margin-bottom: 5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .section-number {
+            font-family: 'Manrope', sans-serif;
+            font-size: 1.5rem;
+            color: var(--accent);
+        }
+
+        /* Projects - Huge Hover Effect */
+        .project-item {
+            padding: 4rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: 0.5s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .project-item:hover {
+            padding-left: 5vw;
+        }
+
+        .project-item:hover h3 {
+            color: var(--accent);
+        }
+
+        .project-item h3 {
+            font-size: 6vw;
+            margin: 0;
+            transition: color 0.3s;
+        }
+
+        .project-desc {
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin-top: 2rem;
+            opacity: 0.6;
+        }
+
+        .project-tags {
+            position: absolute;
+            top: 4rem;
+            right: 0;
+            text-align: right;
+            opacity: 0;
+            transition: 0.5s;
+            transform: translateX(50px);
+        }
+
+        .project-item:hover .project-tags {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* Skills Marquee */
+        .marquee-container {
+            overflow: hidden;
+            white-space: nowrap;
+            padding: 5rem 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .marquee-content {
+            display: inline-block;
+            animation: move 30s linear infinite;
+        }
+
+        .skill-word {
+            font-family: 'Italiana', serif;
+            font-size: 8rem;
+            margin: 0 4rem;
+            color: #333;
+            transition: 0.5s;
+        }
+
+        .skill-word:hover {
+            color: var(--accent);
+            -webkit-text-stroke: 1px var(--text);
+        }
+
+        @keyframes move {
+            from {
+                transform: translateX(0);
+            }
+
+            to {
+                transform: translateX(-50%);
+            }
+        }
+
+        /* Experience */
+        .exp-row {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            padding: 3rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .exp-date {
+            font-size: 1.2rem;
+            opacity: 0.5;
+        }
+
+        .exp-detail h4 {
+            font-size: 3rem;
+            margin: 0;
+            font-family: 'Italiana', serif;
+        }
+
+        .contact-section {
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .mail-link {
+            font-size: 8vw;
+            color: white;
+            text-decoration: none;
+            font-family: 'Italiana', serif;
+            position: relative;
+        }
+
+        .mail-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0%;
+            height: 2px;
+            background: var(--accent);
+            transition: 0.5s;
+        }
+
+        .mail-link:hover::after {
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="spotlight"></div>
+
+    <div class="scroll-container">
+        <header class="hero">
+            <div class="hero-title-wrapper">
+                <h1>VIVEK<br>GOUD</h1>
+            </div>
+            <div class="role-text">A passionate and hardworking coding enthusiast wit...</div>
+        </header>
+
+        <section class="section">
+            <div class="section-header">
+                <h2>Selected Works</h2>
+                <span class="section-number">01</span>
+            </div>
+            <div id="projects-container">
+                
+                <div class="project-item">
+                    <h3>AI</h3>
+                    <p class="project-desc">• Engineered a personalized interview preparation tool where users upload their resume and job description, and the system generates tailored preparation topics using GenAI models. • Developed AI-generated study content and structured module-wise quizzes that guide users through role-specific interview readiness.• Integrated resume parsing, JD analysis, topic generation, and quiz modules into one cohesive pipeline with an intelligent pre-interview preparation layer. </p>
+                    <div class="project-tags">
+                        
+                        
+                    </div>
+                </div>
+                
+                <div class="project-item">
+                    <h3>AI</h3>
+                    <p class="project-desc">• Built an AI-driven resume analysis pipeline that extracts key information from uploaded resumes and stores structured data in the database using FastAPI and Python. • Implemented job description (JD) handling where recruiters can upload JDs, which are then processed and linked with AI-generated candidate matching results. • Designed a matching module that identifies the best-fit candidates for each JD and integrated the entire solution with a Gradio-based user interface for quick testing and demos. </p>
+                    <div class="project-tags">
+                        
+                        
+                    </div>
+                </div>
+                
+                <div class="project-item">
+                    <h3>A holistic design and collaboration for accident rescue app October 2024</h3>
+                    <p class="project-desc">• Designed an integrated system for accident response, using real-time tracking and smartphone sensors to detect accidents and alert emergency services. • Collaborated on a platform that facilitates coordination among emergency responders, optimizing response times and resource allocation for improved post-accident care. </p>
+                    <div class="project-tags">
+                        
+                        
+                    </div>
+                </div>
+                
+                <div class="project-item">
+                    <h3>Energy consumption prediction using LSTM and RNN October 2024</h3>
+                    <p class="project-desc">• Developed an energy consumption prediction model using LSTM and RNN, enhancing forecasting accuracy based on historical data. • Optimized data processing techniques to improve model efficiency and reliability for energy prediction. </p>
+                    <div class="project-tags">
+                        
+                        
+                    </div>
+                </div>
+                
+            </div>
+        </section>
+
+        <section class="section" style="padding: 0;">
+            <div class="marquee-container">
+                <div class="marquee-content" id="skills-container">
+                    
+                    <span class="skill-word">React</span>
+                    
+                    <span class="skill-word">Leadership</span>
+                    
+                    <span class="skill-word">MySQL</span>
+                    
+                    <span class="skill-word">FastAPI</span>
+                    
+                    <span class="skill-word">Git</span>
+                    
+                    <span class="skill-word">Teamwork</span>
+                    
+                    <span class="skill-word">Node.js</span>
+                    
+                    <span class="skill-word">GitHub</span>
+                    
+                    <span class="skill-word">Python</span>
+                    
+                    <span class="skill-word">AWS</span>
+                    
+                    <span class="skill-word">Machine Learning</span>
+                    
+                    <span class="skill-word">C</span>
+                    
+                    <span class="skill-word">Communication</span>
+                    
+                    <span class="skill-word">PostgreSQL</span>
+                    
+                    <span class="skill-word">AI</span>
+                    
+                    <!-- Duplicate -->
+                    
+                    <span class="skill-word">React</span>
+                    
+                    <span class="skill-word">Leadership</span>
+                    
+                    <span class="skill-word">MySQL</span>
+                    
+                    <span class="skill-word">FastAPI</span>
+                    
+                    <span class="skill-word">Git</span>
+                    
+                    <span class="skill-word">Teamwork</span>
+                    
+                    <span class="skill-word">Node.js</span>
+                    
+                    <span class="skill-word">GitHub</span>
+                    
+                    <span class="skill-word">Python</span>
+                    
+                    <span class="skill-word">AWS</span>
+                    
+                    <span class="skill-word">Machine Learning</span>
+                    
+                    <span class="skill-word">C</span>
+                    
+                    <span class="skill-word">Communication</span>
+                    
+                    <span class="skill-word">PostgreSQL</span>
+                    
+                    <span class="skill-word">AI</span>
+                    
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-header">
+                <h2>Experience</h2>
+                <span class="section-number">02</span>
+            </div>
+            <div id="experience-container">
+                
+                <div class="exp-row">
+                    <div class="exp-date">May 2025 – August 2025</div>
+                    <div class="exp-detail">
+                        <h4>Viswam.AI</h4>
+                        <p style="font-size: 1.5rem; color: var(--accent); margin: 0.5rem 0;">Artificial Intelligence Intern [Hybrid] May 2025 – August 2025</p>
+                        <p style="opacity: 0.7;">• Developed Streamlit-based AI applications integrating Hugging Face models for interactive Q&A. • Built RAG - Retrieval-Augmented Generation chatbots for generating accurate AI-powered summaries. • Implemented LLM integration, tokenization, and prompt handling for domain-specific queries. </p>
+                    </div>
+                </div>
+                
+                <div class="exp-row">
+                    <div class="exp-date">May 2025 – July 2025</div>
+                    <div class="exp-detail">
+                        <h4>GENAI Lakes</h4>
+                        <p style="font-size: 1.5rem; color: var(--accent); margin: 0.5rem 0;">Artificial Intelligence Intern [Hybrid] May 2025 – July 2025</p>
+                        <p style="opacity: 0.7;">• Developed AI-based NEET & JEE Mock Testing Platform (Crack Orbit) using React, Node.js, and PostgreSQL. • Built backend for Face Recognition Attendance System with Python (FastAPI) and PostgreSQL. • Integrated Gemini API for AI-powered resume parsing in ATS module, storing structured data in PostgreSQL. • Implemented Job Description matching system to connect parsed resumes with recruiter postings. • Collaborated in full-stack development, API integration, and database design for live platforms. </p>
+                    </div>
+                </div>
+                
+                <div class="exp-row">
+                    <div class="exp-date">June 2024 – August 2024</div>
+                    <div class="exp-detail">
+                        <h4>Garuda3D</h4>
+                        <p style="font-size: 1.5rem; color: var(--accent); margin: 0.5rem 0;">Intern/Developer</p>
+                        <p style="opacity: 0.7;">• During my internship at Garuda 3D, I have done research on AI and ML, focusing on 3D print failure detection • I created professional designs using Canva, for Garuda 3D's products and services. • I contributed to digital marketing efforts, creating content like Instagram posts, Google AdSense templates. Cognifyz Technologies, Python development [Online] May 2024 • Crafted a Python-based automation script that reduced manual data entry time by 15 hours per week, this initiative not only saved time but also improved data accuracy and enhanced reporting capabilities for the team. </p>
+                    </div>
+                </div>
+                
+            </div>
+        </section>
+
+        
+
+        <footer class="contact-section">
+            <a href="mailto:adulavivekgoud@gmail.com" class="mail-link">Say Hello</a>
+        </footer>
+    </div>
+
+    <script>
+        // Lenis Smooth Scroll
+        const lenis = new Lenis({
+            duration: 1.2,
+            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+            direction: 'vertical',
+            gestureDirection: 'vertical',
+            smooth: true,
+            mouseMultiplier: 1,
+            smoothTouch: false,
+            touchMultiplier: 2,
+        });
+
+        function raf(time) {
+            lenis.raf(time);
+            requestAnimationFrame(raf);
+        }
+        requestAnimationFrame(raf);
+
+        // GSAP
+        gsap.registerPlugin(ScrollTrigger);
+
+        gsap.to(".hero h1", { y: 0, duration: 1.5, ease: "power4.out", delay: 0.2 });
+        gsap.to(".role-text", { opacity: 1, duration: 1.5, delay: 1 });
+
+        // --- MAGIC EDIT SCRIPT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const createBtn = (text, id, bg, clickHandler) => {
+                const btn = document.createElement('button');
+                btn.innerText = text;
+                btn.id = id;
+                Object.assign(btn.style, {
+                    position: 'fixed', bottom: '30px', right: '30px', zIndex: '10000',
+                    padding: '12px 24px', background: 'transparent', color: '#d4af37',
+                    border: '1px solid #d4af37', borderRadius: '0', cursor: 'pointer',
+                    fontFamily: 'Italiana', letterSpacing: '2px', fontSize: '1rem',
+                    transition: 'all 0.3s', backdropFilter: 'blur(10px)'
+                });
+                btn.onclick = clickHandler;
+                return btn;
+            };
+
+            const toggleBtn = createBtn('EDIT MODE', 'edit-toggle-btn', 'transparent', null);
+            document.body.appendChild(toggleBtn);
+
+            let isEditing = false;
+            const textSelect = 'h1, h2, h3, h4, p, span, a, div';
+
+            const zones = [
+                { id: 'skills', itemSel: '.skill-word', containerSel: '#skills-container', type: 'skill' },
+                { id: 'projects', itemSel: '.project-item', containerSel: '#projects-container', type: 'card' },
+                { id: 'experience', itemSel: '.exp-row', containerSel: '#experience-container', type: 'card' },
+                { id: 'certifications', itemSel: '.exp-row', containerSel: '#certifications-container', type: 'card' }
+            ];
+
+            const cleanupUI = () => {
+                document.querySelectorAll('.edit-ui-element').forEach(el => el.remove());
+                document.querySelectorAll(textSelect).forEach(el => {
+                    el.contentEditable = 'false';
+                    el.style.outline = 'none';
+                    el.style.cursor = 'default';
+                });
+            };
+
+            const enableEditing = () => {
+                document.querySelectorAll(textSelect).forEach(el => {
+                    // Filter unnecessary divs to avoid mess
+                    if (el.tagName === 'DIV' && !el.classList.contains('role-text') && !el.classList.contains('exp-detail')) return;
+
+                    el.contentEditable = 'true';
+                    el.style.outline = '1px solid rgba(212, 175, 55, 0.3)';
+                    el.style.cursor = 'text';
+
+                    if (el.tagName === 'A') {
+                        el.onclick = (e) => {
+                            if (isEditing) {
+                                e.preventDefault();
+                                e.stopImmediatePropagation();
+                                const newUrl = prompt('Edit Link URL:', el.getAttribute('href'));
+                                if (newUrl !== null) el.setAttribute('href', newUrl);
+                            }
+                        };
+                    }
+                });
+
+                zones.forEach(zone => {
+                    const container = document.querySelector(zone.containerSel);
+                    if (!container) return;
+
+                    container.querySelectorAll(zone.itemSel).forEach(item => {
+                        if (item.querySelector('.delete-btn')) return;
+                        item.style.position = 'relative';
+                        const delBtn = document.createElement('button');
+                        delBtn.innerHTML = '×';
+                        delBtn.className = 'edit-ui-element delete-btn';
+                        Object.assign(delBtn.style, {
+                            position: 'absolute', top: '0', right: '0',
+                            background: '#d4af37', color: 'black', border: 'none',
+                            width: '20px', height: '20px', cursor: 'pointer', zIndex: '100'
+                        });
+                        delBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            if (confirm('Delete?')) item.remove();
+                        };
+                        item.appendChild(delBtn);
+                    });
+
+                    // Add Button Logic
+                    if (zone.type === 'skill') {
+                        // For marquee, its harder.
+                    } else if (!container.parentElement.querySelector(`.add-btn-${zone.id}`)) {
+                        const addBtn = document.createElement('button');
+                        addBtn.innerText = '+ Add Item';
+                        addBtn.className = `edit-ui-element add-btn-${zone.id}`;
+                        Object.assign(addBtn.style, {
+                            display: 'block', margin: '2rem auto', padding: '10px 20px',
+                            background: 'transparent', color: '#d4af37', border: '1px dashed #d4af37',
+                            fontFamily: 'Italiana', cursor: 'pointer'
+                        });
+                        addBtn.onclick = () => {
+                            const tempItem = container.querySelector(zone.itemSel);
+                            if (tempItem) {
+                                const clone = tempItem.cloneNode(true);
+                                clone.querySelectorAll('.edit-ui-element').forEach(e => e.remove());
+                                container.appendChild(clone);
+                                enableEditing();
+                            }
+                        }
+                        container.after(addBtn);
+                    }
+                });
+            };
+
+            const saveChanges = () => {
+                toggleBtn.innerText = 'SAVING...';
+                cleanupUI();
+                toggleBtn.remove();
+                const fullHtml = document.documentElement.outerHTML;
+                const filename = window.location.pathname.split('/').pop();
+                document.body.appendChild(toggleBtn);
+                toggleBtn.innerText = 'EDIT MODE';
+
+                fetch('/update-portfolio', {
+                    method: 'POST', body: JSON.stringify({ filename, html: fullHtml }), headers: { 'Content-Type': 'application/json' }
+                }).then(res => res.json()).then(d => alert(d.status === 'success' ? 'SAVED' : 'ERROR'));
+            };
+
+            toggleBtn.onclick = () => {
+                isEditing = !isEditing;
+                if (isEditing) {
+                    toggleBtn.innerText = 'SAVE CHANGES';
+                    toggleBtn.style.background = '#d4af37';
+                    toggleBtn.style.color = 'black';
+                    enableEditing();
+                } else {
+                    saveChanges();
+                }
+            };
+        });
+    </script>
+</body>
+
+</html>
