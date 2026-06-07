@@ -31,7 +31,7 @@ const AssessmentIntro: React.FC = () => {
                         animate={{ opacity: 1, y: 0 }}
                         className="inline-flex items-center gap-2 bg-[#7C3AED]/10 text-[#7C3AED] px-6 py-2 rounded-full mb-8 border border-[#7C3AED]/10"
                     >
-                        <Sparkles className="w-4 h-4" />
+
                         <span className="text-[10px] font-black uppercase tracking-[0.4em]">Proprietary Clinical Engine</span>
                     </motion.div>
 

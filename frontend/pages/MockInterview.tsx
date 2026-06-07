@@ -212,7 +212,7 @@ export default function MockInterview() {
         return () => clearInterval(interval);
     }, []);
 
-     useEffect(() => {
+    useEffect(() => {
         if (isSpeaking) {
             mouthIntervalRef.current = setInterval(() => {
                 setMouthOpen(m => !m);
@@ -279,7 +279,7 @@ export default function MockInterview() {
         try {
             const res = await fetch(`${API_BASE_URL}/api/interview/setup`, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'X-Groq-API-Key': apiKey
                 },
@@ -313,7 +313,7 @@ export default function MockInterview() {
         if (!userInput.trim() || isSending || isSpeaking) return;
         const turn = userInput;
         const lastQ = messages.filter(m => m.role === 'interviewer').slice(-1)[0]?.content || "";
-         setMessages(prev => [...prev, { role: 'user', content: turn, timestamp: new Date().toLocaleTimeString() }]);
+        setMessages(prev => [...prev, { role: 'user', content: turn, timestamp: new Date().toLocaleTimeString() }]);
 
         const isSkip = checkSkip(turn);
         const actualResponse = isSkip ? turn : turn;
@@ -333,7 +333,7 @@ export default function MockInterview() {
         setIsSending(true);
         setIsThinking(true);
         try {
-             if (isDummyMode) {
+            if (isDummyMode) {
                 setTimeout(() => {
                     dummyQIdxRef.current++;
                     if (dummyQIdxRef.current >= 5) advanceRound();
@@ -344,12 +344,12 @@ export default function MockInterview() {
                     }
                     setIsThinking(false);
                     setIsSending(false);
-                }, 400); 
+                }, 400);
                 return;
             }
-             const res = await fetch(`${API_BASE_URL}/api/interview/chat`, {
+            const res = await fetch(`${API_BASE_URL}/api/interview/chat`, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'X-Groq-API-Key': apiKey
                 },
@@ -385,7 +385,7 @@ export default function MockInterview() {
             // Fetch first question of next round from AI
             const res = await fetch(`${API_BASE_URL}/api/interview/chat`, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'X-Groq-API-Key': apiKey
                 },
@@ -431,7 +431,7 @@ export default function MockInterview() {
         }
         setIsSpeaking(false);
         setIsListening(false);
-        
+
         // Reset all interview state
         setStep('INTRO');
         setRoundIndex(0);
@@ -442,7 +442,7 @@ export default function MockInterview() {
         setAllResponses([]);
         setReport(null);
         setUserInput('');
-        
+
         // Redirect to dashboard/learner page
         navigate('/dashboard/learner');
     };
@@ -468,7 +468,7 @@ export default function MockInterview() {
         setVoiceTranscript('');
         setMessages(prev => [...prev, { role: 'user', content: text, timestamp: new Date().toLocaleTimeString() }]);
 
-         const isSkip = checkSkip(text);
+        const isSkip = checkSkip(text);
         const actualText = isSkip ? "I don't know the answer to this, next question please." : text;
 
         const newResponse: UserResponse = {
@@ -499,9 +499,9 @@ export default function MockInterview() {
                 }, 1000);
                 return;
             }
-             const res = await fetch(`${API_BASE_URL}/api/interview/chat`, {
+            const res = await fetch(`${API_BASE_URL}/api/interview/chat`, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'X-Groq-API-Key': apiKey
                 },
@@ -518,9 +518,9 @@ export default function MockInterview() {
                 setMessages(prev => [...prev, { role: 'interviewer', content: data.interviewer_text, timestamp: new Date().toLocaleTimeString() }]);
                 speak(data.interviewer_text, 2);
             }
-        } catch (err) { 
+        } catch (err) {
             setIsThinking(false);
-            console.error(err); 
+            console.error(err);
         } finally { setIsSending(false); }
     };
 
@@ -575,7 +575,7 @@ export default function MockInterview() {
         }
         setIsSpeaking(false);
         setIsListening(false);
-        
+
         setStep('REPORT');
         setLoadingReport(true);
         if (!sessionId || isDummyMode) {
@@ -761,7 +761,7 @@ export default function MockInterview() {
                                         </div>
                                     ))}
                                 </div>
-                                
+
                                 <button onClick={() => setStep('API_KEY')} className="sp-btn">
                                     <span className="sp-orb sp-orb1" />
                                     <span className="sp-orb sp-orb2" />
@@ -804,27 +804,27 @@ export default function MockInterview() {
                                         <ShieldCheck size={14} /> Protocol Requirement
                                     </div>
                                     <p className="text-[11px] text-amber-800 leading-relaxed font-semibold">
-                                        Our AI engine requires a <strong>Groq API Key</strong> to process low-latency conversations. 
+                                        Our AI engine requires a <strong>Groq API Key</strong> to process low-latency conversations.
                                         Don't have one? Get a free key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-900">console.groq.com</a>
                                     </p>
                                 </div>
-                                
+
                                 <div className="space-y-3">
                                     <label className="text-[10px] font-black text-black uppercase tracking-widest ml-4">Groq API Key</label>
                                     <div className="relative">
                                         <Zap className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" />
-                                        <input 
-                                            type={showingKey ? "text" : "password"} 
-                                            placeholder="gsk_..." 
-                                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-14 py-4 text-xs font-bold focus:ring-4 focus:ring-violet-500/10 placeholder:text-gray-300" 
-                                            value={apiKey} 
-                                            onChange={e => setApiKey(e.target.value)} 
+                                        <input
+                                            type={showingKey ? "text" : "password"}
+                                            placeholder="gsk_..."
+                                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-14 py-4 text-xs font-bold focus:ring-4 focus:ring-violet-500/10 placeholder:text-gray-300"
+                                            value={apiKey}
+                                            onChange={e => setApiKey(e.target.value)}
                                         />
-                                        <button 
+                                        <button
                                             onClick={() => setShowingKey(!showingKey)}
                                             className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black transition-colors"
                                         >
-                                            <Sparkles size={16} />
+
                                         </button>
                                     </div>
                                 </div>
@@ -910,7 +910,7 @@ export default function MockInterview() {
                                         .auth-orb3 { width:18px; height:18px; background:radial-gradient(circle,rgba(167,139,250,0.9),transparent 70%); top:4px; right:18px;  animation:auth-orb3 2.6s ease-in-out infinite; }
                                         .auth-label { position:relative; z-index:5; display:flex; align-items:center; gap:16px; }
                                     `}</style>
-                                    <button 
+                                    <button
                                         onClick={() => {
                                             if (apiKey.startsWith('gsk_')) {
                                                 localStorage.setItem('groq_api_key', apiKey);
@@ -918,8 +918,8 @@ export default function MockInterview() {
                                             } else {
                                                 alert("Invalid key format. Groq keys usually start with 'gsk_'.");
                                             }
-                                        }} 
-                                        disabled={!apiKey.trim()} 
+                                        }}
+                                        disabled={!apiKey.trim()}
                                         className="auth-btn"
                                     >
                                         <span className="auth-orb auth-orb1" />
@@ -1048,22 +1048,22 @@ export default function MockInterview() {
                                             {(isSending || isSpeaking) && <div className="flex items-center gap-2 text-gray-400 italic text-[10px] ml-4"><div className="w-1.5 h-1.5 bg-[#7C3AED] rounded-full animate-bounce" /><span>Alex is thinking...</span></div>}
                                             <div ref={chatEndRef} />
                                         </div>
-                                         <div className="p-8 border-t border-gray-50 bg-gray-50/50 flex flex-col gap-4">
+                                        <div className="p-8 border-t border-gray-50 bg-gray-50/50 flex flex-col gap-4">
                                             <AnimatePresence>
                                                 {showHint && (
-                                                    <motion.div 
-                                                        initial={{ opacity: 0, y: 10, scale: 0.95 }} 
-                                                        animate={{ opacity: 1, y: 0, scale: 1 }} 
-                                                        exit={{ opacity: 0, y: 10, scale: 0.95 }} 
+                                                    <motion.div
+                                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
                                                         className="flex flex-wrap gap-2 mb-2 p-3 bg-[#7C3AED]/5 rounded-2xl border border-[#7C3AED]/10 animate-pulse"
                                                     >
                                                         <span className="text-[9px] font-black text-[#7C3AED] uppercase tracking-widest mr-2 flex items-center gap-1">
                                                             <AlertCircle className="w-3 h-3" /> Quick Actions:
                                                         </span>
                                                         {['skip', 'idont know', 'next question'].map(hint => (
-                                                            <button 
-                                                                key={hint} 
-                                                                onClick={async () => { 
+                                                            <button
+                                                                key={hint}
+                                                                onClick={async () => {
                                                                     if (isSending || isSpeaking) return;
                                                                     const val = hint.toUpperCase();
                                                                     setMessages(prev => [...prev, { role: 'user', content: val, timestamp: new Date().toLocaleTimeString() }]);
@@ -1072,7 +1072,7 @@ export default function MockInterview() {
                                                                     try {
                                                                         const res = await fetch(`${API_BASE_URL}/api/interview/chat`, {
                                                                             method: 'POST',
-                                                                            headers: { 
+                                                                            headers: {
                                                                                 'Content-Type': 'application/json',
                                                                                 'X-Groq-API-Key': apiKey
                                                                             },
@@ -1088,7 +1088,7 @@ export default function MockInterview() {
                                                                     } catch (e) {
                                                                         setIsThinking(false);
                                                                     } finally { setIsSending(false); }
-                                                                }} 
+                                                                }}
                                                                 className="px-4 py-1.5 bg-white border border-violet-100 rounded-full text-[10px] font-black text-[#7C3AED] uppercase tracking-widest hover:bg-violet-50 transition-all shadow-sm"
                                                             >
                                                                 {hint}
@@ -1131,7 +1131,7 @@ export default function MockInterview() {
                                                     <p key={i} className="text-xl text-white font-medium italic leading-relaxed">"{m.content}"</p>
                                                 ))}
                                             </div>
-                                             {voiceTranscript && (
+                                            {voiceTranscript && (
                                                 <div className="bg-black/20 p-8 rounded-3xl border border-white/5 mb-8">
                                                     <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-4">Transcription Engine:</p>
                                                     <p className="text-sm text-cyan-200/60 font-medium italic">"{voiceTranscript}"</p>
@@ -1139,9 +1139,9 @@ export default function MockInterview() {
                                             )}
                                             <AnimatePresence>
                                                 {showHint && (
-                                                    <motion.div 
-                                                        initial={{ opacity: 0, scale: 0.9 }} 
-                                                        animate={{ opacity: 1, scale: 1 }} 
+                                                    <motion.div
+                                                        initial={{ opacity: 0, scale: 0.9 }}
+                                                        animate={{ opacity: 1, scale: 1 }}
                                                         exit={{ opacity: 0, scale: 0.9 }}
                                                         className="mb-8 p-4 bg-white/5 border border-white/10 rounded-2xl text-center backdrop-blur-md"
                                                     >

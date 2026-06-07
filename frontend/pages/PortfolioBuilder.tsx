@@ -26,7 +26,7 @@ import {
 import { API_BASE_URL } from '../apiConfig';
 
 /* ── Reusable animation variants ── */
-const fadeUp = {
+const fadeUp: any = {
   hidden: { opacity: 0, y: 20 },
   show: (i = 0) => ({
     opacity: 1,
@@ -35,12 +35,12 @@ const fadeUp = {
   }),
 };
 
-const stagger = {
+const stagger: any = {
   hidden: {},
   show: { transition: { staggerChildren: 0.08 } },
 };
 
-const scaleIn = {
+const scaleIn: any = {
   hidden: { opacity: 0, scale: 0.92 },
   show: (i = 0) => ({
     opacity: 1,

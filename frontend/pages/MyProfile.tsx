@@ -6,8 +6,8 @@ import QRCode from 'qrcode';
 import { useAuth } from '../AuthContext';
 import { API_BASE_URL } from '../apiConfig';
 import {
-  User, FileText, Book, Award, Briefcase, 
-  Terminal, Share2, Settings, ShieldCheck, 
+  User, FileText, Book, Award, Briefcase,
+  Terminal, Share2, Settings, ShieldCheck,
   ChevronLeft, Plus, Save, Sparkles, Scan,
   Globe, MapPin, Calendar, Heart, GraduationCap, Download, Copy
 } from 'lucide-react';
@@ -15,6 +15,7 @@ import AvatarImage from '../components/AvatarImage';
 
 const MyProfile: React.FC = () => {
   const { user, updateUser } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('basic');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -91,9 +92,9 @@ const MyProfile: React.FC = () => {
   const resumeInputRef = useRef<HTMLInputElement>(null);
   const shareTemplateRef = useRef<HTMLDivElement>(null);
 
-  const [sectionStatus, setSectionStatus] = useState<Record<string, 'saving' | 'saved' | 'error' | null>>({});
+  const [sectionStatus, setSectionStatus] = useState<{ section: string; type: 'success' | 'error'; message: string } | null>(null);
   const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false);
-  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState<{ target: string; type: 'success' | 'error'; message: string } | null>(null);
   const [isFetchingGithub, setIsFetchingGithub] = useState(false);
   const [githubError, setGithubError] = useState<string | null>(null);
   const [githubAnalytics, setGithubAnalytics] = useState<any>(null);
@@ -247,8 +248,8 @@ const MyProfile: React.FC = () => {
         setTimeout(() => setSaveStatus(null), 2000);
       }
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-        setSaveStatus({ type: 'error', message: 'Delete failed: ' + errorMessage });
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setSaveStatus({ type: 'error', message: 'Delete failed: ' + errorMessage });
       setTimeout(() => setSaveStatus(null), 3000);
     }
   };
@@ -448,9 +449,9 @@ const MyProfile: React.FC = () => {
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
   };
   const APP_BASE_URL = (import.meta as any).env?.VITE_PUBLIC_URL || window.location.origin;
-const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
-  ? `${APP_BASE_URL}/profile/${user.user_id}`
-  : '';
+  const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
+    ? `${APP_BASE_URL}/profile/${user.user_id}`
+    : '';
 
   const profileShareCaption = `${profileDisplayName} | Studlyf\n${profileRole}\n${profileHeadline}`;
   const whatsappShareText = [
@@ -485,7 +486,7 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
         n.id = '';
         // preserve text content but reset styles
         n.style.cssText = 'box-sizing:border-box; color:#111827; background:transparent;';
-      } catch (e) {}
+      } catch (e) { }
     }
 
     // Wrap clone in a container with explicit clean styles
@@ -508,28 +509,28 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
       const canvas = await html2canvas(container, { backgroundColor: null, scale: 2, useCORS: true });
       return canvas;
     } finally {
-      try { document.body.removeChild(container); } catch (e) {}
+      try { document.body.removeChild(container); } catch (e) { }
     }
   };
   const generateProfileCardBlob = async (): Promise<{ blob: Blob; dataUrl: string }> => {
-  const issueDate = new Date().toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-  const profileSummaryText = formData.bio || formData.careerGoal || 'A motivated community member building credible project experience, collaborative skills, and a professional public profile.';
-  const communityQuote = 'Dreaming something huge in life? Then Studlyf is the best opportunity to build, learn, and lead.';
-  const skills = formData.skills.map(skill => skill.name).filter(Boolean).slice(0, 16);
-  const certifications = formData.certifications.map(cert => cert.name).filter(Boolean).slice(0, 10);
-  const educationList = [...formData.educationList, formData.education]
-    .filter(item => item.institution || item.degree || item.specialization)
-    .slice(0, 3);
-  const experienceList = formData.experienceList.slice(0, 4);
-  const projectList = formData.projects.slice(0, 4).map(project => project.title || project.description || 'Project');
-  const achievements = formData.achievements.slice(0, 4).map(item => item.title || item.organization || 'Achievement');
-  const interests = formData.interests.filter(Boolean).slice(0, 10);
-  const qrDataUrl = publicProfileUrl
-    ? await QRCode.toDataURL(publicProfileUrl, {
+    const issueDate = new Date().toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+    const profileSummaryText = formData.bio || formData.careerGoal || 'A motivated community member building credible project experience, collaborative skills, and a professional public profile.';
+    const communityQuote = 'Dreaming something huge in life? Then Studlyf is the best opportunity to build, learn, and lead.';
+    const skills = formData.skills.map(skill => skill.name).filter(Boolean).slice(0, 16);
+    const certifications = formData.certifications.map(cert => cert.name).filter(Boolean).slice(0, 10);
+    const educationList = [...formData.educationList, formData.education]
+      .filter(item => item.institution || item.degree || item.specialization)
+      .slice(0, 3);
+    const experienceList = formData.experienceList.slice(0, 4);
+    const projectList = formData.projects.slice(0, 4).map(project => project.title || project.description || 'Project');
+    const achievements = formData.achievements.slice(0, 4).map(item => item.title || item.organization || 'Achievement');
+    const interests = formData.interests.filter(Boolean).slice(0, 10);
+    const qrDataUrl = publicProfileUrl
+      ? await QRCode.toDataURL(publicProfileUrl, {
         width: 160,
         margin: 1,
         color: {
@@ -537,311 +538,311 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
           light: '#f8fafc',
         },
       })
-    : null;
+      : null;
 
-  const contactItems = [
-    { label: 'Location', value: formData.location || 'Not provided' },
-    { label: 'Phone', value: formData.phone || 'Not provided' },
-    { label: 'LinkedIn', value: formData.linkedin || 'Not provided' },
-    { label: 'Portfolio', value: formData.portfolio || 'Not provided' },
-  ];
-  if (formData.githubUsername) {
-    contactItems.push({ label: 'GitHub', value: `github.com/${formData.githubUsername}` });
-  }
-
-  const container = document.createElement('div');
-  container.style.width = '900px';
-  container.style.margin = '0';
-  container.style.padding = '0';
-  container.style.boxSizing = 'border-box';
-  container.style.background = '#e5e7eb';
-  container.style.fontFamily = 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial';
-  container.style.position = 'fixed';
-  container.style.left = '-99999px';
-  container.style.top = '0';
-
-  const card = document.createElement('div');
-  card.style.width = '900px';
-  card.style.minHeight = '1250px';
-  card.style.boxSizing = 'border-box';
-  card.style.background = '#ffffff';
-  card.style.position = 'relative';
-  card.style.overflow = 'hidden';
-  card.style.border = '1px solid #d1d5db';
-  card.style.boxShadow = '0 24px 80px rgba(15, 23, 42, 0.12)';
-
-  const topAccent = document.createElement('div');
-  topAccent.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:260px;background:linear-gradient(135deg,#fde68a 0%,#fbcfe8 100%);clip-path:polygon(0 0,100% 0,100% 62%,0 100%);z-index:1;';
-  card.appendChild(topAccent);
-
-  const header = document.createElement('div');
-  header.style.cssText = 'position:relative;display:flex;align-items:flex-start;justify-content:space-between;padding:40px 56px 0;gap:24px;z-index:2;';
-
-  const nameBlock = document.createElement('div');
-  nameBlock.style.cssText = 'display:flex;flex-direction:column;gap:10px;max-width:620px;';
-  const nameTitle = document.createElement('div');
-  nameTitle.style.cssText = 'font-size:42px;font-weight:900;color:#0f172a;line-height:1.05;font-family:Georgia, "Times New Roman", serif;';
-  nameTitle.innerText = profileDisplayName || 'Your Name';
-  const roleSubtitle = document.createElement('div');
-  roleSubtitle.style.cssText = 'font-size:18px;font-weight:700;color:#334155;letter-spacing:0.01em;';
-  roleSubtitle.innerText = profileRole || 'Professional Profile';
-  const tagline = document.createElement('div');
-  tagline.style.cssText = 'font-size:14px;line-height:1.8;color:#475569;max-width:760px;';
-  tagline.innerText = profileHeadlineText;
-  const dateText = document.createElement('div');
-  dateText.style.cssText = 'font-size:12px;color:#475569;';
-  dateText.innerText = `Prepared on ${issueDate}`;
-  nameBlock.appendChild(nameTitle);
-  nameBlock.appendChild(roleSubtitle);
-  nameBlock.appendChild(tagline);
-  nameBlock.appendChild(dateText);
-
-  const avatarFrame = document.createElement('div');
-  avatarFrame.style.cssText = 'width:140px;height:140px;border-radius:28px;overflow:hidden;background:#fff;border:4px solid rgba(255,255,255,0.88);box-shadow:0 20px 40px rgba(15,23,42,0.14);display:flex;align-items:center;justify-content:center;flex-shrink:0;';
-  if (formData.profilePhoto) {
-    const avatarImg = document.createElement('img');
-    avatarImg.style.cssText = 'width:100%;height:100%;object-fit:cover;';
-    avatarImg.src = formData.profilePhoto;
-    avatarImg.alt = 'Profile';
-    avatarFrame.appendChild(avatarImg);
-  } else {
-    const placeholder = document.createElement('div');
-    placeholder.style.cssText = 'font-size:36px;font-weight:900;color:#64748b;';
-    placeholder.innerText = profileDisplayName
-      ? profileDisplayName.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase()
-      : 'NA';
-    avatarFrame.appendChild(placeholder);
-  }
-
-  header.appendChild(nameBlock);
-  header.appendChild(avatarFrame);
-  card.appendChild(header);
-
-  const profileLabel = document.createElement('div');
-  profileLabel.style.cssText = 'position:relative;z-index:2;text-align:center;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:0.3em;color:#334155;margin:18px 56px 0;';
-  profileLabel.innerText = 'Profile';
-  card.appendChild(profileLabel);
-
-  const divider = document.createElement('div');
-  divider.style.cssText = 'height:1px;background:#e2e8f0;margin:16px 56px 24px;';
-  card.appendChild(divider);
-
-  const main = document.createElement('div');
-  main.style.cssText = 'display:grid;grid-template-columns:1.15fr 0.85fr;gap:24px;padding:0 56px 44px;';
-
-  const leftColumn = document.createElement('div');
-  leftColumn.style.cssText = 'display:flex;flex-direction:column;gap:20px;';
-
-  const section = (title: string, content: HTMLElement[]) => {
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'padding:24px;border-radius:24px;background:#f8fafc;border:1px solid #e2e8f0;';
-    const heading = document.createElement('div');
-    heading.style.cssText = 'font-size:14px;font-weight:900;color:#0f172a;text-transform:uppercase;letter-spacing:0.2em;margin-bottom:16px;';
-    heading.innerText = title;
-    wrapper.appendChild(heading);
-    content.forEach(node => wrapper.appendChild(node));
-    return wrapper;
-  };
-
-  const summaryBlock = document.createElement('div');
-  summaryBlock.style.cssText = 'font-size:14px;line-height:1.8;color:#475569;';
-  summaryBlock.innerText = profileSummaryText;
-  leftColumn.appendChild(section('Professional Summary', [summaryBlock]));
-
-  const createList = (items: string[]) => {
-    const list = document.createElement('div');
-    list.style.cssText = 'display:flex;flex-direction:column;gap:10px;';
-    items.forEach(item => {
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;gap:12px;align-items:flex-start;';
-      const dot = document.createElement('div');
-      dot.style.cssText = 'width:8px;height:8px;margin-top:7px;border-radius:999px;background:#0f172a;flex-shrink:0;';
-      const text = document.createElement('div');
-      text.style.cssText = 'font-size:13px;line-height:1.75;color:#475569;';
-      text.innerText = item;
-      row.appendChild(dot);
-      row.appendChild(text);
-      list.appendChild(row);
-    });
-    return list;
-  };
-
-  const experienceItems = experienceList.length > 0
-    ? experienceList.map(exp => `${exp.role || 'Role'} at ${exp.company || 'Company'} (${exp.type || 'Type'})`) 
-    : projectList.map((project, index) => `Project ${index + 1}: ${project}`);
-  if (experienceItems.length) {
-    leftColumn.appendChild(section('Work & Projects', [createList(experienceItems)]));
-  }
-
-  const educationNodes = educationList.map(item => {
-    const block = document.createElement('div');
-    block.style.cssText = 'display:flex;flex-direction:column;gap:6px;padding-bottom:12px;border-bottom:1px solid #e2e8f0;';
-    const titleLine = document.createElement('div');
-    titleLine.style.cssText = 'font-size:14px;font-weight:700;color:#0f172a;';
-    titleLine.innerText = `${item.degree || item.specialization || 'Education'} • ${item.institution || 'Institution'}`;
-    const period = document.createElement('div');
-    period.style.cssText = 'font-size:12px;color:#64748b;';
-    period.innerText = `${item.startYear || ''} – ${item.endYear || ''}`.trim();
-    block.appendChild(titleLine);
-    if (period.innerText) block.appendChild(period);
-    return block;
-  });
-  if (educationNodes.length) {
-    leftColumn.appendChild(section('Education', educationNodes));
-  }
-
-  const rightColumn = document.createElement('div');
-  rightColumn.style.cssText = 'display:flex;flex-direction:column;gap:20px;';
-
-  const contactItemsNodes = contactItems.map(item => {
-    const itemRow = document.createElement('div');
-    itemRow.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
-    const label = document.createElement('div');
-    label.style.cssText = 'font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.18em;';
-    label.innerText = item.label;
-    const value = document.createElement('div');
-    value.style.cssText = 'font-size:13px;color:#0f172a;font-weight:700;word-break:break-word;';
-    value.innerText = item.value;
-    itemRow.appendChild(label);
-    itemRow.appendChild(value);
-    return itemRow;
-  });
-  rightColumn.appendChild(section('Contact', contactItemsNodes));
-
-  if (skills.length) {
-    const skillsList = createList(skills);
-    rightColumn.appendChild(section('Skills', [skillsList]));
-  }
-
-  if (certifications.length) {
-    const certList = createList(certifications);
-    rightColumn.appendChild(section('Certifications', [certList]));
-  }
-
-  if (interests.length) {
-    const interestGrid = document.createElement('div');
-    interestGrid.style.cssText = 'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;';
-    interests.forEach(interest => {
-      const tag = document.createElement('div');
-      tag.style.cssText = 'padding:10px 12px;border-radius:999px;background:#f8fafc;color:#0f172a;font-size:12px;font-weight:700;border:1px solid #e2e8f0;';
-      tag.innerText = interest;
-      interestGrid.appendChild(tag);
-    });
-    rightColumn.appendChild(section('Interests', [interestGrid]));
-  }
-
-  if (achievements.length) {
-    rightColumn.appendChild(section('Achievements', [createList(achievements)]));
-  }
-
-  if (formData.githubUsername || githubAnalytics) {
-    const githubBlock = document.createElement('div');
-    githubBlock.style.cssText = 'display:flex;flex-direction:column;gap:12px;';
-    const githubLabel = document.createElement('div');
-    githubLabel.style.cssText = 'font-size:12px;font-weight:700;color:#0f172a;';
-    githubLabel.innerText = 'GitHub Insights';
-    const githubLink = document.createElement('div');
-    githubLink.style.cssText = 'font-size:13px;font-weight:700;color:#1d4ed8;word-break:break-word;';
-    githubLink.innerText = formData.githubUsername ? `github.com/${formData.githubUsername}` : 'No GitHub username provided';
-    githubBlock.appendChild(githubLabel);
-    githubBlock.appendChild(githubLink);
-
-    if (githubAnalytics) {
-      const scoreRow = document.createElement('div');
-      scoreRow.style.cssText = 'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;';
-      const addMetric = (label: string, value: string) => {
-        const metric = document.createElement('div');
-        metric.style.cssText = 'padding:12px;border-radius:18px;background:#eff6ff;';
-        const metricLabel = document.createElement('div');
-        metricLabel.style.cssText = 'font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.16em;color:#0f172a;margin-bottom:6px;';
-        metricLabel.innerText = label;
-        const metricValue = document.createElement('div');
-        metricValue.style.cssText = 'font-size:18px;font-weight:900;color:#111827;';
-        metricValue.innerText = value;
-        metric.appendChild(metricLabel);
-        metric.appendChild(metricValue);
-        return metric;
-      };
-      scoreRow.appendChild(addMetric('Score', `${githubAnalytics.score}/100`));
-      scoreRow.appendChild(addMetric('Repos', String(githubAnalytics.repoCount)));
-      scoreRow.appendChild(addMetric('Stars', String(githubAnalytics.totalStars)));
-      scoreRow.appendChild(addMetric('Forks', String(githubAnalytics.totalForks)));
-      githubBlock.appendChild(scoreRow);
-      const languagesRow = document.createElement('div');
-      languagesRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;';
-      githubAnalytics.topLanguages.slice(0, 5).forEach(lang => {
-        const chip = document.createElement('div');
-        chip.style.cssText = 'padding:8px 12px;border-radius:999px;background:#e0e7ff;color:#3730a3;font-size:12px;font-weight:800;';
-        chip.innerText = lang;
-        languagesRow.appendChild(chip);
-      });
-      githubBlock.appendChild(languagesRow);
+    const contactItems = [
+      { label: 'Location', value: formData.location || 'Not provided' },
+      { label: 'Phone', value: formData.phone || 'Not provided' },
+      { label: 'LinkedIn', value: formData.linkedin || 'Not provided' },
+      { label: 'Portfolio', value: formData.portfolio || 'Not provided' },
+    ];
+    if (formData.githubUsername) {
+      contactItems.push({ label: 'GitHub', value: `github.com/${formData.githubUsername}` });
     }
 
-    rightColumn.appendChild(section('GitHub', [githubBlock]));
-  }
+    const container = document.createElement('div');
+    container.style.width = '900px';
+    container.style.margin = '0';
+    container.style.padding = '0';
+    container.style.boxSizing = 'border-box';
+    container.style.background = '#e5e7eb';
+    container.style.fontFamily = 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial';
+    container.style.position = 'fixed';
+    container.style.left = '-99999px';
+    container.style.top = '0';
 
-  const qrSection = document.createElement('div');
-  qrSection.style.cssText = 'padding:20px;border-radius:24px;background:#f8fafc;border:1px solid #e2e8f0;display:flex;flex-direction:column;gap:14px;align-items:center;';
-  const qrTitle = document.createElement('div');
-  qrTitle.style.cssText = 'font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.18em;';
-  qrTitle.innerText = 'Profile QR Code';
-  qrSection.appendChild(qrTitle);
-  if (qrDataUrl) {
-    const qrImg = document.createElement('img');
-    qrImg.src = qrDataUrl;
-    qrImg.alt = 'Profile QR code';
-    qrImg.style.cssText = 'width:140px;height:140px;border-radius:20px;background:#fff;padding:10px;';
-    qrSection.appendChild(qrImg);
-  }
-  const qrDescription = document.createElement('div');
-  qrDescription.style.cssText = 'font-size:12px;color:#475569;text-align:center;line-height:1.6;';
-  qrDescription.innerText = publicProfileUrl ? 'Scan to open the public profile instantly.' : 'Save the profile to enable the QR link.';
-  qrSection.appendChild(qrDescription);
-  rightColumn.appendChild(qrSection);
+    const card = document.createElement('div');
+    card.style.width = '900px';
+    card.style.minHeight = '1250px';
+    card.style.boxSizing = 'border-box';
+    card.style.background = '#ffffff';
+    card.style.position = 'relative';
+    card.style.overflow = 'hidden';
+    card.style.border = '1px solid #d1d5db';
+    card.style.boxShadow = '0 24px 80px rgba(15, 23, 42, 0.12)';
 
-  main.appendChild(leftColumn);
-  main.appendChild(rightColumn);
-  card.appendChild(main);
+    const topAccent = document.createElement('div');
+    topAccent.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:260px;background:linear-gradient(135deg,#fde68a 0%,#fbcfe8 100%);clip-path:polygon(0 0,100% 0,100% 62%,0 100%);z-index:1;';
+    card.appendChild(topAccent);
 
-  const footer = document.createElement('div');
-  footer.style.cssText = 'padding:24px 56px 28px;display:flex;justify-content:space-between;align-items:center;gap:20px;border-top:1px solid #e2e8f0;background:#f8fafc;';
-  const footerLeft = document.createElement('div');
-  footerLeft.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
-  const footerTitle = document.createElement('div');
-  footerTitle.style.cssText = 'font-size:12px;font-weight:800;color:#0f172a;';
-  footerTitle.innerText = 'Studlyf Professional Resume';
-  const footerNote = document.createElement('div');
-  footerNote.style.cssText = 'font-size:12px;color:#64748b;line-height:1.6;';
-  footerNote.innerText = 'Organized, readable, and ready to share with recruiters and network connections.';
-  footerLeft.appendChild(footerTitle);
-  footerLeft.appendChild(footerNote);
-  const footerRight = document.createElement('div');
-  footerRight.style.cssText = 'font-size:10px;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.18em;';
-  footerRight.innerText = 'studlyf.com';
-  footer.appendChild(footerLeft);
-  footer.appendChild(footerRight);
-  card.appendChild(footer);
+    const header = document.createElement('div');
+    header.style.cssText = 'position:relative;display:flex;align-items:flex-start;justify-content:space-between;padding:40px 56px 0;gap:24px;z-index:2;';
 
-  container.appendChild(card);
-  document.body.appendChild(container);
+    const nameBlock = document.createElement('div');
+    nameBlock.style.cssText = 'display:flex;flex-direction:column;gap:10px;max-width:620px;';
+    const nameTitle = document.createElement('div');
+    nameTitle.style.cssText = 'font-size:42px;font-weight:900;color:#0f172a;line-height:1.05;font-family:Georgia, "Times New Roman", serif;';
+    nameTitle.innerText = profileDisplayName || 'Your Name';
+    const roleSubtitle = document.createElement('div');
+    roleSubtitle.style.cssText = 'font-size:18px;font-weight:700;color:#334155;letter-spacing:0.01em;';
+    roleSubtitle.innerText = profileRole || 'Professional Profile';
+    const tagline = document.createElement('div');
+    tagline.style.cssText = 'font-size:14px;line-height:1.8;color:#475569;max-width:760px;';
+    tagline.innerText = profileHeadlineText;
+    const dateText = document.createElement('div');
+    dateText.style.cssText = 'font-size:12px;color:#475569;';
+    dateText.innerText = `Prepared on ${issueDate}`;
+    nameBlock.appendChild(nameTitle);
+    nameBlock.appendChild(roleSubtitle);
+    nameBlock.appendChild(tagline);
+    nameBlock.appendChild(dateText);
 
-  try {
-    const canvas = await html2canvas(container, {
-      backgroundColor: '#e5e7eb',
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
+    const avatarFrame = document.createElement('div');
+    avatarFrame.style.cssText = 'width:140px;height:140px;border-radius:28px;overflow:hidden;background:#fff;border:4px solid rgba(255,255,255,0.88);box-shadow:0 20px 40px rgba(15,23,42,0.14);display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+    if (formData.profilePhoto) {
+      const avatarImg = document.createElement('img');
+      avatarImg.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+      avatarImg.src = formData.profilePhoto;
+      avatarImg.alt = 'Profile';
+      avatarFrame.appendChild(avatarImg);
+    } else {
+      const placeholder = document.createElement('div');
+      placeholder.style.cssText = 'font-size:36px;font-weight:900;color:#64748b;';
+      placeholder.innerText = profileDisplayName
+        ? profileDisplayName.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase()
+        : 'NA';
+      avatarFrame.appendChild(placeholder);
+    }
+
+    header.appendChild(nameBlock);
+    header.appendChild(avatarFrame);
+    card.appendChild(header);
+
+    const profileLabel = document.createElement('div');
+    profileLabel.style.cssText = 'position:relative;z-index:2;text-align:center;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:0.3em;color:#334155;margin:18px 56px 0;';
+    profileLabel.innerText = 'Profile';
+    card.appendChild(profileLabel);
+
+    const divider = document.createElement('div');
+    divider.style.cssText = 'height:1px;background:#e2e8f0;margin:16px 56px 24px;';
+    card.appendChild(divider);
+
+    const main = document.createElement('div');
+    main.style.cssText = 'display:grid;grid-template-columns:1.15fr 0.85fr;gap:24px;padding:0 56px 44px;';
+
+    const leftColumn = document.createElement('div');
+    leftColumn.style.cssText = 'display:flex;flex-direction:column;gap:20px;';
+
+    const section = (title: string, content: HTMLElement[]) => {
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'padding:24px;border-radius:24px;background:#f8fafc;border:1px solid #e2e8f0;';
+      const heading = document.createElement('div');
+      heading.style.cssText = 'font-size:14px;font-weight:900;color:#0f172a;text-transform:uppercase;letter-spacing:0.2em;margin-bottom:16px;';
+      heading.innerText = title;
+      wrapper.appendChild(heading);
+      content.forEach(node => wrapper.appendChild(node));
+      return wrapper;
+    };
+
+    const summaryBlock = document.createElement('div');
+    summaryBlock.style.cssText = 'font-size:14px;line-height:1.8;color:#475569;';
+    summaryBlock.innerText = profileSummaryText;
+    leftColumn.appendChild(section('Professional Summary', [summaryBlock]));
+
+    const createList = (items: string[]) => {
+      const list = document.createElement('div');
+      list.style.cssText = 'display:flex;flex-direction:column;gap:10px;';
+      items.forEach(item => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:12px;align-items:flex-start;';
+        const dot = document.createElement('div');
+        dot.style.cssText = 'width:8px;height:8px;margin-top:7px;border-radius:999px;background:#0f172a;flex-shrink:0;';
+        const text = document.createElement('div');
+        text.style.cssText = 'font-size:13px;line-height:1.75;color:#475569;';
+        text.innerText = item;
+        row.appendChild(dot);
+        row.appendChild(text);
+        list.appendChild(row);
+      });
+      return list;
+    };
+
+    const experienceItems = experienceList.length > 0
+      ? experienceList.map(exp => `${exp.role || 'Role'} at ${exp.company || 'Company'} (${exp.type || 'Type'})`)
+      : projectList.map((project, index) => `Project ${index + 1}: ${project}`);
+    if (experienceItems.length) {
+      leftColumn.appendChild(section('Work & Projects', [createList(experienceItems)]));
+    }
+
+    const educationNodes = educationList.map(item => {
+      const block = document.createElement('div');
+      block.style.cssText = 'display:flex;flex-direction:column;gap:6px;padding-bottom:12px;border-bottom:1px solid #e2e8f0;';
+      const titleLine = document.createElement('div');
+      titleLine.style.cssText = 'font-size:14px;font-weight:700;color:#0f172a;';
+      titleLine.innerText = `${item.degree || item.specialization || 'Education'} • ${item.institution || 'Institution'}`;
+      const period = document.createElement('div');
+      period.style.cssText = 'font-size:12px;color:#64748b;';
+      period.innerText = `${item.startYear || ''} – ${item.endYear || ''}`.trim();
+      block.appendChild(titleLine);
+      if (period.innerText) block.appendChild(period);
+      return block;
     });
-    const dataUrl = canvas.toDataURL('image/png');
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((b) => b ? resolve(b) : reject(new Error('Blob generation failed')), 'image/png');
+    if (educationNodes.length) {
+      leftColumn.appendChild(section('Education', educationNodes));
+    }
+
+    const rightColumn = document.createElement('div');
+    rightColumn.style.cssText = 'display:flex;flex-direction:column;gap:20px;';
+
+    const contactItemsNodes = contactItems.map(item => {
+      const itemRow = document.createElement('div');
+      itemRow.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
+      const label = document.createElement('div');
+      label.style.cssText = 'font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.18em;';
+      label.innerText = item.label;
+      const value = document.createElement('div');
+      value.style.cssText = 'font-size:13px;color:#0f172a;font-weight:700;word-break:break-word;';
+      value.innerText = item.value;
+      itemRow.appendChild(label);
+      itemRow.appendChild(value);
+      return itemRow;
     });
-    return { blob, dataUrl };
-  } finally {
-    try { document.body.removeChild(container); } catch (e) {}
-  }
-};
+    rightColumn.appendChild(section('Contact', contactItemsNodes));
+
+    if (skills.length) {
+      const skillsList = createList(skills);
+      rightColumn.appendChild(section('Skills', [skillsList]));
+    }
+
+    if (certifications.length) {
+      const certList = createList(certifications);
+      rightColumn.appendChild(section('Certifications', [certList]));
+    }
+
+    if (interests.length) {
+      const interestGrid = document.createElement('div');
+      interestGrid.style.cssText = 'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;';
+      interests.forEach(interest => {
+        const tag = document.createElement('div');
+        tag.style.cssText = 'padding:10px 12px;border-radius:999px;background:#f8fafc;color:#0f172a;font-size:12px;font-weight:700;border:1px solid #e2e8f0;';
+        tag.innerText = interest;
+        interestGrid.appendChild(tag);
+      });
+      rightColumn.appendChild(section('Interests', [interestGrid]));
+    }
+
+    if (achievements.length) {
+      rightColumn.appendChild(section('Achievements', [createList(achievements)]));
+    }
+
+    if (formData.githubUsername || githubAnalytics) {
+      const githubBlock = document.createElement('div');
+      githubBlock.style.cssText = 'display:flex;flex-direction:column;gap:12px;';
+      const githubLabel = document.createElement('div');
+      githubLabel.style.cssText = 'font-size:12px;font-weight:700;color:#0f172a;';
+      githubLabel.innerText = 'GitHub Insights';
+      const githubLink = document.createElement('div');
+      githubLink.style.cssText = 'font-size:13px;font-weight:700;color:#1d4ed8;word-break:break-word;';
+      githubLink.innerText = formData.githubUsername ? `github.com/${formData.githubUsername}` : 'No GitHub username provided';
+      githubBlock.appendChild(githubLabel);
+      githubBlock.appendChild(githubLink);
+
+      if (githubAnalytics) {
+        const scoreRow = document.createElement('div');
+        scoreRow.style.cssText = 'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;';
+        const addMetric = (label: string, value: string) => {
+          const metric = document.createElement('div');
+          metric.style.cssText = 'padding:12px;border-radius:18px;background:#eff6ff;';
+          const metricLabel = document.createElement('div');
+          metricLabel.style.cssText = 'font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.16em;color:#0f172a;margin-bottom:6px;';
+          metricLabel.innerText = label;
+          const metricValue = document.createElement('div');
+          metricValue.style.cssText = 'font-size:18px;font-weight:900;color:#111827;';
+          metricValue.innerText = value;
+          metric.appendChild(metricLabel);
+          metric.appendChild(metricValue);
+          return metric;
+        };
+        scoreRow.appendChild(addMetric('Score', `${githubAnalytics.score}/100`));
+        scoreRow.appendChild(addMetric('Repos', String(githubAnalytics.repoCount)));
+        scoreRow.appendChild(addMetric('Stars', String(githubAnalytics.totalStars)));
+        scoreRow.appendChild(addMetric('Forks', String(githubAnalytics.totalForks)));
+        githubBlock.appendChild(scoreRow);
+        const languagesRow = document.createElement('div');
+        languagesRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;';
+        githubAnalytics.topLanguages.slice(0, 5).forEach(lang => {
+          const chip = document.createElement('div');
+          chip.style.cssText = 'padding:8px 12px;border-radius:999px;background:#e0e7ff;color:#3730a3;font-size:12px;font-weight:800;';
+          chip.innerText = lang;
+          languagesRow.appendChild(chip);
+        });
+        githubBlock.appendChild(languagesRow);
+      }
+
+      rightColumn.appendChild(section('GitHub', [githubBlock]));
+    }
+
+    const qrSection = document.createElement('div');
+    qrSection.style.cssText = 'padding:20px;border-radius:24px;background:#f8fafc;border:1px solid #e2e8f0;display:flex;flex-direction:column;gap:14px;align-items:center;';
+    const qrTitle = document.createElement('div');
+    qrTitle.style.cssText = 'font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.18em;';
+    qrTitle.innerText = 'Profile QR Code';
+    qrSection.appendChild(qrTitle);
+    if (qrDataUrl) {
+      const qrImg = document.createElement('img');
+      qrImg.src = qrDataUrl;
+      qrImg.alt = 'Profile QR code';
+      qrImg.style.cssText = 'width:140px;height:140px;border-radius:20px;background:#fff;padding:10px;';
+      qrSection.appendChild(qrImg);
+    }
+    const qrDescription = document.createElement('div');
+    qrDescription.style.cssText = 'font-size:12px;color:#475569;text-align:center;line-height:1.6;';
+    qrDescription.innerText = publicProfileUrl ? 'Scan to open the public profile instantly.' : 'Save the profile to enable the QR link.';
+    qrSection.appendChild(qrDescription);
+    rightColumn.appendChild(qrSection);
+
+    main.appendChild(leftColumn);
+    main.appendChild(rightColumn);
+    card.appendChild(main);
+
+    const footer = document.createElement('div');
+    footer.style.cssText = 'padding:24px 56px 28px;display:flex;justify-content:space-between;align-items:center;gap:20px;border-top:1px solid #e2e8f0;background:#f8fafc;';
+    const footerLeft = document.createElement('div');
+    footerLeft.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
+    const footerTitle = document.createElement('div');
+    footerTitle.style.cssText = 'font-size:12px;font-weight:800;color:#0f172a;';
+    footerTitle.innerText = 'Studlyf Professional Resume';
+    const footerNote = document.createElement('div');
+    footerNote.style.cssText = 'font-size:12px;color:#64748b;line-height:1.6;';
+    footerNote.innerText = 'Organized, readable, and ready to share with recruiters and network connections.';
+    footerLeft.appendChild(footerTitle);
+    footerLeft.appendChild(footerNote);
+    const footerRight = document.createElement('div');
+    footerRight.style.cssText = 'font-size:10px;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.18em;';
+    footerRight.innerText = 'studlyf.com';
+    footer.appendChild(footerLeft);
+    footer.appendChild(footerRight);
+    card.appendChild(footer);
+
+    container.appendChild(card);
+    document.body.appendChild(container);
+
+    try {
+      const canvas = await html2canvas(container, {
+        backgroundColor: '#e5e7eb',
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+      });
+      const dataUrl = canvas.toDataURL('image/png');
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((b) => b ? resolve(b) : reject(new Error('Blob generation failed')), 'image/png');
+      });
+      return { blob, dataUrl };
+    } finally {
+      try { document.body.removeChild(container); } catch (e) { }
+    }
+  };
   const downloadProfileTemplate = async () => {
     if (!publicProfileUrl) return;
     setIsGeneratingTemplate(true);
@@ -1087,7 +1088,7 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
         }
 
         // Education
-        const eduItems = formData.educationList.slice(0,3).map((e: any) =>
+        const eduItems = formData.educationList.slice(0, 3).map((e: any) =>
           `${e.degree || ''} ${e.specialization ? '· ' + e.specialization : ''}\n${e.institution || ''} ${e.startYear ? '(' + e.startYear + '–' + (e.endYear || 'Present') + ')' : ''}`.trim()
         );
         if (!eduItems.length && formData.education?.institution) {
@@ -1097,26 +1098,26 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
         if (eduSec) leftCol.appendChild(eduSec);
 
         // Experience
-        const expItems = formData.experienceList.slice(0,3).map((e: any) =>
+        const expItems = formData.experienceList.slice(0, 3).map((e: any) =>
           `${e.role || ''} @ ${e.company || ''} · ${e.type || ''}${e.location ? ' · ' + e.location : ''}`
         );
         const expSec = makeSection('Experience', '#f59e0b', expItems, '💼');
         if (expSec) leftCol.appendChild(expSec);
 
         // Projects
-        const projItems = formData.projects.slice(0,4).map((p: any) => p.title || '');
+        const projItems = formData.projects.slice(0, 4).map((p: any) => p.title || '');
         const projSec = makeSection('Projects', '#10b981', projItems, '🚀');
         if (projSec) rightCol.appendChild(projSec);
 
         // Certifications
-        const certItems = formData.certifications.slice(0,4).map((c: any) =>
+        const certItems = formData.certifications.slice(0, 4).map((c: any) =>
           `${c.name || ''}${c.issuer ? ' · ' + c.issuer : ''}`
         );
         const certSec = makeSection('Certifications', '#f43f5e', certItems, '🏆');
         if (certSec) rightCol.appendChild(certSec);
 
         // Achievements
-        const achItems = formData.achievements.slice(0,4).map((a: any) =>
+        const achItems = formData.achievements.slice(0, 4).map((a: any) =>
           `${a.title || ''}${a.organization ? ' · ' + a.organization : ''}`
         );
         const achSec = makeSection('Achievements', '#8b5cf6', achItems, '⭐');
@@ -1158,7 +1159,7 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
           });
           return c;
         } finally {
-          try { document.body.removeChild(container); } catch (e) {}
+          try { document.body.removeChild(container); } catch (e) { }
         }
       })();
 
@@ -1176,183 +1177,183 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
       setIsGeneratingTemplate(false);
     }
   };
-  
+
   const shareToSocial = async (platform: 'linkedin' | 'whatsapp') => {
-  if (!publicProfileUrl) return;
-  if (platform !== 'whatsapp') {
-    setCopiedForPlatform(null);
-  }
-  setIsGeneratingTemplate(true);
-  setSaveStatus({ type: 'success', message: 'Generating profile card...' });
-
-  // Build share URLs pieces
-  try {
-    // For LinkedIn we need the public HTML preview URL so the scraper can generate a preview.
-    if (platform === 'linkedin') {
-      try {
-        await navigator.clipboard.writeText(publicProfileUrl);
-        setSaveStatus({ type: 'success', message: 'Profile URL copied — paste it into LinkedIn.' });
-      } catch (e) {
-        console.warn('Failed to copy profile URL for LinkedIn:', e);
-      }
-      const linkedinParams = new URLSearchParams({
-        startTask: 'CERTIFICATION_NAME',
-        organizationName: 'STUDLYF Community',
-        certUrl: publicProfileUrl,
-        name: `${profileDisplayName} | Studlyf`,
-      });
-      const linkedinUrl = `https://www.linkedin.com/profile/add?${linkedinParams.toString()}`;
-      const w = window.open(linkedinUrl, '_blank');
-      try { w?.focus(); } catch {}
-      setSaveStatus({ type: 'success', message: 'Opening LinkedIn add-to-profile page.' });
-      setTimeout(() => setSaveStatus(null), 3000);
-      return;
+    if (!publicProfileUrl) return;
+    if (platform !== 'whatsapp') {
+      setCopiedForPlatform(null);
     }
+    setIsGeneratingTemplate(true);
+    setSaveStatus({ type: 'success', message: 'Generating profile card...' });
 
-    // Non-LinkedIn platforms: open immediately and then prepare/upload/copy image so user can paste/attach.
-    const tBase = encodeURIComponent(whatsappShareText);
+    // Build share URLs pieces
+    try {
+      // For LinkedIn we need the public HTML preview URL so the scraper can generate a preview.
+      if (platform === 'linkedin') {
+        try {
+          await navigator.clipboard.writeText(publicProfileUrl);
+          setSaveStatus({ type: 'success', message: 'Profile URL copied — paste it into LinkedIn.' });
+        } catch (e) {
+          console.warn('Failed to copy profile URL for LinkedIn:', e);
+        }
+        const linkedinParams = new URLSearchParams({
+          startTask: 'CERTIFICATION_NAME',
+          organizationName: 'STUDLYF Community',
+          certUrl: publicProfileUrl,
+          name: `${profileDisplayName} | Studlyf`,
+        });
+        const linkedinUrl = `https://www.linkedin.com/profile/add?${linkedinParams.toString()}`;
+        const w = window.open(linkedinUrl, '_blank');
+        try { w?.focus(); } catch { }
+        setSaveStatus({ type: 'success', message: 'Opening LinkedIn add-to-profile page.' });
+        setTimeout(() => setSaveStatus(null), 3000);
+        return;
+      }
 
-    // Special handling for WhatsApp: try native share (mobile), then clipboard copy, then download fallback.
-    if (platform === 'whatsapp') {
+      // Non-LinkedIn platforms: open immediately and then prepare/upload/copy image so user can paste/attach.
+      const tBase = encodeURIComponent(whatsappShareText);
+
+      // Special handling for WhatsApp: try native share (mobile), then clipboard copy, then download fallback.
+      if (platform === 'whatsapp') {
+        const { blob, dataUrl } = await generateProfileCardBlob();
+        const imageFile = new File([blob], profileTemplateFileName, { type: 'image/png' });
+        const whatsappUrl = `https://api.whatsapp.com/send?text=${tBase}`;
+
+        // Always make the PNG available locally so the user can attach/share it from the device.
+        try {
+          const link = document.createElement('a');
+          link.href = dataUrl;
+          link.download = profileTemplateFileName;
+          link.click();
+        } catch (e) {
+          console.warn('WhatsApp profile image download failed', e);
+        }
+
+        // Use the platform share sheet with the generated image file whenever the browser supports it.
+        try {
+          if ((navigator as any).share && (navigator as any).canShare && (navigator as any).canShare({ files: [imageFile] })) {
+            await (navigator as any).share({ files: [imageFile], text: whatsappShareText });
+            setSaveStatus({ type: 'success', message: '🎉 Profile downloaded successfully! 🥳 Your profile is ready to shine.' });
+            setTimeout(() => setSaveStatus(null), 3000);
+            return;
+          }
+        } catch (e) {
+          console.warn('Native share for WhatsApp failed', e);
+        }
+
+        // Try to copy image to clipboard so user can paste into WhatsApp Web
+        const copied = await copyImageToClipboard(blob).catch(() => false);
+        if (copied) {
+          setSaveStatus({ type: 'success', message: '🎉 Profile downloaded successfully! 🥳 Your profile is ready to shine.' });
+          setCopiedForPlatform('whatsapp');
+        } else {
+          setSaveStatus({ type: 'success', message: '🎉 Profile downloaded successfully! 🥳 Your profile is ready to shine.' });
+        }
+
+        setCopiedForPlatform(null);
+        const openedWindow = window.open(whatsappUrl, '_blank');
+        try { openedWindow?.focus(); } catch { }
+        setTimeout(() => setSaveStatus(null), 5000);
+        return;
+      }
+
+      const whatsappUrl = `https://api.whatsapp.com/send?text=${tBase}`;
+      const platformWindow = window.open(whatsappUrl, '_blank');
+
       const { blob, dataUrl } = await generateProfileCardBlob();
       const imageFile = new File([blob], profileTemplateFileName, { type: 'image/png' });
-      const whatsappUrl = `https://api.whatsapp.com/send?text=${tBase}`;
 
-      // Always make the PNG available locally so the user can attach/share it from the device.
+      // Upload generated image (non-blocking for the user since platform tab is already open)
+      let uploadedPreview: string | null = null;
       try {
-        const link = document.createElement('a');
-        link.href = dataUrl;
-        link.download = profileTemplateFileName;
-        link.click();
-      } catch (e) {
-        console.warn('WhatsApp profile image download failed', e);
-      }
+        const publicBase = (window as any).PUBLIC_BASE || null;
+        const form = new FormData();
+        form.append('file', imageFile);
+        if (publicBase) form.append('public_base', publicBase);
+        const upl = await fetch(`${API_BASE_URL}/api/utils/upload-temp-image`, { method: 'POST', body: form });
+        if (upl.ok) {
+          const json = await upl.json();
+          if (json?.url) {
+            uploadedPreview = json.url;
+            // also copy the hosted URL so user can paste easily
+            try { await navigator.clipboard.writeText(json.url); setSaveStatus({ type: 'success', message: 'Image URL copied — paste it in the post.' }); } catch { }
 
-      // Use the platform share sheet with the generated image file whenever the browser supports it.
-      try {
-        if ((navigator as any).share && (navigator as any).canShare && (navigator as any).canShare({ files: [imageFile] })) {
-          await (navigator as any).share({ files: [imageFile], text: whatsappShareText });
-          setSaveStatus({ type: 'success', message: '🎉 Profile downloaded successfully! 🥳 Your profile is ready to shine.' });
-          setTimeout(() => setSaveStatus(null), 3000);
-          return;
+            // auto-download small URL files for convenience
+            try {
+              const preview = json.url;
+              const urlFileContent = `[InternetShortcut]\nURL=${preview}\n`;
+              const urlBlob = new Blob([urlFileContent], { type: 'text/plain' });
+              const urlLink = document.createElement('a');
+              urlLink.href = URL.createObjectURL(urlBlob);
+              urlLink.download = `profile-preview.url`;
+              urlLink.click();
+
+              const htmlContent = `<html><head><meta http-equiv=\"refresh\" content=\"0;url=${preview}\"/></head><body>If not redirected <a href=\"${preview}\">Open preview</a></body></html>`;
+              const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+              const htmlLink = document.createElement('a');
+              htmlLink.href = URL.createObjectURL(htmlBlob);
+              htmlLink.download = `profile-preview.html`;
+              htmlLink.click();
+            } catch (e) {
+              console.warn('Failed to auto-download preview URL file', e);
+            }
+          }
         }
       } catch (e) {
-        console.warn('Native share for WhatsApp failed', e);
+        console.warn('Image upload for social share failed:', e);
       }
 
-      // Try to copy image to clipboard so user can paste into WhatsApp Web
-      const copied = await copyImageToClipboard(blob).catch(() => false);
-      if (copied) {
-        setSaveStatus({ type: 'success', message: '🎉 Profile downloaded successfully! 🥳 Your profile is ready to shine.' });
-        setCopiedForPlatform('whatsapp');
-      } else {
-        setSaveStatus({ type: 'success', message: '🎉 Profile downloaded successfully! 🥳 Your profile is ready to shine.' });
-      }
-
-      setCopiedForPlatform(null);
-      const openedWindow = window.open(whatsappUrl, '_blank');
-      try { openedWindow?.focus(); } catch {}
-      setTimeout(() => setSaveStatus(null), 5000);
-      return;
-    }
-
-    const whatsappUrl = `https://api.whatsapp.com/send?text=${tBase}`;
-    const platformWindow = window.open(whatsappUrl, '_blank');
-
-    const { blob, dataUrl } = await generateProfileCardBlob();
-    const imageFile = new File([blob], profileTemplateFileName, { type: 'image/png' });
-
-    // Upload generated image (non-blocking for the user since platform tab is already open)
-    let uploadedPreview: string | null = null;
-    try {
-      const publicBase = (window as any).PUBLIC_BASE || null;
-      const form = new FormData();
-      form.append('file', imageFile);
-      if (publicBase) form.append('public_base', publicBase);
-      const upl = await fetch(`${API_BASE_URL}/api/utils/upload-temp-image`, { method: 'POST', body: form });
-      if (upl.ok) {
-        const json = await upl.json();
-        if (json?.url) {
-          uploadedPreview = json.url;
-          // also copy the hosted URL so user can paste easily
-          try { await navigator.clipboard.writeText(json.url); setSaveStatus({ type: 'success', message: 'Image URL copied — paste it in the post.' }); } catch {}
-
-          // auto-download small URL files for convenience
+      // Try to copy the image itself to the clipboard (some desktop browsers support this in secure contexts)
+      try {
+        const clipboardItem = new ClipboardItem({ 'image/png': blob });
+        await navigator.clipboard.write([clipboardItem]);
+        setSaveStatus({ type: 'success', message: 'Image copied — paste (Ctrl+V) into the opened post.' });
+      } catch {
+        // fallback: if we have an uploaded preview, download URL files; else download the image
+        if (uploadedPreview) {
           try {
-            const preview = json.url;
-            const urlFileContent = `[InternetShortcut]\nURL=${preview}\n`;
+            const urlFileContent = `[InternetShortcut]\nURL=${uploadedPreview}\n`;
             const urlBlob = new Blob([urlFileContent], { type: 'text/plain' });
             const urlLink = document.createElement('a');
             urlLink.href = URL.createObjectURL(urlBlob);
             urlLink.download = `profile-preview.url`;
             urlLink.click();
 
-            const htmlContent = `<html><head><meta http-equiv=\"refresh\" content=\"0;url=${preview}\"/></head><body>If not redirected <a href=\"${preview}\">Open preview</a></body></html>`;
+            const htmlContent = `<html><head><meta http-equiv=\"refresh\" content=\"0;url=${uploadedPreview}\"/></head><body>If not redirected <a href=\"${uploadedPreview}\">Open preview</a></body></html>`;
             const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
             const htmlLink = document.createElement('a');
             htmlLink.href = URL.createObjectURL(htmlBlob);
             htmlLink.download = `profile-preview.html`;
             htmlLink.click();
+
+            setSaveStatus({ type: 'success', message: 'Preview URL file downloaded — open it to visit the public preview.' });
           } catch (e) {
-            console.warn('Failed to auto-download preview URL file', e);
+            const link = document.createElement('a');
+            link.download = profileTemplateFileName;
+            link.href = dataUrl;
+            link.click();
+            setSaveStatus({ type: 'success', message: '🎉 Profile downloaded successfully! 🥳 Your profile is ready to shine.' });
           }
-        }
-      }
-    } catch (e) {
-      console.warn('Image upload for social share failed:', e);
-    }
-
-    // Try to copy the image itself to the clipboard (some desktop browsers support this in secure contexts)
-    try {
-      const clipboardItem = new ClipboardItem({ 'image/png': blob });
-      await navigator.clipboard.write([clipboardItem]);
-      setSaveStatus({ type: 'success', message: 'Image copied — paste (Ctrl+V) into the opened post.' });
-    } catch {
-      // fallback: if we have an uploaded preview, download URL files; else download the image
-      if (uploadedPreview) {
-        try {
-          const urlFileContent = `[InternetShortcut]\nURL=${uploadedPreview}\n`;
-          const urlBlob = new Blob([urlFileContent], { type: 'text/plain' });
-          const urlLink = document.createElement('a');
-          urlLink.href = URL.createObjectURL(urlBlob);
-          urlLink.download = `profile-preview.url`;
-          urlLink.click();
-
-          const htmlContent = `<html><head><meta http-equiv=\"refresh\" content=\"0;url=${uploadedPreview}\"/></head><body>If not redirected <a href=\"${uploadedPreview}\">Open preview</a></body></html>`;
-          const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
-          const htmlLink = document.createElement('a');
-          htmlLink.href = URL.createObjectURL(htmlBlob);
-          htmlLink.download = `profile-preview.html`;
-          htmlLink.click();
-
-          setSaveStatus({ type: 'success', message: 'Preview URL file downloaded — open it to visit the public preview.' });
-        } catch (e) {
+        } else {
           const link = document.createElement('a');
           link.download = profileTemplateFileName;
           link.href = dataUrl;
           link.click();
           setSaveStatus({ type: 'success', message: '🎉 Profile downloaded successfully! 🥳 Your profile is ready to shine.' });
         }
-      } else {
-        const link = document.createElement('a');
-        link.download = profileTemplateFileName;
-        link.href = dataUrl;
-        link.click();
-        setSaveStatus({ type: 'success', message: '🎉 Profile downloaded successfully! 🥳 Your profile is ready to shine.' });
       }
-    }
 
-    setTimeout(() => setSaveStatus(null), 5000);
-    try { platformWindow?.focus(); } catch {}
-    return;
-  } catch (err) {
-    console.warn('Share flow error:', err);
-    const errorMessage = err instanceof Error ? err.message : 'Share failed.';
-    setSaveStatus({ type: 'error', message: errorMessage });
-    setTimeout(() => setSaveStatus(null), 3000);
-  } finally {
-    setIsGeneratingTemplate(false);
-  }
+      setTimeout(() => setSaveStatus(null), 5000);
+      try { platformWindow?.focus(); } catch { }
+      return;
+    } catch (err) {
+      console.warn('Share flow error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Share failed.';
+      setSaveStatus({ type: 'error', message: errorMessage });
+      setTimeout(() => setSaveStatus(null), 3000);
+    } finally {
+      setIsGeneratingTemplate(false);
+    }
   };
 
   const copyProfileLink = async (target: 'accountShare' | 'profilePanel' = 'accountShare') => {
@@ -1502,7 +1503,7 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
       active = false;
     };
   }, [publicProfileUrl, showShareModal]);
- 
+
 
   const shareProfile = async () => {
     if (!publicProfileUrl) return;
@@ -1562,192 +1563,191 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
 
             {/* Form Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-               {/* Profile Photo & Avatar Preset Selection */}
-               <div className="md:col-span-2 space-y-6 bg-gray-50/50 p-8 rounded-3xl border border-gray-100 border-dashed">
-                 <div className="flex flex-col lg:flex-row lg:items-center gap-8">
-                   <div 
-                     onClick={() => fileInputRef.current?.click()}
-                     className="w-32 h-32 bg-white rounded-[2rem] shadow-xl flex items-center justify-center relative group cursor-pointer overflow-hidden border-2 border-white ring-4 ring-[#7C3AED]/10 shrink-0"
-                   >
-                      {formData.profilePhoto ? (
-                        <AvatarImage src={formData.profilePhoto} alt="Profile" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-white">
-                          <User className="w-12 h-12 text-gray-200" />
-                        </div>
-                      )}
-                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1">
-                       <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                       <span className="text-white text-[9px] font-black uppercase tracking-widest">Edit</span>
-                     </div>
-                   </div>
-                   <input 
-                     type="file" 
-                     ref={fileInputRef} 
-                     className="hidden" 
-                     accept="image/*" 
-                     onChange={handlePhotoUpload} 
-                   />
-                   <div className="space-y-3 min-w-0 flex-1">
-                     <h4 className="font-bold text-gray-900 uppercase text-xs tracking-widest">Profile Photo / Avatar</h4>
-                     <p className="text-[10px] font-medium text-gray-400 max-w-xl">Upload a custom photo or choose one of the preset avatars below for a cleaner profile identity.</p>
-                     <button
-                       type="button"
-                       onClick={() => fileInputRef.current?.click()}
-                       className="rounded-full bg-[#7C3AED] px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-sm hover:bg-[#6D28D9] transition-all"
-                     >
-                       Upload Photo
-                     </button>
-                   </div>
-                 </div>
-
-                 {/* Presets Catalog grid */}
-                 <div className="border-t border-gray-100 pt-6">
-                   <div className="flex items-center justify-between gap-4 mb-4">
-                     <div>
-                       <div className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Choose Avatar</div>
-                        <div className="text-sm font-bold text-gray-900">{avatars.length} 3D character avatars</div>
-                     </div>
-                   </div>
-                   <div className="max-h-[22rem] overflow-y-auto pr-1">
-                     <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-8 gap-2.5 pb-2">
-                        {avatars.map((option) => {
-                          const cropUrl = option.image_url + '#' + option.crop_x + ',' + option.crop_y + ',' + option.crop_w + ',' + option.crop_h;
-                          const isSelected = formData.profilePhoto === cropUrl;
-                          return (
-                            <button
-                              key={option.label}
-                              type="button"
-                              onClick={() => setFormData(prev => ({ ...prev, profilePhoto: cropUrl }))}
-                              className={`rounded-full border-2 overflow-hidden aspect-square transition-all ${
-                                isSelected
-                                  ? 'border-[#7C3AED] shadow-lg shadow-purple-200 ring-2 ring-[#7C3AED]/30 scale-110'
-                                  : 'border-transparent hover:border-[#7C3AED]/40 hover:scale-105'
-                              }`}
-                            >
-                              <AvatarImage src={cropUrl} alt={option.label} className="w-full h-full" />
-                            </button>
-                          );
-                        })}
-                     </div>
-                   </div>
-                 </div>
-               </div>
-
-               <div className="space-y-2 group">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 group-focus-within:text-[#7C3AED] transition-colors">First Name *</label>
-                  <input 
-                    type="text" 
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold focus:outline-none focus:bg-white focus:ring-4 focus:ring-[#7C3AED]/5 focus:border-[#7C3AED]/30 transition-all" 
-                    placeholder="Enter first name" 
-                  />
-               </div>
-
-               <div className="space-y-2 group">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 group-focus-within:text-[#7C3AED] transition-colors">Last Name *</label>
-                  <input 
-                    type="text" 
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleChange}
-                    className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold focus:outline-none focus:bg-white focus:ring-4 focus:ring-[#7C3AED]/5 focus:border-[#7C3AED]/30 transition-all" 
-                    placeholder="Enter last name" 
-                  />
-               </div>
-
-               <div className="md:col-span-2 space-y-2 group">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 group-focus-within:text-[#7C3AED] transition-colors">Username *</label>
-                  <div className="relative">
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 font-bold">@</span>
-                    <input 
-                      type="text" 
-                      name="username"
-                      value={formData.username}
-                      onChange={handleChange}
-                      className="w-full pl-10 pr-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold focus:outline-none focus:bg-white focus:ring-4 focus:ring-[#7C3AED]/5 focus:border-[#7C3AED]/30 transition-all" 
-                      placeholder="handle_name" 
-                    />
-                  </div>
-               </div>
-
-               <div className="md:col-span-2 space-y-2 group relative">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 group-focus-within:text-[#7C3AED] transition-colors">Email Address *</label>
-                  <input type="email" value={user?.email || ''} disabled className="w-full px-6 py-4 bg-gray-100 border border-transparent rounded-2xl text-sm font-bold text-gray-400 cursor-not-allowed" />
-               </div>
-
-               <div className="space-y-2 group">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 group-focus-within:text-[#7C3AED] transition-colors">Mobile *</label>
-                  <div className="flex gap-2">
-                    <div className="w-24 px-4 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold flex items-center gap-2">
-                      <img src="https://flagcdn.com/w20/in.png" className="w-4 h-3" alt="IN" />
-                      +91
+              {/* Profile Photo & Avatar Preset Selection */}
+              <div className="md:col-span-2 space-y-6 bg-gray-50/50 p-8 rounded-3xl border border-gray-100 border-dashed">
+                <div className="flex flex-col lg:flex-row lg:items-center gap-8">
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-32 h-32 bg-white rounded-[2rem] shadow-xl flex items-center justify-center relative group cursor-pointer overflow-hidden border-2 border-white ring-4 ring-[#7C3AED]/10 shrink-0"
+                  >
+                    {formData.profilePhoto ? (
+                      <AvatarImage src={formData.profilePhoto} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-white">
+                        <User className="w-12 h-12 text-gray-200" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                      <span className="text-white text-[9px] font-black uppercase tracking-widest">Edit</span>
                     </div>
-                    <input 
-                      type="tel" 
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      className="flex-grow px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold focus:outline-none focus:bg-white focus:ring-4 focus:ring-[#7C3AED]/5 focus:border-[#7C3AED]/30 transition-all" 
-                      placeholder="Enter number" 
-                    />
                   </div>
-               </div>
-
-               <div className="space-y-2 group">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 group-focus-within:text-[#7C3AED] transition-colors">Gender</label>
-                  <select 
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleChange}
-                    className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold focus:outline-none focus:bg-white focus:ring-4 focus:ring-[#7C3AED]/5 focus:border-[#7C3AED]/30 transition-all appearance-none"
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                    <option value="prefer_not_to_say">Prefer not to say</option>
-                  </select>
-               </div>
-
-               <div className="space-y-2 group">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 group-focus-within:text-[#7C3AED] transition-colors">Date of Birth</label>
-                  <input 
-                    type="date" 
-                    name="dob"
-                    value={formData.dob}
-                    onChange={handleChange}
-                    className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold focus:outline-none focus:bg-white focus:ring-4 focus:ring-[#7C3AED]/5 focus:border-[#7C3AED]/30 transition-all" 
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
                   />
-               </div>
+                  <div className="space-y-3 min-w-0 flex-1">
+                    <h4 className="font-bold text-gray-900 uppercase text-xs tracking-widest">Profile Photo / Avatar</h4>
+                    <p className="text-[10px] font-medium text-gray-400 max-w-xl">Upload a custom photo or choose one of the preset avatars below for a cleaner profile identity.</p>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="rounded-full bg-[#7C3AED] px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-sm hover:bg-[#6D28D9] transition-all"
+                    >
+                      Upload Photo
+                    </button>
+                  </div>
+                </div>
 
-               <div className="space-y-2 group">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 group-focus-within:text-[#7C3AED] transition-colors">User Type</label>
-                  <select 
-                    name="userType"
-                    value={formData.userType}
+                {/* Presets Catalog grid */}
+                <div className="border-t border-gray-100 pt-6">
+                  <div className="flex items-center justify-between gap-4 mb-4">
+                    <div>
+                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Choose Avatar</div>
+                      <div className="text-sm font-bold text-gray-900">{avatars.length} 3D character avatars</div>
+                    </div>
+                  </div>
+                  <div className="max-h-[22rem] overflow-y-auto pr-1">
+                    <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-8 gap-2.5 pb-2">
+                      {avatars.map((option) => {
+                        const cropUrl = option.image_url + '#' + option.crop_x + ',' + option.crop_y + ',' + option.crop_w + ',' + option.crop_h;
+                        const isSelected = formData.profilePhoto === cropUrl;
+                        return (
+                          <button
+                            key={option.label}
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, profilePhoto: cropUrl }))}
+                            className={`rounded-full border-2 overflow-hidden aspect-square transition-all ${isSelected
+                              ? 'border-[#7C3AED] shadow-lg shadow-purple-200 ring-2 ring-[#7C3AED]/30 scale-110'
+                              : 'border-transparent hover:border-[#7C3AED]/40 hover:scale-105'
+                              }`}
+                          >
+                            <AvatarImage src={cropUrl} alt={option.label} className="w-full h-full" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2 group">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 group-focus-within:text-[#7C3AED] transition-colors">First Name *</label>
+                <input
+                  type="text"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold focus:outline-none focus:bg-white focus:ring-4 focus:ring-[#7C3AED]/5 focus:border-[#7C3AED]/30 transition-all"
+                  placeholder="Enter first name"
+                />
+              </div>
+
+              <div className="space-y-2 group">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 group-focus-within:text-[#7C3AED] transition-colors">Last Name *</label>
+                <input
+                  type="text"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold focus:outline-none focus:bg-white focus:ring-4 focus:ring-[#7C3AED]/5 focus:border-[#7C3AED]/30 transition-all"
+                  placeholder="Enter last name"
+                />
+              </div>
+
+              <div className="md:col-span-2 space-y-2 group">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 group-focus-within:text-[#7C3AED] transition-colors">Username *</label>
+                <div className="relative">
+                  <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 font-bold">@</span>
+                  <input
+                    type="text"
+                    name="username"
+                    value={formData.username}
                     onChange={handleChange}
-                    className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold focus:outline-none focus:bg-white focus:ring-4 focus:ring-[#7C3AED]/5 focus:border-[#7C3AED]/30 transition-all appearance-none"
-                  >
-                    <option value="">Select Type</option>
-                    <option value="student">College Students</option>
-                    <option value="fresher">Freshers</option>
-                    <option value="professional">Professionals</option>
-                  </select>
-               </div>
+                    className="w-full pl-10 pr-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold focus:outline-none focus:bg-white focus:ring-4 focus:ring-[#7C3AED]/5 focus:border-[#7C3AED]/30 transition-all"
+                    placeholder="handle_name"
+                  />
+                </div>
+              </div>
+
+              <div className="md:col-span-2 space-y-2 group relative">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 group-focus-within:text-[#7C3AED] transition-colors">Email Address *</label>
+                <input type="email" value={user?.email || ''} disabled className="w-full px-6 py-4 bg-gray-100 border border-transparent rounded-2xl text-sm font-bold text-gray-400 cursor-not-allowed" />
+              </div>
+
+              <div className="space-y-2 group">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 group-focus-within:text-[#7C3AED] transition-colors">Mobile *</label>
+                <div className="flex gap-2">
+                  <div className="w-24 px-4 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold flex items-center gap-2">
+                    <img src="https://flagcdn.com/w20/in.png" className="w-4 h-3" alt="IN" />
+                    +91
+                  </div>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="flex-grow px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold focus:outline-none focus:bg-white focus:ring-4 focus:ring-[#7C3AED]/5 focus:border-[#7C3AED]/30 transition-all"
+                    placeholder="Enter number"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2 group">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 group-focus-within:text-[#7C3AED] transition-colors">Gender</label>
+                <select
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                  className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold focus:outline-none focus:bg-white focus:ring-4 focus:ring-[#7C3AED]/5 focus:border-[#7C3AED]/30 transition-all appearance-none"
+                >
+                  <option value="">Select Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                  <option value="prefer_not_to_say">Prefer not to say</option>
+                </select>
+              </div>
+
+              <div className="space-y-2 group">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 group-focus-within:text-[#7C3AED] transition-colors">Date of Birth</label>
+                <input
+                  type="date"
+                  name="dob"
+                  value={formData.dob}
+                  onChange={handleChange}
+                  className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold focus:outline-none focus:bg-white focus:ring-4 focus:ring-[#7C3AED]/5 focus:border-[#7C3AED]/30 transition-all"
+                />
+              </div>
+
+              <div className="space-y-2 group">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 group-focus-within:text-[#7C3AED] transition-colors">User Type</label>
+                <select
+                  name="userType"
+                  value={formData.userType}
+                  onChange={handleChange}
+                  className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold focus:outline-none focus:bg-white focus:ring-4 focus:ring-[#7C3AED]/5 focus:border-[#7C3AED]/30 transition-all appearance-none"
+                >
+                  <option value="">Select Type</option>
+                  <option value="student">College Students</option>
+                  <option value="fresher">Freshers</option>
+                  <option value="professional">Professionals</option>
+                </select>
+              </div>
             </div>
 
             <div className="pt-12 flex justify-end">
-               <button 
+              <button
                 onClick={() => handleSave('Basic Details')}
                 disabled={isSaving}
                 className="px-12 py-4 bg-[#7C3AED] text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-[#6D28D9] transition-all duration-300 ease-out shadow-xl shadow-[#7C3AED]/20 flex items-center gap-3 disabled:opacity-50 active:scale-95"
-               >
-                 {isSaving ? <Plus className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                 {isSaving ? 'Saving...' : 'Save Changes'}
-               </button>
+              >
+                {isSaving ? <Plus className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </button>
             </div>
           </motion.div>
         );
@@ -1775,7 +1775,7 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] group-focus-within:text-[#7C3AED] transition-colors">Professional Summary</label>
                   <span className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">{formData.bio.length} / 500</span>
                 </div>
-                <textarea 
+                <textarea
                   name="bio"
                   value={formData.bio}
                   onChange={handleChange}
@@ -1786,13 +1786,13 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
 
               <div className="space-y-2 group">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1 group-focus-within:text-[#7C3AED] transition-colors">Career Goal</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   name="careerGoal"
                   value={formData.careerGoal}
                   onChange={handleChange}
-                  className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold focus:outline-none focus:bg-white focus:ring-4 focus:ring-[#7C3AED]/5 focus:border-[#7C3AED]/30 transition-all" 
-                  placeholder="e.g. Aspiring AI Research Engineer at a top tech firm" 
+                  className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold focus:outline-none focus:bg-white focus:ring-4 focus:ring-[#7C3AED]/5 focus:border-[#7C3AED]/30 transition-all"
+                  placeholder="e.g. Aspiring AI Research Engineer at a top tech firm"
                 />
               </div>
 
@@ -1802,7 +1802,7 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
                   {formData.interests.map(tag => (
                     <span key={tag} className="px-4 py-2 bg-white border border-gray-100 rounded-xl text-[10px] font-bold text-gray-600 flex items-center gap-2 hover:border-[#7C3AED]/30 transition-all cursor-default">
                       {tag}
-                      <button 
+                      <button
                         onClick={() => removeInterest(tag)}
                         className="text-gray-300 hover:text-red-400"
                       >×</button>
@@ -1825,14 +1825,14 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
             </div>
 
             <div className="pt-8 flex justify-end">
-               <button 
+              <button
                 onClick={() => handleSave('About')}
                 disabled={isSaving}
                 className="px-12 py-4 bg-[#7C3AED] text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-[#6D28D9] transition-all shadow-xl shadow-[#7C3AED]/20 flex items-center gap-3 disabled:opacity-50"
-               >
-                 {isSaving ? <Plus className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                 {isSaving ? 'Saving...' : 'Save About'}
-               </button>
+              >
+                {isSaving ? <Plus className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {isSaving ? 'Saving...' : 'Save About'}
+              </button>
             </div>
           </motion.div>
         );
@@ -1922,7 +1922,7 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
             {formData.educationList.length > 0 && (
               <div className="pt-8 space-y-3">
                 <div className="flex justify-end">
-                  <button 
+                  <button
                     onClick={() => handleSave('Education')}
                     disabled={isSaving}
                     className="px-12 py-4 bg-[#7C3AED] text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-[#6D28D9] transition-all shadow-xl shadow-[#7C3AED]/20 flex items-center gap-3 disabled:opacity-50"
@@ -1963,7 +1963,6 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
             {/* Trending Suggestions */}
             <div className="bg-[#F5F3FF]/50 border border-[#7C3AED]/10 p-8 rounded-[2.5rem]">
               <div className="flex items-center gap-3 mb-5">
-                <Sparkles className="w-4 h-4 text-[#7C3AED]" />
                 <span className="text-[10px] font-black text-[#7C3AED] uppercase tracking-widest">Trending for ML Engineers — Click to Add</span>
               </div>
               <div className="flex flex-wrap gap-3">
@@ -2258,7 +2257,7 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
               >
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-3">
-                    <Sparkles className="w-4 h-4 text-[#7C3AED]" />
+
                     <span className="text-[10px] font-black text-[#7C3AED] uppercase tracking-widest">
                       {resumeParseResult ? `${formData.skills.length} Skills Auto-Extracted` : `${formData.skills.length} Skills`}
                     </span>
@@ -2570,14 +2569,14 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
 
 
             <div className="pt-8 flex justify-end">
-               <button 
+              <button
                 onClick={() => handleSave('Certifications')}
                 disabled={isSaving}
                 className="px-12 py-4 bg-[#7C3AED] text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-[#6D28D9] transition-all shadow-xl shadow-[#7C3AED]/20 flex items-center gap-3 disabled:opacity-50"
-               >
-                 {isSaving ? <Plus className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                 {isSaving ? 'Saving...' : 'Save Certificates'}
-               </button>
+              >
+                {isSaving ? <Plus className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {isSaving ? 'Saving...' : 'Save Certificates'}
+              </button>
             </div>
           </motion.div>
         );
@@ -2657,14 +2656,14 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
             </div>
 
             <div className="pt-8 flex justify-end">
-               <button 
+              <button
                 onClick={() => handleSave('Achievements')}
                 disabled={isSaving}
                 className="px-12 py-4 bg-[#7C3AED] text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-[#6D28D9] transition-all shadow-xl shadow-[#7C3AED]/20 flex items-center gap-3 disabled:opacity-50"
-               >
-                 {isSaving ? <Plus className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                 {isSaving ? 'Saving...' : 'Save Achievements'}
-               </button>
+              >
+                {isSaving ? <Plus className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {isSaving ? 'Saving...' : 'Save Achievements'}
+              </button>
             </div>
           </motion.div>
         );
@@ -2688,39 +2687,39 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-               {[
-                 { id: 'linkedin', label: 'LinkedIn', icon: Share2, color: '#0077B5', placeholder: 'linkedin.com/in/...' },
-                 { id: 'portfolio', label: 'Portfolio', icon: Globe, color: '#7C3AED', placeholder: 'yourwebsite.com' },
-                 { id: 'hackerrank', label: 'HackerRank', icon: Book, color: '#2EC866', placeholder: 'hackerrank.com/profile/...' },
-               ].map(social => (
-                 <div key={social.label} className="space-y-3 group">
-                   <div className="flex items-center gap-3 ml-1">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg`} style={{ backgroundColor: social.color }}>
-                         <social.icon className="w-4 h-4" />
-                      </div>
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] group-focus-within:text-[#7C3AED] transition-colors">{social.label}</label>
-                   </div>
-                   <input 
-                    type="text" 
+              {[
+                { id: 'linkedin', label: 'LinkedIn', icon: Share2, color: '#0077B5', placeholder: 'linkedin.com/in/...' },
+                { id: 'portfolio', label: 'Portfolio', icon: Globe, color: '#7C3AED', placeholder: 'yourwebsite.com' },
+                { id: 'hackerrank', label: 'HackerRank', icon: Book, color: '#2EC866', placeholder: 'hackerrank.com/profile/...' },
+              ].map(social => (
+                <div key={social.label} className="space-y-3 group">
+                  <div className="flex items-center gap-3 ml-1">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg`} style={{ backgroundColor: social.color }}>
+                      <social.icon className="w-4 h-4" />
+                    </div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] group-focus-within:text-[#7C3AED] transition-colors">{social.label}</label>
+                  </div>
+                  <input
+                    type="text"
                     name={social.id}
                     value={(formData as any)[social.id] || ''}
                     onChange={handleChange}
-                    className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold text-gray-900 focus:outline-none focus:bg-white focus:ring-4 focus:ring-[#7C3AED]/5 focus:border-[#7C3AED]/30 transition-all outline-none" 
-                    placeholder={social.placeholder} 
-                   />
-                 </div>
-               ))}
+                    className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold text-gray-900 focus:outline-none focus:bg-white focus:ring-4 focus:ring-[#7C3AED]/5 focus:border-[#7C3AED]/30 transition-all outline-none"
+                    placeholder={social.placeholder}
+                  />
+                </div>
+              ))}
             </div>
 
             <div className="pt-8 flex justify-end">
-               <button 
+              <button
                 onClick={() => handleSave('Social Links')}
                 disabled={isSaving}
                 className="px-12 py-4 bg-[#7C3AED] text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-[#6D28D9] transition-all shadow-xl shadow-[#7C3AED]/20 flex items-center gap-3 disabled:opacity-50"
-               >
-                 {isSaving ? <Plus className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                 {isSaving ? 'Saving...' : 'Save All Profiles'}
-               </button>
+              >
+                {isSaving ? <Plus className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {isSaving ? 'Saving...' : 'Save All Profiles'}
+              </button>
             </div>
           </motion.div>
         );
@@ -2744,50 +2743,50 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-               <div className="lg:col-span-2 space-y-10">
-                  {/* Step 1 */}
-                  <div className="space-y-4">
-                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Step 1: Select Resume</span>
-                     <div className="bg-white border border-gray-100 rounded-3xl p-6 flex items-center justify-between shadow-sm">
-                        <div className="flex items-center gap-4">
-                           <FileText className="w-5 h-5 text-red-500" />
-                           <span className="text-sm font-bold text-gray-900">{formData.resume.fileName}</span>
-                        </div>
-                        <button 
-                          onClick={() => resumeInputRef.current?.click()}
-                          className="text-[10px] font-black text-[#7C3AED] uppercase tracking-widest hover:underline"
-                        >
-                          Change
-                        </button>
-                     </div>
+              <div className="lg:col-span-2 space-y-10">
+                {/* Step 1 */}
+                <div className="space-y-4">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Step 1: Select Resume</span>
+                  <div className="bg-white border border-gray-100 rounded-3xl p-6 flex items-center justify-between shadow-sm">
+                    <div className="flex items-center gap-4">
+                      <FileText className="w-5 h-5 text-red-500" />
+                      <span className="text-sm font-bold text-gray-900">{formData.resume.fileName}</span>
+                    </div>
+                    <button
+                      onClick={() => resumeInputRef.current?.click()}
+                      className="text-[10px] font-black text-[#7C3AED] uppercase tracking-widest hover:underline"
+                    >
+                      Change
+                    </button>
                   </div>
+                </div>
 
-                  {/* Step 2 */}
-                  <div className="space-y-4">
-                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Step 2: Job Description</span>
-                     <textarea 
-                        name="jobDescription"
-                        value={formData.jobDescription}
-                        onChange={handleChange}
-                        className="w-full px-8 py-6 bg-gray-50 border border-transparent rounded-[2rem] text-sm font-bold min-h-[200px] leading-relaxed text-gray-900 focus:bg-white transition-all outline-none" 
-                        placeholder="Paste the job description here to analyze matching score..." 
-                     />
-                  </div>
-               </div>
+                {/* Step 2 */}
+                <div className="space-y-4">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Step 2: Job Description</span>
+                  <textarea
+                    name="jobDescription"
+                    value={formData.jobDescription}
+                    onChange={handleChange}
+                    className="w-full px-8 py-6 bg-gray-50 border border-transparent rounded-[2rem] text-sm font-bold min-h-[200px] leading-relaxed text-gray-900 focus:bg-white transition-all outline-none"
+                    placeholder="Paste the job description here to analyze matching score..."
+                  />
+                </div>
+              </div>
 
-               {/* Analysis Result Card */}
-               <div className="bg-[#7C3AED] rounded-[3.5rem] p-10 text-white flex flex-col justify-between shadow-2xl shadow-[#7C3AED]/30 relative overflow-hidden group">
-                  <div className="absolute -top-10 -right-10 w-64 h-64 bg-white/10 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700" />
-                  
-                  <div className="relative z-10 space-y-6">
-                     <h3 className="text-3xl font-black uppercase tracking-tight leading-none">Ready to Analyze</h3>
-                     <p className="text-xs font-medium text-white/70 leading-relaxed">Our AI will compare your resume against the job requirements to calculate your ATS compatibility score.</p>
-                  </div>
+              {/* Analysis Result Card */}
+              <div className="bg-[#7C3AED] rounded-[3.5rem] p-10 text-white flex flex-col justify-between shadow-2xl shadow-[#7C3AED]/30 relative overflow-hidden group">
+                <div className="absolute -top-10 -right-10 w-64 h-64 bg-white/10 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700" />
 
-                  <button className="w-full py-6 bg-white text-[#7C3AED] rounded-[2rem] text-xs font-black uppercase tracking-[0.2em] hover:bg-gray-50 transition-all shadow-xl relative z-10">
-                     Run Analysis
-                  </button>
-               </div>
+                <div className="relative z-10 space-y-6">
+                  <h3 className="text-3xl font-black uppercase tracking-tight leading-none">Ready to Analyze</h3>
+                  <p className="text-xs font-medium text-white/70 leading-relaxed">Our AI will compare your resume against the job requirements to calculate your ATS compatibility score.</p>
+                </div>
+
+                <button className="w-full py-6 bg-white text-[#7C3AED] rounded-[2rem] text-xs font-black uppercase tracking-[0.2em] hover:bg-gray-50 transition-all shadow-xl relative z-10">
+                  Run Analysis
+                </button>
+              </div>
             </div>
           </motion.div>
         );
@@ -2811,95 +2810,95 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
             </div>
 
             <div className="space-y-10">
-               <div className="p-8 bg-[#F5F3FF]/60 rounded-[2.5rem] border border-[#7C3AED]/10 space-y-4">
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div>
-                      <h4 className="text-[10px] font-black text-[#7C3AED] uppercase tracking-[0.2em]">Public Profile</h4>
-                      <p className="text-sm font-medium text-gray-600 mt-2 max-w-2xl">This URL is what you can share publicly. It uses your user ID so your profile can be opened across devices without changing the backend contract.</p>
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 bg-emerald-50 px-3 py-2 rounded-full">
-                      <Globe className="w-3 h-3" /> Ready
-                    </div>
+              <div className="p-8 bg-[#F5F3FF]/60 rounded-[2.5rem] border border-[#7C3AED]/10 space-y-4">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <h4 className="text-[10px] font-black text-[#7C3AED] uppercase tracking-[0.2em]">Public Profile</h4>
+                    <p className="text-sm font-medium text-gray-600 mt-2 max-w-2xl">This URL is what you can share publicly. It uses your user ID so your profile can be opened across devices without changing the backend contract.</p>
                   </div>
-                  <div className="rounded-2xl border border-white/70 bg-white px-4 py-3 text-sm font-medium text-gray-700 break-all shadow-sm">{publicProfileUrl || 'Save your profile to generate a public link.'}</div>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <button type="button" onClick={() => copyProfileLink('accountShare')} disabled={!publicProfileUrl} className="flex-1 px-5 py-3 rounded-2xl bg-white border border-gray-200 text-[10px] font-black uppercase tracking-[0.2em] text-gray-900 hover:border-[#7C3AED]/30 transition-all disabled:opacity-50 cursor-pointer touch-manipulation">Copy Profile Link</button>
-                    <button type="button" onClick={downloadProfileTemplate} disabled={!publicProfileUrl || isGeneratingTemplate} className="flex-1 px-5 py-3 rounded-2xl bg-white border border-gray-200 text-[10px] font-black uppercase tracking-[0.2em] text-gray-900 hover:border-[#7C3AED]/30 transition-all disabled:opacity-50 cursor-pointer touch-manipulation">Download Template</button>
-                    <button type="button" onClick={shareProfile} disabled={!publicProfileUrl || isGeneratingTemplate} className="flex-1 px-5 py-3 rounded-2xl bg-[#7C3AED] text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#6D28D9] transition-all disabled:opacity-50 cursor-pointer touch-manipulation">Share Template</button>
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 bg-emerald-50 px-3 py-2 rounded-full">
+                    <Globe className="w-3 h-3" /> Ready
                   </div>
-                  {copyFeedback?.target === 'accountShare' && (
-                    <div className={`mt-3 text-[10px] font-bold ${copyFeedback.type === 'success' ? 'text-emerald-600' : 'text-red-500'}`}>{copyFeedback.message}</div>
-                  )}
-               </div>
+                </div>
+                <div className="rounded-2xl border border-white/70 bg-white px-4 py-3 text-sm font-medium text-gray-700 break-all shadow-sm">{publicProfileUrl || 'Save your profile to generate a public link.'}</div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button type="button" onClick={() => copyProfileLink('accountShare')} disabled={!publicProfileUrl} className="flex-1 px-5 py-3 rounded-2xl bg-white border border-gray-200 text-[10px] font-black uppercase tracking-[0.2em] text-gray-900 hover:border-[#7C3AED]/30 transition-all disabled:opacity-50 cursor-pointer touch-manipulation">Copy Profile Link</button>
+                  <button type="button" onClick={downloadProfileTemplate} disabled={!publicProfileUrl || isGeneratingTemplate} className="flex-1 px-5 py-3 rounded-2xl bg-white border border-gray-200 text-[10px] font-black uppercase tracking-[0.2em] text-gray-900 hover:border-[#7C3AED]/30 transition-all disabled:opacity-50 cursor-pointer touch-manipulation">Download Template</button>
+                  <button type="button" onClick={shareProfile} disabled={!publicProfileUrl || isGeneratingTemplate} className="flex-1 px-5 py-3 rounded-2xl bg-[#7C3AED] text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#6D28D9] transition-all disabled:opacity-50 cursor-pointer touch-manipulation">Share Template</button>
+                </div>
+                {copyFeedback?.target === 'accountShare' && (
+                  <div className={`mt-3 text-[10px] font-bold ${copyFeedback.type === 'success' ? 'text-emerald-600' : 'text-red-500'}`}>{copyFeedback.message}</div>
+                )}
+              </div>
 
-               <div className="p-8 bg-gray-50 rounded-[2.5rem] border border-gray-100 space-y-8">
-                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Job Search Status</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                     {[
-                       { id: 'active', label: 'Actively Looking', desc: 'Prioritize my profile in searches' },
-                       { id: 'open', label: 'Open to Offers', desc: 'Visibility for casual browsing' },
-                       { id: 'closed', label: 'Not Looking', desc: 'Hide my profile from recruiters' }
-                     ].map(status => (
-                       <button 
-                        key={status.id} 
-                        onClick={() => setFormData(prev => ({ ...prev, searchStatus: status.id }))}
-                        className={`p-6 rounded-3xl border text-left transition-all ${formData.searchStatus === status.id ? 'bg-white border-[#7C3AED] shadow-lg shadow-[#7C3AED]/5' : 'bg-gray-50 border-transparent hover:border-gray-200'}`}
-                       >
-                          <div className="flex items-center justify-between mb-3">
-                             <div className={`w-3 h-3 rounded-full ${formData.searchStatus === status.id ? 'bg-[#7C3AED]' : 'bg-gray-300'}`} />
-                             {formData.searchStatus === status.id && <ShieldCheck className="w-4 h-4 text-[#7C3AED]" />}
-                          </div>
-                          <h5 className="text-[10px] font-black uppercase tracking-widest text-gray-900 mb-1">{status.label}</h5>
-                          <p className="text-[9px] font-bold text-gray-400 leading-tight">{status.desc}</p>
-                       </button>
-                     ))}
-                  </div>
-               </div>
+              <div className="p-8 bg-gray-50 rounded-[2.5rem] border border-gray-100 space-y-8">
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Job Search Status</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {[
+                    { id: 'active', label: 'Actively Looking', desc: 'Prioritize my profile in searches' },
+                    { id: 'open', label: 'Open to Offers', desc: 'Visibility for casual browsing' },
+                    { id: 'closed', label: 'Not Looking', desc: 'Hide my profile from recruiters' }
+                  ].map(status => (
+                    <button
+                      key={status.id}
+                      onClick={() => setFormData(prev => ({ ...prev, searchStatus: status.id }))}
+                      className={`p-6 rounded-3xl border text-left transition-all ${formData.searchStatus === status.id ? 'bg-white border-[#7C3AED] shadow-lg shadow-[#7C3AED]/5' : 'bg-gray-50 border-transparent hover:border-gray-200'}`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className={`w-3 h-3 rounded-full ${formData.searchStatus === status.id ? 'bg-[#7C3AED]' : 'bg-gray-300'}`} />
+                        {formData.searchStatus === status.id && <ShieldCheck className="w-4 h-4 text-[#7C3AED]" />}
+                      </div>
+                      <h5 className="text-[10px] font-black uppercase tracking-widest text-gray-900 mb-1">{status.label}</h5>
+                      <p className="text-[9px] font-bold text-gray-400 leading-tight">{status.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div 
-                   onClick={() => setFormData(prev => ({ ...prev, profileVisible: !prev.profileVisible }))}
-                   className="p-8 bg-white border border-gray-100 rounded-[2.5rem] flex items-center justify-between group cursor-pointer hover:border-[#7C3AED]/30 transition-all shadow-sm"
-                  >
-                     <div className="space-y-1">
-                        <h5 className="text-[11px] font-black uppercase tracking-widest text-gray-900">Profile Visibility</h5>
-                        <p className="text-[10px] font-bold text-gray-400">Control who can see your profile details</p>
-                     </div>
-                     <div className={`w-12 h-6 rounded-full relative transition-colors ${formData.profileVisible ? 'bg-[#7C3AED]' : 'bg-gray-200'}`}>
-                        <motion.div 
-                         animate={{ x: formData.profileVisible ? 24 : 4 }}
-                         className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm" 
-                        />
-                     </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div
+                  onClick={() => setFormData(prev => ({ ...prev, profileVisible: !prev.profileVisible }))}
+                  className="p-8 bg-white border border-gray-100 rounded-[2.5rem] flex items-center justify-between group cursor-pointer hover:border-[#7C3AED]/30 transition-all shadow-sm"
+                >
+                  <div className="space-y-1">
+                    <h5 className="text-[11px] font-black uppercase tracking-widest text-gray-900">Profile Visibility</h5>
+                    <p className="text-[10px] font-bold text-gray-400">Control who can see your profile details</p>
                   </div>
+                  <div className={`w-12 h-6 rounded-full relative transition-colors ${formData.profileVisible ? 'bg-[#7C3AED]' : 'bg-gray-200'}`}>
+                    <motion.div
+                      animate={{ x: formData.profileVisible ? 24 : 4 }}
+                      className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm"
+                    />
+                  </div>
+                </div>
 
-                  <div 
-                   onClick={() => setFormData(prev => ({ ...prev, newsletter: !prev.newsletter }))}
-                   className="p-8 bg-white border border-gray-100 rounded-[2.5rem] flex items-center justify-between group cursor-pointer hover:border-[#7C3AED]/30 transition-all shadow-sm"
-                  >
-                     <div className="space-y-1">
-                        <h5 className="text-[11px] font-black uppercase tracking-widest text-gray-900">Newsletter Alerts</h5>
-                        <p className="text-[10px] font-bold text-gray-400">Get weekly job and skill insights</p>
-                     </div>
-                     <div className={`w-12 h-6 rounded-full relative transition-colors ${formData.newsletter ? 'bg-[#7C3AED]' : 'bg-gray-200'}`}>
-                        <motion.div 
-                         animate={{ x: formData.newsletter ? 24 : 4 }}
-                         className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm" 
-                        />
-                     </div>
+                <div
+                  onClick={() => setFormData(prev => ({ ...prev, newsletter: !prev.newsletter }))}
+                  className="p-8 bg-white border border-gray-100 rounded-[2.5rem] flex items-center justify-between group cursor-pointer hover:border-[#7C3AED]/30 transition-all shadow-sm"
+                >
+                  <div className="space-y-1">
+                    <h5 className="text-[11px] font-black uppercase tracking-widest text-gray-900">Newsletter Alerts</h5>
+                    <p className="text-[10px] font-bold text-gray-400">Get weekly job and skill insights</p>
                   </div>
-               </div>
+                  <div className={`w-12 h-6 rounded-full relative transition-colors ${formData.newsletter ? 'bg-[#7C3AED]' : 'bg-gray-200'}`}>
+                    <motion.div
+                      animate={{ x: formData.newsletter ? 24 : 4 }}
+                      className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="pt-8 flex justify-end">
-               <button 
+              <button
                 onClick={() => handleSave('Preferences')}
                 disabled={isSaving}
                 className="px-12 py-4 bg-[#7C3AED] text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-[#6D28D9] transition-all shadow-xl shadow-[#7C3AED]/20 flex items-center gap-3 disabled:opacity-50"
-               >
-                 {isSaving ? <Plus className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                 {isSaving ? 'Saving...' : 'Save Preferences'}
-               </button>
+              >
+                {isSaving ? <Plus className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {isSaving ? 'Saving...' : 'Save Preferences'}
+              </button>
             </div>
           </motion.div>
         );
@@ -2928,7 +2927,7 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
 
       {/* Header with Back Button */}
       <div className="flex items-center gap-6 mb-6 pt-0 sm:pt-0 lg:pt-1">
-        <button 
+        <button
           onClick={() => navigate('/dashboard/learner')}
           className="w-12 h-12 bg-white flex items-center justify-center rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group"
         >
@@ -2965,7 +2964,7 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
                       <p className="mt-3 uppercase tracking-[0.24em] text-sm font-bold text-gray-600">{profileRole}</p>
                       {formData.oneStrongWord && (
                         <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#7C3AED]/10 px-4 py-2 text-sm font-black uppercase tracking-[0.18em] text-[#1D4ED8]">
-                          <Sparkles className="w-4 h-4" /> {formData.oneStrongWord}
+                          {formData.oneStrongWord}
                         </div>
                       )}
                     </div>
@@ -3276,7 +3275,7 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
                       onClick={() => {
                         const openUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(whatsappShareText)}`;
                         const w = window.open(openUrl, '_blank');
-                        try { w?.focus(); } catch {}
+                        try { w?.focus(); } catch { }
                       }}
                       className="px-3 py-2 rounded-lg bg-[#25D366] text-white text-sm font-bold"
                     >
@@ -3293,41 +3292,41 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
       </div>
 
       <div className="mb-12 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-<motion.div
-        initial={{ opacity: 0, y: 22 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: false, amount: 0.25 }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-        className="rounded-[3rem] border border-gray-100 bg-white p-8 sm:p-10 shadow-[0_20px_60px_rgba(15,23,42,0.04)]"
-      >
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-xl font-black uppercase tracking-tight text-gray-900">Activity Timeline</h3>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-1">Recent signals from your profile workspace</p>
+        <motion.div
+          initial={{ opacity: 0, y: 22 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, amount: 0.25 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="rounded-[3rem] border border-gray-100 bg-white p-8 sm:p-10 shadow-[0_20px_60px_rgba(15,23,42,0.04)]"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-xl font-black uppercase tracking-tight text-gray-900">Activity Timeline</h3>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-1">Recent signals from your profile workspace</p>
+            </div>
+            <Calendar className="w-5 h-5 text-gray-300" />
           </div>
-          <Calendar className="w-5 h-5 text-gray-300" />
-        </div>
-        <div className="space-y-4">
-          {activityTimeline.map((item, index) => (
-            <motion.div
-              key={item.title}
-              initial={{ opacity: 0, x: -10 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: false, amount: 0.2 }}
-              transition={{ duration: 0.45, delay: index * 0.08, ease: 'easeOut' }}
-              whileHover={{ scale: 1.01 }}
-              className="flex gap-4 rounded-3xl border border-gray-100 bg-gradient-to-r from-gray-50/80 to-white p-4 hover:shadow-sm transition-all duration-300"
-            >
-              <div className={`w-3 h-3 rounded-full mt-2 shrink-0 ${item.tone === 'emerald' ? 'bg-emerald-500' : item.tone === 'amber' ? 'bg-amber-500' : item.tone === 'sky' ? 'bg-sky-500' : 'bg-gray-400'}`} />
-              <div className="min-w-0">
-                <div className="text-sm font-black text-gray-900">{item.title}</div>
-                <div className="text-sm text-gray-600 leading-6">{item.detail}</div>
-                <div className="mt-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">0{index + 1}</div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </motion.div>
+          <div className="space-y-4">
+            {activityTimeline.map((item, index) => (
+              <motion.div
+                key={item.title}
+                initial={{ opacity: 0, x: -10 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: false, amount: 0.2 }}
+                transition={{ duration: 0.45, delay: index * 0.08, ease: 'easeOut' }}
+                whileHover={{ scale: 1.01 }}
+                className="flex gap-4 rounded-3xl border border-gray-100 bg-gradient-to-r from-gray-50/80 to-white p-4 hover:shadow-sm transition-all duration-300"
+              >
+                <div className={`w-3 h-3 rounded-full mt-2 shrink-0 ${item.tone === 'emerald' ? 'bg-emerald-500' : item.tone === 'amber' ? 'bg-amber-500' : item.tone === 'sky' ? 'bg-sky-500' : 'bg-gray-400'}`} />
+                <div className="min-w-0">
+                  <div className="text-sm font-black text-gray-900">{item.title}</div>
+                  <div className="text-sm text-gray-600 leading-6">{item.detail}</div>
+                  <div className="mt-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">0{index + 1}</div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 28 }}
@@ -3362,7 +3361,7 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
           <div className="mt-6 rounded-3xl border border-[#7C3AED]/10 bg-[#F5F3FF]/70 p-5">
             <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#7C3AED]">Shareable Public Profile</div>
             <div className="mt-3 text-sm text-gray-700 leading-6">Generate a public URL, copy it instantly, or share it through your device's native share sheet.</div>
-                  <div className="mt-3 break-all rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-[10px] font-medium text-gray-700 shadow-sm">{publicProfileUrl || 'Save your profile to generate a public link.'}</div>
+            <div className="mt-3 break-all rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-[10px] font-medium text-gray-700 shadow-sm">{publicProfileUrl || 'Save your profile to generate a public link.'}</div>
             <div className="mt-4 flex flex-col sm:flex-row gap-3">
               <button onClick={() => copyProfileLink('profilePanel')} disabled={!publicProfileUrl} className="flex-1 rounded-2xl bg-white px-4 py-3 text-xs font-black uppercase tracking-[0.2em] text-gray-900 border border-gray-200 hover:border-[#7C3AED]/30 transition-all disabled:opacity-50">Copy Profile Link</button>
               <button onClick={shareProfile} disabled={!publicProfileUrl} className="flex-1 rounded-2xl bg-[#7C3AED] px-4 py-3 text-xs font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-[#7C3AED]/20 hover:bg-[#6D28D9] transition-all disabled:opacity-50">Share Profile</button>
@@ -3370,9 +3369,9 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
             {copyFeedback?.target === 'profilePanel' && (
               <div className={`mt-3 text-[10px] font-bold ${copyFeedback.type === 'success' ? 'text-emerald-600' : 'text-red-500'}`}>{copyFeedback.message}</div>
             )}
-                  {publicProfileUrl && (
-                    <a href={publicProfileUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex text-[10px] font-black uppercase tracking-[0.2em] text-[#7C3AED] hover:text-[#6D28D9]">Open public profile</a>
-                  )}
+            {publicProfileUrl && (
+              <a href={publicProfileUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex text-[10px] font-black uppercase tracking-[0.2em] text-[#7C3AED] hover:text-[#6D28D9]">Open public profile</a>
+            )}
           </div>
         </motion.div>
       </div>
@@ -3382,13 +3381,13 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
         {/* Left Sidebar */}
         <div className="space-y-8 sticky top-32">
           {/* Create Resume Card */}
-          <motion.div 
+          <motion.div
             whileHover={{ y: -5 }}
             onClick={() => navigate('/job-prep/resume-builder')}
             className="bg-[#7C3AED] rounded-[2.5rem] p-8 text-white flex flex-col gap-6 shadow-2xl shadow-purple-900/20 relative overflow-hidden group cursor-pointer"
           >
             <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-125 transition-transform duration-700">
-               <FileText className="w-24 h-24" />
+              <FileText className="w-24 h-24" />
             </div>
             <div className="flex items-center justify-between relative z-10">
               <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
@@ -3405,7 +3404,7 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
           {/* Tab Navigation */}
           <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-[0_10px_30px_rgba(0,0,0,0.02)] overflow-hidden py-6">
             <div className="px-10 pb-4 mb-4 border-b border-gray-50">
-               <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Modules</span>
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Modules</span>
             </div>
             {tabs.map((tab) => (
               <button
@@ -3423,7 +3422,7 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
                   </span>
                 )}
                 {activeTab === tab.id && (
-                  <motion.div 
+                  <motion.div
                     layoutId="tabHighlightSide"
                     className="absolute right-0 top-0 bottom-0 w-1 bg-[#7C3AED]"
                   />
@@ -3436,7 +3435,7 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
         {/* Right Content Area */}
         <div className="bg-white rounded-[3.5rem] border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.02)] p-10 sm:p-16 min-h-[800px] relative">
           <AnimatePresence mode="wait">
-             {renderContent()}
+            {renderContent()}
           </AnimatePresence>
         </div>
       </div>

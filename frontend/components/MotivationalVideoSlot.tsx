@@ -20,7 +20,7 @@ const MotivationalVideoSlot: React.FC<MotivationalVideoSlotProps> = ({
       {/* Text Content */}
       <div className="flex-1 relative z-10">
         <div className="inline-flex items-center gap-2 bg-[#6C2BFF]/10 text-[#6C2BFF] px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-3">
-          <Sparkles className="w-3 h-3" /> Daily Boost
+          Daily Boost
         </div>
         <h3 className="text-2xl font-black text-[#1A1A1A] tracking-tight mb-2">{title}</h3>
         <p className="text-gray-500 text-sm font-medium">{subtitle}</p>
@@ -29,12 +29,12 @@ const MotivationalVideoSlot: React.FC<MotivationalVideoSlotProps> = ({
       {/* Video Container (Compact & Premium) */}
       <div className="w-full md:w-[320px] aspect-video bg-gray-900 rounded-2xl overflow-hidden relative shadow-lg group-hover:shadow-[0_15px_40px_rgba(108,43,255,0.15)] transition-all duration-500 border border-gray-100">
         {videoUrl ? (
-          <video 
-            src={videoUrl} 
-            controls 
+          <video
+            src={videoUrl}
+            controls
             controlsList="nodownload"
             className="w-full h-full object-cover"
-            poster="/stud.png" 
+            poster="/stud.png"
           />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#F8F9FC] border border-gray-100">

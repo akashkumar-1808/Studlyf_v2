@@ -1,43 +1,42 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Star, Sparkles, Calendar, Trophy, ArrowUpRight } from 'lucide-react';
+import { Star, Calendar, Trophy, ArrowUpRight } from 'lucide-react';
 
 const highlights = [
-  { 
-    title: 'Career Pathways', 
-    desc: 'Goal-based pathways designed to help students learn, build, and grow faster.', 
-    icon: Star, 
+  {
+    title: 'Career Pathways',
+    desc: 'Goal-based pathways designed to help students learn, build, and grow faster.',
+    icon: Star,
     color: 'from-[#FF7AB6] to-[#7C3AED]',
     glow: 'bg-[#FF7AB6]',
     action: 'tracks' as const,
     label: 'Pathways',
     btnText: 'Explore paths'
   },
-  { 
-    title: 'Career Opportunities', 
-    desc: 'Discover internships, hackathons, startup roles, workshops, and real exposure.', 
-    icon: Calendar, 
+  {
+    title: 'Career Opportunities',
+    desc: 'Discover internships, hackathons, startup roles, workshops, and real exposure.',
+    icon: Calendar,
     color: 'from-[#06B6D4] to-[#4F46E5]',
     glow: 'bg-[#06B6D4]',
     action: 'learnHub' as const,
     label: 'Opportunities',
     btnText: 'Explore now'
   },
-  { 
-    title: 'Build & Showcase', 
-    desc: 'Build projects, create proof of work, and showcase your growth journey.', 
-    icon: Trophy, 
+  {
+    title: 'Build & Showcase',
+    desc: 'Build projects, create proof of work, and showcase your growth journey.',
+    icon: Trophy,
     color: 'from-[#F59E0B] to-[#EF4444]',
     glow: 'bg-[#F59E0B]',
     action: 'testimonials' as const,
     label: 'Growth',
     btnText: 'Explore work'
   },
-  { 
-    title: 'Mentors & Network', 
-    desc: 'Connect with founders, mentors, creators, and ambitious student communities.', 
-    icon: Sparkles, 
+  {
+    title: 'Mentors & Network',
+    desc: 'Connect with founders, mentors, creators, and ambitious student communities.',
     color: 'from-[#34D399] to-[#06B6D4]',
     glow: 'bg-[#34D399]',
     action: 'aiTools' as const,
@@ -85,9 +84,9 @@ const ColorfulHighlights: React.FC = () => {
     <section className="py-20 sm:py-28 bg-white px-4 sm:px-6 relative overflow-hidden">
       {/* Abstract Background Elements */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-gray-50 to-transparent rounded-full opacity-50 pointer-events-none" />
-      
+
       <div className="relative max-w-7xl mx-auto">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-100px' }}
@@ -135,17 +134,17 @@ const ColorfulHighlights: React.FC = () => {
                         <Icon className="w-6 h-6 stroke-[1.5]" />
                       </div>
                     </div>
-                    
+
                     <div className="px-3 py-1 rounded-full bg-gray-50 border border-gray-100 text-[10px] font-bold uppercase tracking-wider text-gray-500 group-hover:text-gray-900 group-hover:bg-white group-hover:border-gray-200 transition-all duration-300">
                       {h.label}
                     </div>
                   </div>
-                  
+
                   <div className="flex-grow">
                     <h4 className="font-bold text-xl text-[#0F172A] mb-3 tracking-tight group-hover:text-[#7C3AED] transition-colors duration-300">{h.title}</h4>
                     <p className="text-[14px] text-[#64748B] leading-relaxed font-medium">{h.desc}</p>
                   </div>
-                  
+
                   <div className="mt-8 pt-4 border-t border-gray-50 flex items-center justify-between">
                     <span className="text-[12px] font-bold text-[#0F172A] group-hover:text-[#7C3AED] transition-colors duration-300">
                       {h.btnText}

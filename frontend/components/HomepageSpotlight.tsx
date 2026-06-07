@@ -55,7 +55,7 @@ const HomepageSpotlight: React.FC = () => {
           className="text-center max-w-2xl mx-auto mb-16 sm:mb-20"
         >
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-[#7C3AED]/20 shadow-[0_2px_10px_rgba(124,58,237,0.05)] mb-6">
-            <Sparkles className="w-4 h-4 text-[#7C3AED]" />
+
             <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#7C3AED] mt-[1px]">
               Platform Gateway
             </span>
@@ -92,7 +92,7 @@ const HomepageSpotlight: React.FC = () => {
                       <div className="relative mb-8 self-start">
                         {/* Soft Outer Glow */}
                         <div className="absolute inset-0 bg-[#7C3AED] blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-700 rounded-[20px]" />
-                        
+
                         {/* Glass Body */}
                         <div className="relative w-[60px] h-[60px] rounded-[22px] bg-white border border-gray-100 shadow-[0_8px_16px_-4px_rgba(0,0,0,0.03),inset_0_1px_4px_rgba(255,255,255,1)] flex items-center justify-center text-[#64748B] group-hover:text-[#7C3AED] group-hover:-translate-y-1 group-hover:shadow-[0_16px_32px_-8px_rgba(124,58,237,0.15),inset_0_1px_4px_rgba(255,255,255,1)] group-hover:border-[#7C3AED]/20 transition-all duration-500 overflow-hidden">
                           {/* Inner Subtle Gradient */}

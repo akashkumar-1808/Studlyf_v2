@@ -74,8 +74,8 @@ const LearnerDashboard: React.FC = () => {
   const [dashboardStats, setDashboardStats] = useState<any>(null);
   const [globalRankings, setGlobalRankings] = useState<any[]>([]);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editFormData, setEditFormData] = useState({ 
-    full_name: user?.full_name || '', 
+  const [editFormData, setEditFormData] = useState({
+    full_name: user?.full_name || '',
     email: user?.email || '',
     college_name: user?.college_name || '',
     graduation_year: user?.graduation_year || ''
@@ -100,7 +100,7 @@ const LearnerDashboard: React.FC = () => {
         .then(res => res.json())
         .then(data => setResumeData(data))
         .catch(console.error);
-      
+
       // Fetch badges
       fetch(`${API_BASE_URL}/api/user/${user.user_id}/badges`)
         .then(res => res.json())
@@ -162,7 +162,7 @@ const LearnerDashboard: React.FC = () => {
                 <h1 className="text-4xl font-black uppercase tracking-tighter text-[#111827] leading-tight">System Overview</h1>
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mt-2">Authenticated Session: {user?.full_name}</p>
               </div>
-              <button 
+              <button
                 onClick={() => setActiveView('profile')}
                 className="px-8 py-3 bg-[#7C3AED] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#6D28D9] transition-all shadow-xl shadow-[#7C3AED]/20"
               >
@@ -193,7 +193,7 @@ const LearnerDashboard: React.FC = () => {
               {/* Quick Actions */}
               <div className="bg-[#111827] rounded-[2.5rem] p-10 text-white relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
-                   <Sparkles className="w-32 h-32" />
+
                 </div>
                 <h3 className="text-xl font-black uppercase tracking-tight mb-6 relative z-10">Next Protocols</h3>
                 <div className="space-y-4 relative z-10">

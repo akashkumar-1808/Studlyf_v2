@@ -88,25 +88,25 @@ const PublicProfile: React.FC = () => {
     { title: 'Recognition', detail: `${achievements.length} achievements and ${certifications.length} certifications are shown.` },
   ];
 
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-[#F4F4F6] px-4 py-8 sm:px-6 lg:px-10">
-                <div className="mx-auto max-w-7xl space-y-6">
-                    <div className="w-32 h-10 bg-gray-200 rounded-2xl animate-pulse"></div>
-                    <div className="grid gap-6 xl:grid-cols-[1.35fr_0.9fr]">
-                        <div className="h-64 bg-white rounded-[3rem] p-10 animate-pulse border border-gray-100 flex gap-8">
-                            <div className="w-24 h-24 bg-gray-100 rounded-[2rem] shrink-0"></div>
-                            <div className="flex-1 space-y-4">
-                                <div className="w-1/2 h-10 bg-gray-100 rounded-lg"></div>
-                                <div className="w-1/3 h-6 bg-gray-100 rounded-lg"></div>
-                            </div>
-                        </div>
-                        <div className="h-64 bg-white rounded-[3rem] p-10 animate-pulse border border-gray-100"></div>
-                    </div>
-                </div>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F4F4F6] px-4 py-8 sm:px-6 lg:px-10">
+        <div className="mx-auto max-w-7xl space-y-6">
+          <div className="w-32 h-10 bg-gray-200 rounded-2xl animate-pulse"></div>
+          <div className="grid gap-6 xl:grid-cols-[1.35fr_0.9fr]">
+            <div className="h-64 bg-white rounded-[3rem] p-10 animate-pulse border border-gray-100 flex gap-8">
+              <div className="w-24 h-24 bg-gray-100 rounded-[2rem] shrink-0"></div>
+              <div className="flex-1 space-y-4">
+                <div className="w-1/2 h-10 bg-gray-100 rounded-lg"></div>
+                <div className="w-1/3 h-6 bg-gray-100 rounded-lg"></div>
+              </div>
             </div>
-        );
-    }
+            <div className="h-64 bg-white rounded-[3rem] p-10 animate-pulse border border-gray-100"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (error || !profile) {
     return (
@@ -149,7 +149,7 @@ const PublicProfile: React.FC = () => {
                 </div>
                 <div className="min-w-0">
                   <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#7C3AED]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#7C3AED]">
-                    <Sparkles className="h-3 w-3" /> Contributor Profile
+                    Contributor Profile
                   </div>
                   <h1 className="break-words text-3xl font-black tracking-tight text-gray-900 sm:text-4xl">{name}</h1>
                   <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-gray-500">

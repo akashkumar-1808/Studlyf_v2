@@ -76,24 +76,24 @@ const FALLBACK_ROADMAP = [
 // --- NETWORK VISUALIZATION COMPONENTS ---
 
 interface Position {
-  cx: number;
-  cy: number;
+    cx: number;
+    cy: number;
 }
 
 interface Connection {
-  from: number | 'center';
-  to: number | 'center';
-  color: string;
+    from: number | 'center';
+    to: number | 'center';
+    color: string;
 }
 
 interface PathPositions {
-  [key: string]: Position;
+    [key: string]: Position;
 }
 
 const CareerNetwork: React.FC<{ paths: any[]; onPathClick: (p: any) => void; isGenerating: boolean; formData: any }> = ({ paths, onPathClick, isGenerating, formData }) => {
     const [containerSize, setContainerSize] = useState({ width: 1000, height: 1000 });
     const [hoveredPathId, setHoveredPathId] = useState<number | string | null>(null);
-    
+
     const dimensions = useMemo(() => {
         const width = window.innerWidth;
         const baseSize = Math.min(width - 32, 1200);
@@ -132,16 +132,16 @@ const CareerNetwork: React.FC<{ paths: any[]; onPathClick: (p: any) => void; isG
         const total = ringPaths.length;
         ringPaths.forEach((p, i) => {
             const angle = (i / total) * 2 * Math.PI - Math.PI / 2;
-            
+
             // Pronounced staggered radius to ensure zero horizontal overlap
             const currentCardRadius = i % 2 === 0 ? dimensions.cardRadius : dimensions.cardRadius + (90 * (dimensions.containerSize / 1000));
-            
+
             // Anchor point on the outer dashed ring
             pos[`anchor_${p.id}`] = {
                 cx: dimensions.centerX + dimensions.outerRadius * Math.cos(angle),
                 cy: dimensions.centerY + dimensions.outerRadius * Math.sin(angle)
             };
-            
+
             // Card center position on the staggered circle
             pos[`card_${p.id}`] = {
                 cx: dimensions.centerX + currentCardRadius * Math.cos(angle),
@@ -155,7 +155,7 @@ const CareerNetwork: React.FC<{ paths: any[]; onPathClick: (p: any) => void; isG
         <div className="w-full relative flex items-center justify-center overflow-hidden bg-white" style={{ height: dimensions.containerSize }}>
             {/* Background Grid */}
             <div className="absolute inset-0 opacity-[0.2]" style={{ backgroundImage: 'radial-gradient(#d1d5db 1px, transparent 0)', backgroundSize: '32px 32px' }} />
-            
+
             {isGenerating && (
                 <div className="absolute top-10 z-[100] flex items-center gap-2 px-5 py-2 bg-white/90 backdrop-blur-md rounded-full shadow-lg border border-blue-100 text-blue-600 font-black text-[10px] uppercase tracking-widest">
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -167,26 +167,26 @@ const CareerNetwork: React.FC<{ paths: any[]; onPathClick: (p: any) => void; isG
                 {/* SVG Connections and Rings */}
                 <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
                     {/* Inner Dashed Ring */}
-                    <circle 
-                        cx={dimensions.centerX} 
-                        cy={dimensions.centerY} 
-                        r={dimensions.innerRadius} 
-                        fill="none" 
-                        stroke="#D8B4FE" 
-                        strokeWidth="1.5" 
-                        strokeDasharray="4 4" 
+                    <circle
+                        cx={dimensions.centerX}
+                        cy={dimensions.centerY}
+                        r={dimensions.innerRadius}
+                        fill="none"
+                        stroke="#D8B4FE"
+                        strokeWidth="1.5"
+                        strokeDasharray="4 4"
                         className="opacity-40"
                     />
-                    
+
                     {/* Outer Dashed Ring */}
-                    <circle 
-                        cx={dimensions.centerX} 
-                        cy={dimensions.centerY} 
-                        r={dimensions.outerRadius} 
-                        fill="none" 
-                        stroke="#D8B4FE" 
-                        strokeWidth="1.5" 
-                        strokeDasharray="4 4" 
+                    <circle
+                        cx={dimensions.centerX}
+                        cy={dimensions.centerY}
+                        r={dimensions.outerRadius}
+                        fill="none"
+                        stroke="#D8B4FE"
+                        strokeWidth="1.5"
+                        strokeDasharray="4 4"
                         className="opacity-40"
                     />
 
@@ -195,28 +195,28 @@ const CareerNetwork: React.FC<{ paths: any[]; onPathClick: (p: any) => void; isG
                         const anchor = positions[`anchor_${p.id}`];
                         const card = positions[`card_${p.id}`];
                         if (!anchor || !card) return null;
-                        
+
                         return (
                             <g key={p.id}>
                                 {/* Node on the ring */}
-                                <circle 
-                                    cx={anchor.cx} 
-                                    cy={anchor.cy} 
-                                    r="4" 
-                                    fill="white" 
-                                    stroke="#A855F7" 
-                                    strokeWidth="2" 
+                                <circle
+                                    cx={anchor.cx}
+                                    cy={anchor.cy}
+                                    r="4"
+                                    fill="white"
+                                    stroke="#A855F7"
+                                    strokeWidth="2"
                                 />
                                 {/* Connecting line to card */}
-                                <motion.line 
-                                    x1={anchor.cx} 
-                                    y1={anchor.cy} 
-                                    x2={card.cx} 
-                                    y2={card.cy} 
-                                    stroke={hoveredPathId === p.id ? "#8B5CF6" : "#C4B5FD"} 
+                                <motion.line
+                                    x1={anchor.cx}
+                                    y1={anchor.cy}
+                                    x2={card.cx}
+                                    y2={card.cy}
+                                    stroke={hoveredPathId === p.id ? "#8B5CF6" : "#C4B5FD"}
                                     strokeWidth={hoveredPathId === p.id ? "2.5" : "1.5"}
                                     initial={false}
-                                    animate={{ 
+                                    animate={{
                                         stroke: hoveredPathId === p.id ? "#8B5CF6" : "#C4B5FD",
                                         strokeWidth: hoveredPathId === p.id ? 2.5 : 1.5,
                                         opacity: hoveredPathId === p.id ? 1 : 0.4
@@ -232,7 +232,7 @@ const CareerNetwork: React.FC<{ paths: any[]; onPathClick: (p: any) => void; isG
                 {ringPaths.map((p) => {
                     const pos = positions[`card_${p.id}`];
                     if (!pos) return null;
-                    
+
                     return (
                         <React.Fragment key={p.id}>
                             <motion.div
@@ -241,17 +241,17 @@ const CareerNetwork: React.FC<{ paths: any[]; onPathClick: (p: any) => void; isG
                                 onMouseEnter={() => setHoveredPathId(p.id)}
                                 onMouseLeave={() => setHoveredPathId(null)}
                                 className="absolute z-30 cursor-pointer group"
-                                style={{ 
-                                    left: pos.cx, 
-                                    top: pos.cy, 
+                                style={{
+                                    left: pos.cx,
+                                    top: pos.cy,
                                     width: dimensions.cardWidth,
                                     height: dimensions.cardHeight,
-                                    transform: 'translate(-50%, -50%)' 
+                                    transform: 'translate(-50%, -50%)'
                                 }}
                                 onClick={() => onPathClick(p)}
                             >
                                 <div className="w-full h-full bg-white/95 backdrop-blur-md rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-gray-100 p-2.5 flex items-center gap-3 hover:shadow-[0_12px_30px_rgba(168,85,247,0.08)] hover:border-purple-200 transition-all duration-500 group-active:scale-95">
-                                    <div 
+                                    <div
                                         className="w-9 h-9 rounded-lg overflow-hidden shrink-0 border border-gray-50 shadow-sm flex items-center justify-center bg-gray-50"
                                         style={{ backgroundColor: `${p.color}10` }}
                                     >
@@ -301,11 +301,11 @@ const CareerNetwork: React.FC<{ paths: any[]; onPathClick: (p: any) => void; isG
                                             As a {p.name}, you would be responsible for designing, developing, and executing high-impact solutions. Your background in {formData.subject || "academics"}, coupled with skills in {formData.skills.slice(0, 2).join(", ") || "domains"} will guide your success.
                                         </p>
 
-                                        <button 
+                                        <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 onPathClick(p);
-                                            }} 
+                                            }}
                                             className="w-full py-3 bg-[#1B66EC] hover:bg-blue-700 text-white font-bold rounded-2xl text-center text-xs tracking-wide shadow-md active:scale-95 transition-all select-none"
                                         >
                                             Learn more
@@ -333,7 +333,7 @@ const CareerNetwork: React.FC<{ paths: any[]; onPathClick: (p: any) => void; isG
                 })}
 
                 {/* Central Hub Area */}
-                <div 
+                <div
                     className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center bg-white rounded-full border border-slate-100 shadow-[0_12px_32px_rgba(0,0,0,0.06)] z-20 pointer-events-none"
                     style={{ width: dimensions.innerRadius * 2, height: dimensions.innerRadius * 2 }}
                 >
@@ -353,20 +353,20 @@ const CareerNetwork: React.FC<{ paths: any[]; onPathClick: (p: any) => void; isG
 // --- ROADMAP DETAIL MODAL ---
 const RoadmapDetailModal: React.FC<{ month: any; onClose: () => void }> = ({ month, onClose }) => {
     return (
-        <motion.div 
+        <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[2000] flex items-center justify-center p-4 sm:p-10 bg-slate-900/40 backdrop-blur-md"
         >
-            <motion.div 
+            <motion.div
                 initial={{ scale: 0.95, y: 30 }}
                 animate={{ scale: 1, y: 0 }}
                 className="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] shadow-[0_32px_120px_rgba(0,0,0,0.15)] relative"
             >
                 {/* MODAL HEADER STRIP */}
                 <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 via-cyan-400 to-emerald-400" />
-                
+
                 <div className="p-8 sm:p-14">
                     <button onClick={onClose} className="absolute top-10 right-10 p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all border border-slate-100 shadow-sm active:scale-95">
                         <X className="w-5 h-5 text-slate-400" />
@@ -472,7 +472,7 @@ const RoadmapDetailModal: React.FC<{ month: any; onClose: () => void }> = ({ mon
 // --- ROADMAP CARD COMPONENT ---
 const RoadmapCard: React.FC<{ month: any; idx: number; isLast: boolean; onDetails: (m: any) => void }> = ({ month, idx, isLast, onDetails }) => {
     return (
-        <motion.div 
+        <motion.div
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: "-50px" }}
@@ -483,7 +483,7 @@ const RoadmapCard: React.FC<{ month: any; idx: number; isLast: boolean; onDetail
             {!isLast && (
                 <div className="absolute left-[15px] sm:left-[60px] top-12 bottom-0 w-[1px] bg-slate-200 transition-colors duration-500 group-hover/card:bg-blue-400" />
             )}
-            
+
             {/* Engineering Node */}
             <div className="absolute left-[10px] sm:left-[55px] top-10 w-[12px] h-[12px] rounded-full bg-white border-2 border-slate-300 z-10 shadow-[0_0_0_4px_white] transition-all duration-500 group-hover/card:border-blue-600 group-hover/card:shadow-[0_0_0_4px_white,0_0_15px_rgba(37,99,235,0.4)]" />
 
@@ -497,10 +497,10 @@ const RoadmapCard: React.FC<{ month: any; idx: number; isLast: boolean; onDetail
             <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-10 hover:shadow-[0_20px_50px_rgba(0,0,0,0.06)] hover:border-amber-200 transition-all duration-500 relative overflow-hidden group/card">
                 {/* Dynamic Line Effect on Hover (Contrast Color) */}
                 <div className="absolute left-0 top-0 bottom-0 w-0 bg-amber-500 transition-all duration-500 group-hover/card:w-1.5 shadow-[2px_0_15px_rgba(245,158,11,0.4)] z-20" />
-                
+
                 {/* Architectural Grid Background (Subtle) */}
                 <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-                
+
                 <div className="flex flex-col xl:flex-row justify-between items-start gap-8 relative z-10">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-4 mb-4">
@@ -509,8 +509,8 @@ const RoadmapCard: React.FC<{ month: any; idx: number; isLast: boolean; onDetail
                         </div>
                         <p className="text-slate-500 text-[13px] font-medium leading-relaxed max-w-2xl">{month.details || month.tasks?.[0] || "Synthesizing specialized technical curriculum and operational milestones."}</p>
                     </div>
-                    
-                    <button 
+
+                    <button
                         onClick={() => onDetails(month)}
                         className="shrink-0 group/btn px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-blue-600 transition-all flex items-center gap-3 shadow-lg shadow-slate-200 active:scale-95"
                     >
@@ -518,7 +518,7 @@ const RoadmapCard: React.FC<{ month: any; idx: number; isLast: boolean; onDetail
                         <ArrowRight className="w-4 h-4 transition-transform group-hover/btn:translate-x-1" />
                     </button>
                 </div>
-                
+
                 {/* Technical Specifications Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-10 relative z-10">
                     {/* Stack Specification */}
@@ -560,10 +560,10 @@ const RoadmapCard: React.FC<{ month: any; idx: number; isLast: boolean; onDetail
     );
 };
 
-const RoadmapSection: React.FC<{ 
-    roadmapData: any; 
-    selectedPath: any; 
-    isGeneratingRoadmap: boolean; 
+const RoadmapSection: React.FC<{
+    roadmapData: any;
+    selectedPath: any;
+    isGeneratingRoadmap: boolean;
     handlePathClick: (p: any) => void;
     onDetails: (m: any) => void;
     navigate: any;
@@ -585,7 +585,7 @@ const RoadmapSection: React.FC<{
                 </div>
                 <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
                     <div className="max-w-3xl">
-                        <h2 className="text-4xl sm:text-5xl font-bold text-slate-900 tracking-tight leading-[1.1] mb-6">Career Architecture<br/><span className="text-slate-400">Blueprint</span></h2>
+                        <h2 className="text-4xl sm:text-5xl font-bold text-slate-900 tracking-tight leading-[1.1] mb-6">Career Architecture<br /><span className="text-slate-400">Blueprint</span></h2>
                         <p className="text-slate-500 text-base sm:text-lg font-medium leading-relaxed">
                             A validated 6-month technical progression strategy engineered for professional excellence and industry standard compliance.
                         </p>
@@ -617,12 +617,12 @@ const RoadmapSection: React.FC<{
                 ) : roadmapData && roadmapData.length > 0 ? (
                     <div className="space-y-0 relative">
                         {roadmapData.map((month: any, idx: number) => (
-                            <RoadmapCard 
-                                key={idx} 
-                                month={month} 
-                                idx={idx} 
+                            <RoadmapCard
+                                key={idx}
+                                month={month}
+                                idx={idx}
                                 isLast={idx === roadmapData.length - 1}
-                                onDetails={onDetails} 
+                                onDetails={onDetails}
                             />
                         ))}
                     </div>
@@ -977,7 +977,7 @@ const CareerOnboarding: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'Identity' | 'Paths'>('Identity');
     const [selectedDetailMonth, setSelectedDetailMonth] = useState<any>(null);
     const [carouselIndex, setCarouselIndex] = useState(0);
-    
+
     const [formData, setFormData] = useState({
         role: '',
         level: 'Bachelor\'s degree',
@@ -1245,9 +1245,9 @@ const CareerOnboarding: React.FC = () => {
             const res = await fetch(`${API_BASE}/api/career/identity`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    subject: formData.subject, 
-                    skills: formData.skills, 
+                body: JSON.stringify({
+                    subject: formData.subject,
+                    skills: formData.skills,
                     interests: formData.interests,
                     role: formData.role
                 })
@@ -1268,9 +1268,9 @@ const CareerOnboarding: React.FC = () => {
             const res = await fetch(`${API_BASE}/api/career/explore-paths`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    subject: formData.subject, 
-                    skills: formData.skills, 
+                body: JSON.stringify({
+                    subject: formData.subject,
+                    skills: formData.skills,
                     interests: formData.interests,
                     role: formData.role
                 })
@@ -1295,9 +1295,9 @@ const CareerOnboarding: React.FC = () => {
             const res = await fetch(`${API_BASE}/api/career/identity`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    subject: dataToUse.subject, 
-                    skills: dataToUse.skills, 
+                body: JSON.stringify({
+                    subject: dataToUse.subject,
+                    skills: dataToUse.skills,
                     interests: dataToUse.interests,
                     role: dataToUse.role
                 })
@@ -1318,9 +1318,9 @@ const CareerOnboarding: React.FC = () => {
             const res = await fetch(`${API_BASE}/api/career/explore-paths`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    subject: dataToUse.subject, 
-                    skills: dataToUse.skills, 
+                body: JSON.stringify({
+                    subject: dataToUse.subject,
+                    skills: dataToUse.skills,
                     interests: dataToUse.interests,
                     role: dataToUse.role
                 })
@@ -1349,7 +1349,7 @@ const CareerOnboarding: React.FC = () => {
         setGeneratedPaths([]);
         setRoadmapData(null);
         setSelectedPath(null);
-        
+
         let updatedExp = [...formData.experience];
         let updatedSubject = formData.subject;
         let updatedSkills = [...formData.skills];
@@ -1407,7 +1407,7 @@ const CareerOnboarding: React.FC = () => {
         setSelectedPath(path);
         setIsGeneratingRoadmap(true);
         setRoadmapData(null);
-        
+
         try {
             const res = await fetch(`${API_BASE}/api/career/roadmap`, {
                 method: 'POST',
@@ -1439,11 +1439,11 @@ const CareerOnboarding: React.FC = () => {
         setShowDetailedPage(true);
         setRecommendedCourses([]);
         setCarouselIndex(0); // reset carousel for new path
-        
+
         // Pre-fetch roadmap timeline and course list in the background
         handlePathClick(path);
         fetchCourses(path.name);
-        
+
         try {
             const res = await fetch(`${API_BASE}/api/career/path-details`, {
                 method: 'POST',
@@ -1504,9 +1504,9 @@ const CareerOnboarding: React.FC = () => {
                     className={`relative z-10 flex-1 h-10 rounded-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-colors duration-500 ${activeTab === 'Identity' ? 'text-[#111]' : 'text-gray-400'}`}
                 >
                     {activeTab === 'Identity' && (
-                        <motion.div 
-                            layoutId="activeTab" 
-                            className="absolute inset-0 bg-white shadow-sm rounded-full border border-gray-100/50" 
+                        <motion.div
+                            layoutId="activeTab"
+                            className="absolute inset-0 bg-white shadow-sm rounded-full border border-gray-100/50"
                             transition={{ type: 'spring', duration: 0.6 }}
                         />
                     )}
@@ -1519,9 +1519,9 @@ const CareerOnboarding: React.FC = () => {
                     className={`relative z-10 flex-1 h-10 rounded-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-colors duration-500 ${activeTab === 'Paths' ? 'text-[#111]' : 'text-gray-400'}`}
                 >
                     {activeTab === 'Paths' && (
-                        <motion.div 
-                            layoutId="activeTab" 
-                            className="absolute inset-0 bg-white shadow-sm rounded-full border border-gray-100/50" 
+                        <motion.div
+                            layoutId="activeTab"
+                            className="absolute inset-0 bg-white shadow-sm rounded-full border border-gray-100/50"
                             transition={{ type: 'spring', duration: 0.6 }}
                         />
                     )}
@@ -1543,9 +1543,9 @@ const CareerOnboarding: React.FC = () => {
             const isValid = wordCount > 0 && wordCount <= 5 && charCount <= 50;
 
             return (
-                <motion.div 
-                    initial={{ opacity: 0, y: 10 }} 
-                    animate={{ opacity: 1, y: 0 }} 
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     className="w-full max-w-2xl bg-white/90 backdrop-blur-xl rounded-[2.5rem] p-8 sm:p-12 border border-slate-100/80 shadow-[0_24px_80px_rgba(0,0,0,0.04)] relative overflow-hidden flex flex-col gap-8"
                 >
@@ -1647,17 +1647,16 @@ const CareerOnboarding: React.FC = () => {
                         </div>
                     </div>
 
-                    <button 
+                    <button
                         onClick={() => {
                             const isStudent = formData.role.toLowerCase().includes('student');
                             setStep(isStudent ? 2 : 21);
-                        }} 
+                        }}
                         disabled={!isValid}
-                        className={`w-full sm:w-fit px-12 py-4 rounded-2xl font-semibold text-base transition-all select-none ${
-                            isValid 
-                            ? "bg-[#1B66EC] text-white hover:bg-blue-700 shadow-lg shadow-blue-200/50 active:scale-95 cursor-pointer" 
+                        className={`w-full sm:w-fit px-12 py-4 rounded-2xl font-semibold text-base transition-all select-none ${isValid
+                            ? "bg-[#1B66EC] text-white hover:bg-blue-700 shadow-lg shadow-blue-200/50 active:scale-95 cursor-pointer"
                             : "bg-[#D2E3FC] text-white cursor-not-allowed"
-                        }`}
+                            }`}
                     >
                         Next →
                     </button>
@@ -1667,9 +1666,9 @@ const CareerOnboarding: React.FC = () => {
 
         if (step === 21) {
             return (
-                <motion.div 
-                    initial={{ opacity: 0, y: 10 }} 
-                    animate={{ opacity: 1, y: 0 }} 
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     className="flex flex-col gap-10 w-full max-w-2xl px-6"
                 >
@@ -1696,13 +1695,13 @@ const CareerOnboarding: React.FC = () => {
 
                     {/* Navigation Buttons */}
                     <div className="flex gap-4">
-                        <button 
+                        <button
                             onClick={() => setStep(1)}
                             className="px-8 py-3 rounded-2xl font-semibold text-base transition-all select-none border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-blue-600 active:scale-95 cursor-pointer bg-white"
                         >
                             Back
                         </button>
-                        <button 
+                        <button
                             onClick={() => setStep(22)}
                             className="px-8 py-3 rounded-2xl font-semibold text-base transition-all select-none bg-[#1B66EC] text-white hover:bg-blue-700 shadow-lg shadow-blue-200/50 active:scale-95 cursor-pointer"
                         >
@@ -1727,17 +1726,17 @@ const CareerOnboarding: React.FC = () => {
             };
 
             const toggleTask = (task: string) => {
-                setSelectedTasks(prev => 
-                    prev.includes(task) 
-                        ? prev.filter(t => t !== task) 
+                setSelectedTasks(prev =>
+                    prev.includes(task)
+                        ? prev.filter(t => t !== task)
                         : [...prev, task]
                 );
             };
 
             return (
-                <motion.div 
-                    initial={{ opacity: 0, y: 10 }} 
-                    animate={{ opacity: 1, y: 0 }} 
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     className="flex flex-col gap-6 w-full max-w-3xl px-6"
                 >
@@ -1753,21 +1752,21 @@ const CareerOnboarding: React.FC = () => {
 
                     {/* Action buttons */}
                     <div className="flex gap-4 items-center">
-                        <button 
+                        <button
                             onClick={() => {
                                 alert("Re-shuffled roles and responsibilities!");
                             }}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all active:scale-95"
                         >
-                            <Sparkles className="w-3.5 h-3.5 text-blue-500" /> Re-generate
+                            Re-generate
                         </button>
-                        <button 
+                        <button
                             onClick={toggleSelectAllTasks}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all active:scale-95"
                         >
-                            <input 
-                                type="checkbox" 
-                                checked={isAllSelected} 
+                            <input
+                                type="checkbox"
+                                checked={isAllSelected}
                                 onChange={toggleSelectAllTasks}
                                 className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                             />
@@ -1786,17 +1785,15 @@ const CareerOnboarding: React.FC = () => {
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: idx * 0.05 }}
                                     onClick={() => toggleTask(task)}
-                                    className={`p-4 rounded-2xl border transition-all cursor-pointer select-none text-left flex items-start gap-3 hover:shadow-md ${
-                                        isSelected
-                                            ? 'bg-blue-50/80 border-blue-500 text-slate-800 font-medium'
-                                            : 'bg-[#F1F3F4]/60 border-slate-100 hover:bg-white text-slate-600'
-                                    }`}
+                                    className={`p-4 rounded-2xl border transition-all cursor-pointer select-none text-left flex items-start gap-3 hover:shadow-md ${isSelected
+                                        ? 'bg-blue-50/80 border-blue-500 text-slate-800 font-medium'
+                                        : 'bg-[#F1F3F4]/60 border-slate-100 hover:bg-white text-slate-600'
+                                        }`}
                                 >
-                                    <div className={`w-5 h-5 rounded-full shrink-0 flex items-center justify-center border mt-0.5 ${
-                                        isSelected 
-                                            ? 'bg-blue-500 border-blue-500 text-white' 
-                                            : 'bg-white border-slate-300'
-                                    }`}>
+                                    <div className={`w-5 h-5 rounded-full shrink-0 flex items-center justify-center border mt-0.5 ${isSelected
+                                        ? 'bg-blue-500 border-blue-500 text-white'
+                                        : 'bg-white border-slate-300'
+                                        }`}>
                                         {isSelected && <span className="text-[10px]">✓</span>}
                                     </div>
                                     <span className="text-sm sm:text-base leading-relaxed">{task}</span>
@@ -1811,13 +1808,13 @@ const CareerOnboarding: React.FC = () => {
                             {selectedTasks.length} task{selectedTasks.length !== 1 && 's'} selected
                         </span>
                         <div className="flex gap-4">
-                            <button 
+                            <button
                                 onClick={() => setStep(21)}
                                 className="px-8 py-3 rounded-2xl font-semibold text-base transition-all select-none border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-blue-600 active:scale-95 cursor-pointer bg-white"
                             >
                                 Back
                             </button>
-                            <button 
+                            <button
                                 onClick={() => setStep(23)}
                                 className="px-8 py-3 rounded-2xl font-semibold text-base transition-all select-none bg-[#1B66EC] text-white hover:bg-blue-700 shadow-lg shadow-blue-200/50 active:scale-95 cursor-pointer"
                             >
@@ -1859,9 +1856,9 @@ const CareerOnboarding: React.FC = () => {
             };
 
             return (
-                <motion.div 
-                    initial={{ opacity: 0, y: 10 }} 
-                    animate={{ opacity: 1, y: 0 }} 
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     className="flex flex-col gap-6 w-full max-w-2xl px-6"
                 >
@@ -1873,7 +1870,7 @@ const CareerOnboarding: React.FC = () => {
 
                         {/* Selected Tasks Popover Trigger */}
                         <div className="relative inline-block">
-                            <button 
+                            <button
                                 onClick={() => setShowTasksPopover(!showTasksPopover)}
                                 className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-95"
                             >
@@ -1912,21 +1909,21 @@ const CareerOnboarding: React.FC = () => {
 
                     {/* Action buttons */}
                     <div className="flex gap-4 items-center">
-                        <button 
+                        <button
                             onClick={() => {
                                 alert("Re-shuffled roles and responsibilities!");
                             }}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all active:scale-95"
                         >
-                            <Sparkles className="w-3.5 h-3.5 text-[#7C3AED]" /> Re-generate
+                            Re-generate
                         </button>
-                        <button 
+                        <button
                             onClick={toggleSelectAllSkills}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all active:scale-95"
                         >
-                            <input 
-                                type="checkbox" 
-                                checked={isAllSelected} 
+                            <input
+                                type="checkbox"
+                                checked={isAllSelected}
                                 onChange={toggleSelectAllSkills}
                                 className="w-3.5 h-3.5 rounded border-gray-300 text-[#7C3AED] focus:ring-[#7C3AED] cursor-pointer"
                             />
@@ -1954,11 +1951,10 @@ const CareerOnboarding: React.FC = () => {
                                                     : [...prev.skills, skill.name]
                                             }));
                                         }}
-                                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-all select-none ${
-                                            isSelected
-                                                ? 'bg-[#7C3AED] text-white border-[#7C3AED] shadow-md shadow-purple-200'
-                                                : 'bg-white text-slate-600 border-slate-200 hover:border-[#7C3AED]/50 hover:text-[#7C3AED]'
-                                        }`}
+                                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-all select-none ${isSelected
+                                            ? 'bg-[#7C3AED] text-white border-[#7C3AED] shadow-md shadow-purple-200'
+                                            : 'bg-white text-slate-600 border-slate-200 hover:border-[#7C3AED]/50 hover:text-[#7C3AED]'
+                                            }`}
                                     >
                                         {isSelected && <span className="mr-1">✓</span>}
                                         {skill.name}
@@ -2011,20 +2007,19 @@ const CareerOnboarding: React.FC = () => {
                             {selectedSkills.length >= 3 && <span className="text-green-500 font-semibold ml-1">✓ Good to go!</span>}
                         </span>
                         <div className="flex gap-4">
-                            <button 
+                            <button
                                 onClick={() => setStep(22)}
                                 className="px-8 py-3 rounded-2xl font-semibold text-base transition-all select-none border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-blue-600 active:scale-95 cursor-pointer bg-white"
                             >
                                 Back
                             </button>
-                            <button 
-                                onClick={handleAnalyze} 
+                            <button
+                                onClick={handleAnalyze}
                                 disabled={!isSkillValid}
-                                className={`px-8 py-3 rounded-2xl font-semibold text-base transition-all flex items-center gap-2 ${
-                                    isSkillValid 
-                                    ? 'bg-[#1B66EC] text-white hover:bg-blue-700 shadow-lg shadow-blue-200/50 active:scale-95 cursor-pointer' 
+                                className={`px-8 py-3 rounded-2xl font-semibold text-base transition-all flex items-center gap-2 ${isSkillValid
+                                    ? 'bg-[#1B66EC] text-white hover:bg-blue-700 shadow-lg shadow-blue-200/50 active:scale-95 cursor-pointer'
                                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                }`}
+                                    }`}
                             >
                                 Next
                             </button>
@@ -2039,9 +2034,9 @@ const CareerOnboarding: React.FC = () => {
             const isStep2Valid = step2SubjectWords.length > 0;
 
             return (
-                <motion.div 
-                    initial={{ opacity: 0, y: 10 }} 
-                    animate={{ opacity: 1, y: 0 }} 
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     className="flex flex-col gap-8 w-full max-w-2xl px-6"
                 >
@@ -2073,8 +2068,8 @@ const CareerOnboarding: React.FC = () => {
                         className="space-y-2"
                     >
                         <div className="flex items-center gap-2">
-                            <button 
-                                onClick={() => setStep(1)} 
+                            <button
+                                onClick={() => setStep(1)}
                                 className="flex items-center gap-1 text-slate-400 hover:text-slate-700 transition-colors text-xs font-semibold uppercase tracking-widest"
                             >
                                 <ChevronLeft className="w-3.5 h-3.5" /> Back
@@ -2124,11 +2119,10 @@ const CareerOnboarding: React.FC = () => {
                                         animate={{ opacity: 1, scale: 1 }}
                                         transition={{ delay: 0.45 + idx * 0.04 }}
                                         onClick={() => setFormData({ ...formData, subject: area.label })}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
-                                            isActive
-                                                ? 'bg-[#7C3AED] text-white border-[#7C3AED] shadow-lg shadow-purple-200'
-                                                : 'bg-white text-slate-600 border-slate-200 hover:border-[#7C3AED] hover:text-[#7C3AED] hover:shadow-sm'
-                                        }`}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${isActive
+                                            ? 'bg-[#7C3AED] text-white border-[#7C3AED] shadow-lg shadow-purple-200'
+                                            : 'bg-white text-slate-600 border-slate-200 hover:border-[#7C3AED] hover:text-[#7C3AED] hover:shadow-sm'
+                                            }`}
                                     >
                                         <span>{area.icon}</span>
                                         <span>{area.label}</span>
@@ -2138,17 +2132,16 @@ const CareerOnboarding: React.FC = () => {
                         </div>
                     </motion.div>
 
-                    <motion.button 
+                    <motion.button
                         initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.9 }}
                         onClick={() => setStep(25)}
                         disabled={!isStep2Valid}
-                        className={`w-full sm:w-fit px-12 py-4 rounded-2xl font-semibold text-base transition-all flex items-center justify-center gap-3 ${
-                            isStep2Valid 
-                            ? 'bg-[#7C3AED] text-white hover:bg-purple-700 active:scale-95 cursor-pointer shadow-lg shadow-purple-200/50' 
+                        className={`w-full sm:w-fit px-12 py-4 rounded-2xl font-semibold text-base transition-all flex items-center justify-center gap-3 ${isStep2Valid
+                            ? 'bg-[#7C3AED] text-white hover:bg-purple-700 active:scale-95 cursor-pointer shadow-lg shadow-purple-200/50'
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
-                        }`}
+                            }`}
                     >
                         Next — Pick Your Skills →
                     </motion.button>
@@ -2164,9 +2157,9 @@ const CareerOnboarding: React.FC = () => {
             const isSkillValid = selectedSkills.length >= 3;
 
             return (
-                <motion.div 
-                    initial={{ opacity: 0, y: 10 }} 
-                    animate={{ opacity: 1, y: 0 }} 
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     className="flex flex-col gap-8 w-full max-w-2xl px-6"
                 >
@@ -2200,8 +2193,8 @@ const CareerOnboarding: React.FC = () => {
                         className="space-y-2"
                     >
                         <div className="flex items-center gap-2">
-                            <button 
-                                onClick={() => setStep(2)} 
+                            <button
+                                onClick={() => setStep(2)}
                                 className="flex items-center gap-1 text-slate-400 hover:text-slate-700 transition-colors text-xs font-semibold uppercase tracking-widest"
                             >
                                 <ChevronLeft className="w-3.5 h-3.5" /> Back
@@ -2211,7 +2204,7 @@ const CareerOnboarding: React.FC = () => {
                             Select your <span className="text-[#7C3AED]">skills</span>
                         </h1>
                         <p className="text-slate-400 text-sm">
-                            Pick at least <span className="font-semibold text-slate-600">3 skills</span> that apply to you. 
+                            Pick at least <span className="font-semibold text-slate-600">3 skills</span> that apply to you.
                             Hover any skill to learn more.
                         </p>
                     </motion.div>
@@ -2241,11 +2234,10 @@ const CareerOnboarding: React.FC = () => {
                                                     : [...prev.skills, skill.name]
                                             }));
                                         }}
-                                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-all select-none ${
-                                            isSelected
-                                                ? 'bg-[#7C3AED] text-white border-[#7C3AED] shadow-md shadow-purple-200'
-                                                : 'bg-white text-slate-600 border-slate-200 hover:border-[#7C3AED]/50 hover:text-[#7C3AED]'
-                                        }`}
+                                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-all select-none ${isSelected
+                                            ? 'bg-[#7C3AED] text-white border-[#7C3AED] shadow-md shadow-purple-200'
+                                            : 'bg-white text-slate-600 border-slate-200 hover:border-[#7C3AED]/50 hover:text-[#7C3AED]'
+                                            }`}
                                     >
                                         {isSelected && <span className="mr-1">✓</span>}
                                         {skill.name}
@@ -2297,14 +2289,13 @@ const CareerOnboarding: React.FC = () => {
                             {selectedSkills.length} selected{selectedSkills.length < 3 && ` — pick ${3 - selectedSkills.length} more`}
                             {selectedSkills.length >= 3 && <span className="text-green-500 font-semibold ml-1">✓ Good to go!</span>}
                         </span>
-                        <button 
-                            onClick={handleAnalyze} 
+                        <button
+                            onClick={handleAnalyze}
                             disabled={!isSkillValid}
-                            className={`px-10 py-4 rounded-2xl font-semibold text-base transition-all flex items-center gap-3 ${
-                                isSkillValid 
-                                ? 'bg-[#7C3AED] text-white hover:bg-purple-700 active:scale-95 cursor-pointer shadow-lg shadow-purple-200/50' 
+                            className={`px-10 py-4 rounded-2xl font-semibold text-base transition-all flex items-center gap-3 ${isSkillValid
+                                ? 'bg-[#7C3AED] text-white hover:bg-purple-700 active:scale-95 cursor-pointer shadow-lg shadow-purple-200/50'
                                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                            }`}
+                                }`}
                         >
                             Analyze Career <Rocket className="w-4 h-4" />
                         </button>
@@ -2332,10 +2323,10 @@ const CareerOnboarding: React.FC = () => {
                                 {formData.subject ? (
                                     <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-[11px] font-bold border border-blue-100 uppercase tracking-tight">
                                         {formData.subject}
-                                        <X className="w-3 h-3 cursor-pointer opacity-40 hover:opacity-100" onClick={() => setFormData({...formData, subject: ''})} />
+                                        <X className="w-3 h-3 cursor-pointer opacity-40 hover:opacity-100" onClick={() => setFormData({ ...formData, subject: '' })} />
                                     </div>
                                 ) : null}
-                                <button onClick={() => { const s = prompt("Update background:"); if(s) setFormData({...formData, subject: s}) }} className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-400 rounded-lg text-[11px] font-bold border border-dashed border-gray-200 hover:border-gray-400 transition-all uppercase tracking-tight"><Plus className="w-3 h-3" /> Add education</button>
+                                <button onClick={() => { const s = prompt("Update background:"); if (s) setFormData({ ...formData, subject: s }) }} className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-400 rounded-lg text-[11px] font-bold border border-dashed border-gray-200 hover:border-gray-400 transition-all uppercase tracking-tight"><Plus className="w-3 h-3" /> Add education</button>
                             </div>
                         </div>
                         <div className="space-y-4">
@@ -2353,10 +2344,10 @@ const CareerOnboarding: React.FC = () => {
                                 {formData.interests.map(interest => (
                                     <div key={interest} className="flex items-center gap-2 px-4 py-2 bg-pink-50 text-pink-700 rounded-lg text-[11px] font-bold border border-pink-100 uppercase tracking-tight">
                                         {interest}
-                                        <X className="w-3 h-3 cursor-pointer opacity-40 hover:opacity-100" onClick={() => setFormData({...formData, interests: formData.interests.filter(item => item !== interest)})} />
+                                        <X className="w-3 h-3 cursor-pointer opacity-40 hover:opacity-100" onClick={() => setFormData({ ...formData, interests: formData.interests.filter(item => item !== interest) })} />
                                     </div>
                                 ))}
-                                <button onClick={() => { const interest = prompt("Enter an interest:"); if (interest) setFormData({...formData, interests: [...formData.interests, interest]}) }} className="px-4 py-2 bg-gray-50 text-gray-400 rounded-lg text-[11px] font-bold border border-dashed border-gray-200 hover:border-gray-400 transition-all uppercase tracking-tight"><Plus className="w-3 h-3" /> Add interests</button>
+                                <button onClick={() => { const interest = prompt("Enter an interest:"); if (interest) setFormData({ ...formData, interests: [...formData.interests, interest] }) }} className="px-4 py-2 bg-gray-50 text-gray-400 rounded-lg text-[11px] font-bold border border-dashed border-gray-200 hover:border-gray-400 transition-all uppercase tracking-tight"><Plus className="w-3 h-3" /> Add interests</button>
                             </div>
                         </div>
                     </div>
@@ -2374,13 +2365,13 @@ const CareerOnboarding: React.FC = () => {
                         <div>
                             <div className="flex justify-between items-start mb-10">
                                 <div className="flex items-center gap-2 text-[#34A853]">
-                                    <Sparkles className="w-4 h-4" />
+
                                     <span className="font-black text-[10px] uppercase tracking-widest">Identity Synthesis</span>
                                 </div>
                                 <span className="px-3 py-1 bg-gray-50 rounded-lg text-[9px] font-black text-gray-300 uppercase tracking-widest italic border border-gray-100">GROQ 2.0</span>
                             </div>
                             <AnimatePresence mode="wait">
-                                <motion.p 
+                                <motion.p
                                     key={identityStatement.substring(0, 30) || 'empty'}
                                     initial={{ opacity: 0, y: 5 }}
                                     animate={{ opacity: 1, y: 0 }}
@@ -2415,20 +2406,20 @@ const CareerOnboarding: React.FC = () => {
         if (activeTab === 'Paths') {
             return (
                 <div className="w-full min-h-screen bg-white pt-24 sm:pt-28">
-                    <CareerNetwork 
-                        paths={generatedPaths.length > 0 ? generatedPaths : DEFAULT_PATHS} 
+                    <CareerNetwork
+                        paths={generatedPaths.length > 0 ? generatedPaths : DEFAULT_PATHS}
                         onPathClick={handleLearnMore}
                         isGenerating={isGeneratingPaths}
                         formData={formData}
                     />
 
-                    <RoadmapSection 
-                        roadmapData={roadmapData} 
-                        selectedPath={selectedPath} 
-                        isGeneratingRoadmap={isGeneratingRoadmap} 
-                        handlePathClick={handlePathClick} 
-                        onDetails={setSelectedDetailMonth} 
-                        navigate={navigate} 
+                    <RoadmapSection
+                        roadmapData={roadmapData}
+                        selectedPath={selectedPath}
+                        isGeneratingRoadmap={isGeneratingRoadmap}
+                        handlePathClick={handlePathClick}
+                        onDetails={setSelectedDetailMonth}
+                        navigate={navigate}
                     />
                 </div>
             );
@@ -2459,12 +2450,12 @@ const CareerOnboarding: React.FC = () => {
                     </AnimatePresence>
                 )}
             </main>
-            
+
             <AnimatePresence>
                 {selectedDetailMonth && (
-                    <RoadmapDetailModal 
-                        month={selectedDetailMonth} 
-                        onClose={() => setSelectedDetailMonth(null)} 
+                    <RoadmapDetailModal
+                        month={selectedDetailMonth}
+                        onClose={() => setSelectedDetailMonth(null)}
                     />
                 )}
             </AnimatePresence>
@@ -2482,10 +2473,10 @@ const CareerOnboarding: React.FC = () => {
                         {/* Loading State Overlay */}
                         <AnimatePresence>
                             {isGeneratingDetails && (
-                                <motion.div 
-                                    initial={{ opacity: 0 }} 
-                                    animate={{ opacity: 1 }} 
-                                    exit={{ opacity: 0 }} 
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
                                     className="absolute inset-0 bg-[#F8F9FA]/90 backdrop-blur-md z-[1600] flex flex-col items-center justify-center gap-4"
                                 >
                                     <div className="relative w-16 h-16">
@@ -2499,13 +2490,13 @@ const CareerOnboarding: React.FC = () => {
 
                         {/* Top Header Bar */}
                         <div className="w-full max-w-6xl mx-auto px-6 py-6 flex items-center justify-between border-b border-slate-100 bg-white/40 backdrop-blur-md sticky top-0 z-[1400]">
-                            <button 
+                            <button
                                 onClick={() => setShowDetailedPage(false)}
                                 className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-all font-bold text-xs shadow-sm active:scale-95 cursor-pointer"
                             >
                                 <ChevronLeft className="w-4 h-4 text-slate-400" /> Back to Network
                             </button>
-                            <button 
+                            <button
                                 onClick={() => window.open("https://www.google.com/search?q=" + encodeURIComponent(`jobs near me ${selectedPath?.name}`), "_blank")}
                                 className="px-5 py-2.5 bg-[#1B66EC] text-white font-bold rounded-xl text-xs shadow-md hover:bg-blue-700 transition-all active:scale-95 cursor-pointer"
                             >
@@ -2516,20 +2507,20 @@ const CareerOnboarding: React.FC = () => {
                         {/* Section 1: Imagine yourself as (Landing screen with arrow) */}
                         <div className="w-full max-w-4xl mx-auto text-center py-20 px-6 flex flex-col items-center min-h-[85vh] justify-center relative">
                             <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-[0.25em] mb-4">Imagine yourself as:</p>
-                            
+
                             {/* Title styled with gorgeous blue/green gradient */}
                             <h1 className="text-4xl sm:text-6xl font-black tracking-tight mb-8">
                                 <span className="bg-gradient-to-r from-[#1B66EC] to-[#4AD66D] bg-clip-text text-transparent capitalize">
                                     {selectedPath?.name}
                                 </span>
                             </h1>
-                            
+
                             <p className="text-slate-600 text-base sm:text-lg max-w-3xl leading-relaxed font-semibold mb-5">
                                 "{pathDetails?.description || "Synthesizing professional trajectory..."}"
                             </p>
-                            
+
                             <span className="text-[10px] font-bold text-slate-400 tracking-wider">Source: GROQ 2.0 AI Synthesis</span>
-                            
+
                             {/* Badges */}
                             <div className="flex gap-4 justify-center mt-12 flex-wrap">
                                 <div className="flex items-center gap-2 px-5 py-3 bg-white rounded-full border border-slate-100 shadow-sm text-xs font-bold text-slate-700">
@@ -2539,13 +2530,13 @@ const CareerOnboarding: React.FC = () => {
                                     <span className="text-blue-500">🎓</span> Typical Degree: {pathDetails?.typical_degree || "Bachelor's degree"}
                                 </div>
                             </div>
-                            
+
                             <p className="text-[9px] text-slate-400 max-w-md mx-auto mt-8 font-medium">
                                 Salary information synthesized dynamically from live GROQ 2.0 data. This roadmap represents localized attributes and active competencies.
                             </p>
-                            
+
                             {/* Scroll down button */}
-                            <motion.button 
+                            <motion.button
                                 onClick={() => {
                                     document.getElementById("sweet-spots-section")?.scrollIntoView({ behavior: "smooth" });
                                 }}
@@ -2569,37 +2560,37 @@ const CareerOnboarding: React.FC = () => {
                                             Consider how the role of a(n) <span className="text-slate-800 font-bold">{selectedPath?.name}</span> may overlap with where you are now.
                                         </p>
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={async () => {
                                             setIsGeneratingDetails(true);
                                             await handleLearnMore(selectedPath);
                                         }}
                                         className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all active:scale-95 shadow-sm cursor-pointer"
                                     >
-                                        <Sparkles className="w-3.5 h-3.5 text-blue-500" /> Re-generate
+                                        Re-generate
                                     </button>
                                 </div>
-                                
+
                                 <div className="grid lg:grid-cols-[0.8fr_1.2fr] gap-12 items-start mt-8">
                                     {/* Left column: User selected skills */}
                                     <div className="flex flex-col gap-3">
                                         <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest border-b pb-2 mb-2">Your Active Competencies (Click for insights)</span>
                                         {formData.skills.map((skill: string) => (
-                                            <button 
-                                                key={skill} 
+                                            <button
+                                                key={skill}
                                                 onClick={() => handleInsightClick('skill', skill)}
                                                 className="px-5 py-3.5 bg-slate-50 hover:bg-white border border-slate-100 hover:border-[#7C3AED]/30 rounded-2xl text-left text-sm font-bold text-slate-700 tracking-tight shadow-sm hover:shadow-md active:scale-98 transition-all duration-300 cursor-pointer flex justify-between items-center group w-full"
                                             >
                                                 <span>{skill}</span>
-                                                <Sparkles className="w-3.5 h-3.5 text-[#7C3AED] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
                                             </button>
                                         ))}
                                     </div>
-                                    
+
                                     {/* Right column: Customized green bordered card */}
                                     <div className="bg-emerald-50/20 border-2 border-emerald-500/30 rounded-[2.5rem] p-8 sm:p-10 shadow-[0_15px_40px_rgba(16,185,129,0.04)] relative overflow-hidden">
                                         <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
-                                            <Sparkles className="w-32 h-32 text-emerald-500" />
+
                                         </div>
                                         <h3 className="text-xs font-bold text-emerald-800 uppercase tracking-wider mb-4">Strategic Competency Match</h3>
                                         <p className="text-slate-600 text-sm sm:text-base leading-relaxed font-semibold">
@@ -2622,7 +2613,7 @@ const CareerOnboarding: React.FC = () => {
                                             Here's what a day in the life of a(n) <span className="text-slate-800 font-bold">{selectedPath?.name}</span> might look like. (Click cards for info)
                                         </p>
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={handleRegenerateDayInLife}
                                         disabled={isRegeneratingDay}
                                         className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all active:scale-95 shadow-sm cursor-pointer disabled:opacity-50"
@@ -2630,7 +2621,7 @@ const CareerOnboarding: React.FC = () => {
                                         <RefreshCw className={`w-3.5 h-3.5 text-emerald-500 ${isRegeneratingDay ? 'animate-spin' : ''}`} /> Re-generate
                                     </button>
                                 </div>
-                                
+
                                 <div className="relative space-y-4 max-w-3xl mx-auto min-h-[120px]">
                                     {isRegeneratingDay && (
                                         <div className="absolute inset-0 bg-[#F8F9FA]/70 backdrop-blur-[1px] rounded-2xl z-20 flex flex-col items-center justify-center gap-2">
@@ -2653,7 +2644,7 @@ const CareerOnboarding: React.FC = () => {
                                             </div>
                                             <div className="flex-1 flex justify-between items-start gap-4">
                                                 <p className="text-slate-600 text-sm sm:text-base leading-relaxed font-semibold mt-0.5 group-hover:text-slate-900 transition-colors">{task}</p>
-                                                <Sparkles className="w-4 h-4 text-[#7C3AED] opacity-0 group-hover:opacity-100 transition-opacity duration-300 mt-1 shrink-0" />
+
                                             </div>
                                         </motion.div>
                                     ))}
@@ -2789,11 +2780,10 @@ const CareerOnboarding: React.FC = () => {
                                                 <button
                                                     key={dotIdx}
                                                     onClick={() => setCarouselIndex(dotIdx)}
-                                                    className={`rounded-full transition-all cursor-pointer ${
-                                                        dotIdx === carouselIndex
-                                                            ? "w-5 h-2.5 bg-[#1B66EC]"
-                                                            : "w-2.5 h-2.5 bg-slate-300 hover:bg-slate-400"
-                                                    }`}
+                                                    className={`rounded-full transition-all cursor-pointer ${dotIdx === carouselIndex
+                                                        ? "w-5 h-2.5 bg-[#1B66EC]"
+                                                        : "w-2.5 h-2.5 bg-slate-300 hover:bg-slate-400"
+                                                        }`}
                                                 />
                                             ))}
                                         </div>
@@ -2823,7 +2813,7 @@ const CareerOnboarding: React.FC = () => {
                                     >
                                         <div>
                                             {/* Close Button */}
-                                            <button 
+                                            <button
                                                 onClick={() => setSelectedInsightItem(null)}
                                                 className="absolute top-6 right-6 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all cursor-pointer border border-white/5 active:scale-90"
                                             >
@@ -2837,7 +2827,7 @@ const CareerOnboarding: React.FC = () => {
                                                 <h2 className="text-2xl font-black tracking-tight mt-6 mb-4 capitalize leading-tight">
                                                     {selectedInsightItem.name}
                                                 </h2>
-                                                
+
                                                 <div className="h-[2px] w-12 bg-white/40 my-6" />
                                             </div>
 

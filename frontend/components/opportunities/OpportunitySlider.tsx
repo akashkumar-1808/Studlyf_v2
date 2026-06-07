@@ -38,7 +38,7 @@ const OpportunitySlider: React.FC<OpportunitySliderProps> = ({ opportunities, ap
                     <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
                         Opportunities for You
                         <span className="flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-600 text-[10px] rounded-full uppercase tracking-widest font-black animate-pulse">
-                            <Sparkles size={12} /> Live
+                            Live
                         </span>
                     </h2>
                     <p className="text-sm font-bold text-slate-400">Handpicked roles based on your skills and interests</p>
@@ -49,14 +49,14 @@ const OpportunitySlider: React.FC<OpportunitySliderProps> = ({ opportunities, ap
                 <div className="flex gap-6 animate-marquee w-max py-4">
                     {loopedOpportunities.map((opp, idx) => (
                         <div key={`${opp._id}-${idx}`} className="flex-shrink-0">
-                            <OpportunityCard 
-                                opportunity={opp} 
+                            <OpportunityCard
+                                opportunity={opp}
                                 isApplied={appliedIds.includes(opp._id)}
                             />
                         </div>
                     ))}
                 </div>
-                
+
                 {/* Gradient Fades for depth */}
                 <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-white/80 to-transparent z-10 pointer-events-none" />
                 <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-white/80 to-transparent z-10 pointer-events-none" />
