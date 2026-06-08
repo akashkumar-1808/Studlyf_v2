@@ -12,6 +12,7 @@ from auth_institution import get_auth_user, get_auth_user_optional, assert_insti
 from bson import ObjectId
 import os
 import uuid
+import asyncio
 from db import events_col
 from datetime import datetime
 
