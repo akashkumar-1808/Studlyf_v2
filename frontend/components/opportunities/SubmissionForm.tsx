@@ -447,6 +447,30 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ eventId, stage, partici
                                         onChange={(e) => {
                                             const file = e.target.files?.[0];
                                             if (!file) return;
+
+                                            // Explicit validation against acceptTypes
+                                            if (field.acceptTypes && field.acceptTypes.length > 0) {
+                                                const fileExt = file.name.split('.').pop()?.toLowerCase();
+                                                console.log(`[DEBUG] File: ${file.name}, Ext: ${fileExt}, Type: ${file.type}, Allowed:`, field.acceptTypes);
+                                                
+                                                const isValid = field.acceptTypes.some(type => {
+                                                    const allowedExt = type.replace('.', '').toLowerCase();
+                                                    // Normalize check
+                                                    const match = fileExt === allowedExt || 
+                                                                 (type === '.pdf' && file.type === 'application/pdf') || 
+                                                                 ((type === '.ppt' || type === '.pptx') && file.type.includes('presentation'));
+                                                    return match;
+                                                });
+                                                
+                                                if (!isValid) {
+                                                    console.warn(`[DEBUG] File ${file.name} validation FAILED.`);
+                                                    alert(`Invalid file type. Allowed: ${field.acceptTypes.join(', ')}`);
+                                                    e.target.value = '';
+                                                    return;
+                                                }
+                                                console.log(`[DEBUG] File ${file.name} validation PASSED.`);
+                                            }
+
                                             setFileNames((prev) => ({ ...prev, [field.id]: file.name }));
                                             const reader = new FileReader();
                                             reader.onload = () => updateValue(field.id, reader.result || '');

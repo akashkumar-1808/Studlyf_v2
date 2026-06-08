@@ -50,36 +50,51 @@ const TeamsManagement: React.FC<TeamsManagementProps> = ({ institutionId }) => {
     const { data: events = [], loading: eventsLoading } = useDashboardData<Event[]>('events_' + institutionId, fetchEvents);
 
     const fetchTeams = useCallback(async () => {
-        if (!selectedEventId) return [];
-        const res = await fetch(`${API_BASE_URL}/api/v1/institution/events/${selectedEventId}/teams`, {
-            headers: { ...authHeaders() },
-        });
-        if (!res.ok) throw new Error('Failed to fetch teams');
-        return await res.json() || [];
+        if (!selectedEventId) {
+            console.log('[DEBUG] fetchTeams skipped: no selectedEventId');
+            return [];
+        }
+        console.log(`[DEBUG] Fetching teams for event: ${selectedEventId}`);
+        const url = `${API_BASE_URL}/api/v1/institution/events/${selectedEventId}/teams`;
+        console.log(`[DEBUG] Fetch URL: ${url}`);
+        
+        try {
+            const res = await fetch(url, {
+                headers: { ...authHeaders() },
+            });
+            console.log(`[DEBUG] Teams response status: ${res.status}`);
+            if (!res.ok) {
+                const errText = await res.text();
+                console.error(`[DEBUG] Teams fetch error:`, errText);
+                throw new Error('Failed to fetch teams');
+            }
+            const data = await res.json();
+            console.log(`[DEBUG] Teams data:`, data);
+            return data || [];
+        } catch (err) {
+            console.error('[DEBUG] Fetch error:', err);
+            throw err;
+        }
     }, [selectedEventId]);
 
     const { data: teams = [], loading: teamsLoading } = useDashboardData<Team[]>('teams_' + selectedEventId, fetchTeams);
 
-    const handleDeleteTeam = async (teamId: string) => {
-        if (!window.confirm('Delete this team? All members will be removed.')) return;
-        setDeleting(teamId);
+    const handleUpdateStatus = async (teamId: string, status: string) => {
         try {
-            const res = await fetch(`${API_BASE_URL}/api/v1/institution/events/${selectedEventId}/teams/${teamId}`, {
-                method: 'DELETE',
-                headers: { ...authHeaders() },
+            const res = await fetch(`${API_BASE_URL}/api/v1/institution/events/${selectedEventId}/teams/${teamId}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                body: JSON.stringify({ status })
             });
             if (res.ok) {
-                // For simplicity, force refresh by reloading - 
-                // in a robust app we'd update the cache directly.
-                window.location.reload(); 
+                // Force a reload to reflect status changes
+                window.location.reload();
             } else {
                 const err = await res.json();
-                alert(err.detail || 'Failed to delete team');
+                alert(err.detail || 'Failed to update team status');
             }
         } catch {
-            alert('Failed to delete team');
-        } finally {
-            setDeleting(null);
+            alert('Failed to update team status');
         }
     };
 
@@ -167,10 +182,19 @@ const TeamsManagement: React.FC<TeamsManagementProps> = ({ institutionId }) => {
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                                 {leader?.name || leader?.email || 'N/A'}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                <span className="font-medium bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs">
-                                                    {memberCount}
-                                                </span>
+                                            <td className="px-6 py-4 text-sm text-gray-700">
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="font-medium bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs w-fit">
+                                                        {memberCount} members
+                                                    </span>
+                                                    <div className="text-xs text-gray-500 mt-1 space-y-1">
+                                                        {team.members?.map((m, i) => (
+                                                            <div key={i} className="truncate" title={m.email}>
+                                                                {m.name || m.email || 'Unknown'} {m.is_leader ? '(Leader)' : ''}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -180,14 +204,31 @@ const TeamsManagement: React.FC<TeamsManagementProps> = ({ institutionId }) => {
                                                     {team.status || 'N/A'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                                            <td className="px-6 py-4 whitespace-nowrap text-right flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => handleUpdateStatus(team._id, 'approved')}
+                                                    className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold hover:bg-green-200"
+                                                >
+                                                    Approve
+                                                </button>
+                                                <button
+                                                    onClick={() => handleUpdateStatus(team._id, 'rejected')}
+                                                    className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold hover:bg-red-200"
+                                                >
+                                                    Reject
+                                                </button>
+                                                <button
+                                                    onClick={() => handleUpdateStatus(team._id, 'waitlisted')}
+                                                    className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-bold hover:bg-yellow-200"
+                                                >
+                                                    Waitlist
+                                                </button>
                                                 <button
                                                     onClick={() => handleDeleteTeam(team._id)}
                                                     disabled={deleting === team._id}
                                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
                                                 >
                                                     <Trash2 size={14} />
-                                                    {deleting === team._id ? 'Deleting...' : 'Delete'}
                                                 </button>
                                             </td>
                                         </tr>

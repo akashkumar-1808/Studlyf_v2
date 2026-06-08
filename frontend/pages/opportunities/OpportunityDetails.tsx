@@ -1102,16 +1102,23 @@ const OpportunityDetails: React.FC = () => {
             return;
         }
 
-        // Downstream timeline assessment locked unless APPROVED
-        if (regStatusStr !== 'APPROVED') {
-            if (regStatusStr === 'PENDING_APPROVAL') {
-                alert("Your registration is pending review by the host. Downstream stages will unlock as soon as your application is approved!");
-            } else if (regStatusStr === 'REJECTED') {
-                alert("Your registration has been rejected. You cannot participate in this opportunity.");
-            } else {
-                alert("You must complete the registration first.");
-                setShowRegistrationModal(true);
-            }
+        // Determine stage progression dynamically based on admin rules
+        const participantStage = myApplication?.current_stage || '';
+        const regStatusStrLower = regStatusStr.toLowerCase();
+        
+        const stages = event?.stages || [];
+        const stageIndex = stages.findIndex((st: any) => st.name === s.name);
+        const participantStageIndex = stages.findIndex((st: any) => st.name === participantStage);
+        
+        console.log(`[DEBUG] Locking Check: Stage: ${s.name} (Idx: ${stageIndex}), Participant Stage: ${participantStage} (Idx: ${participantStageIndex}), RegStatus: ${regStatusStrLower}`);
+
+        // Unlock if participant is approved/shortlisted OR has progressed stage
+        const isAuthorized = ['approved', 'shortlisted', 'accepted'].includes(regStatusStrLower) || (participantStageIndex >= stageIndex - 1);
+
+        console.log(`[DEBUG] Authorization result: ${isAuthorized}`);
+
+        if (!isAuthorized) {
+            alert(`This stage is locked. You must be approved or shortlisted to proceed.`);
             return;
         }
 
@@ -2828,10 +2835,6 @@ const OpportunityDetails: React.FC = () => {
                     <img src="/images/studlyf_secondary.png" alt="Studlyf" className="h-5 w-auto" />
                     <span>Powered by Studlyf</span>
                 </a>
-                <p className="text-[11px] text-slate-400 font-medium">
-                    Best Viewed in Chrome, Opera, Mozilla, EDGE &amp; Safari.
-                    Copyright &copy; {new Date().getFullYear()} FLIVE Consulting Pvt Ltd &mdash; All rights reserved.
-                </p>
             </div>
 
             {/* Registration Modal */}

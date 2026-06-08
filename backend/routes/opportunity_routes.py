@@ -1112,23 +1112,28 @@ async def hackathon_project_submit(
 
     # Build submission doc — lightweight, links only
     from db import submissions_col
-    submission_doc = {
-        "event_id": str(event_id),
-        "opportunity_id": payload.get("opportunity_id"),
-        "user_id": uid,
-        "team_id": str(p.get("team_id")) if p.get("team_id") else None,
-        "team_name": payload.get("team_name", ""),
-        "team_members": payload.get("team_members", ""),
-        "problem_statement": problem,
-        "solution": solution,
-        "domain": domain,
-        "ppt_link": ppt_link,
-        "deployed_link": payload.get("deployed_link", "").strip(),
-        "submitted_at": datetime.utcnow(),
-        "evaluation_status": "Pending Evaluation",
-        "assigned_judge_id": None,
-        "total_score": None,
-    }
+    submission_doc = {} # Initialize to avoid UnboundLocalError
+    try:
+        submission_doc = {
+            "event_id": str(event_id),
+            "opportunity_id": payload.get("opportunity_id"),
+            "user_id": uid,
+            "team_id": str(p.get("team_id")) if p.get("team_id") else None,
+            "team_name": payload.get("team_name", ""),
+            "team_members": payload.get("team_members", ""),
+            "problem_statement": problem,
+            "solution": solution,
+            "domain": domain,
+            "ppt_link": ppt_link,
+            "deployed_link": payload.get("deployed_link", "").strip(),
+            "submitted_at": datetime.utcnow(),
+            "evaluation_status": "Pending Evaluation",
+            "assigned_judge_id": None,
+            "total_score": None,
+        }
+    except Exception as e:
+        logger.error(f"Error building submission doc: {e}")
+        raise HTTPException(status_code=500, detail="Error preparing submission document")
 
     # Upsert — one submission per user/team per event
     query = {"event_id": str(event_id)}
@@ -1137,8 +1142,12 @@ async def hackathon_project_submit(
     else:
         query["user_id"] = uid
 
-    result = await submissions_col.update_one(query, {"$set": submission_doc}, upsert=True)
-    submission_doc["_id"] = str(result.upserted_id) if result.upserted_id else "updated"
+    try:
+        result = await submissions_col.update_one(query, {"$set": submission_doc}, upsert=True)
+        submission_doc["_id"] = str(result.upserted_id) if result.upserted_id else "updated"
+    except Exception as e:
+        logger.error(f"Error upserting submission: {e}")
+        raise HTTPException(status_code=500, detail="Database error during submission")
 
     # Also update participant progress
     await participants_col.update_one(

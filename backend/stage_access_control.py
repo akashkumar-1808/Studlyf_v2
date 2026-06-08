@@ -305,14 +305,14 @@ async def check_stage_submission_access(
 
     # Stage-specific validation
     if stage_type in ["submission", "final"]:
-        # Only shortlisted/accepted participants can submit in these stages
-        allowed_statuses = ["shortlisted", "accepted"]
+        # Only shortlisted/accepted/approved participants can submit in these stages
+        allowed_statuses = ["shortlisted", "accepted", "approved"]
         
         if current_status not in allowed_statuses:
             raise HTTPException(
                 status_code=403,
                 detail=f"You cannot submit at this stage. Your application status is '{current_status}'. "
-                       f"Only shortlisted participants can submit. Please wait for admin review."
+                       f"Only shortlisted or approved participants can submit. Please wait for admin review."
             )
 
         # Additional rule: if the stage requires a team, ensure participant belongs to a team
@@ -548,11 +548,11 @@ async def check_stage_access(event_id: str, user_id: str, stage_index: int = Non
     
     # Submission/Final stages require shortlisted status
     if "submission" in stage_name_lower or "final" in stage_name_lower:
-        if current_status not in ["shortlisted", "accepted"]:
+        if current_status not in ["shortlisted", "accepted", "approved"]:
             raise HTTPException(
                 status_code=403,
                 detail=f"You cannot access this stage. Your status is '{current_status}'. "
-                       f"Only shortlisted participants can proceed."
+                       f"Only shortlisted or approved participants can proceed."
             )
     
     # Rejected users blocked from team formation onwards

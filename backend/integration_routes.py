@@ -3019,6 +3019,7 @@ async def update_team_status(event_id: str, team_id: str, status_update: dict, u
             for m in members:
                 m_uid = m.get("user_id")
                 if m_uid:
+                    # Schedule in background without awaiting the task object itself
                     asyncio.create_task(notifications_col.insert_one({
                         "user_id": str(m_uid),
                         "title": f"Status Update: {event_doc.get('title')}",
@@ -6303,3 +6304,39 @@ def _stage_unlock_email_html(participant_name: str, event_title: str, org_name: 
 <p style="font-size:12px;color:#94a3b8;margin:0;">Regards,<br>Team Studlyf<br>On behalf of {on}</p>
 </div>
 </div></body></html>"""
+
+@router.patch("/events/{event_id}/teams/{team_id}/advance")
+async def advance_team_status(
+    event_id: str,
+    team_id: str,
+    data: dict = Body(...),
+    user: dict = Depends(get_auth_user),
+):
+    """
+    Update team status and advance all members to the next stage if approved.
+    """
+    await assert_institution_owns_event(event_id, user)
+    new_status = data.get("status")
+    
+    from db import teams_col, participants_col, events_col
+    
+    team = await teams_col.find_one({"_id": ObjectId(team_id)})
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+        
+    # Update team status
+    await teams_col.update_one({"_id": ObjectId(team_id)}, {"$set": {"status": new_status}})
+    
+    # If approved, advance all members
+    if new_status == 'approved':
+        # Get next stage logic based on event configuration
+        event = await events_col.find_one({"_id": ObjectId(event_id)})
+        # Advance participants (Logic placeholder - needs to map to specific stage advancement)
+        member_ids = [str(m.get("user_id")) for m in team.get("members", []) if m.get("user_id")]
+        
+        await participants_col.update_many(
+            {"event_id": str(event_id), "user_id": {"$in": member_ids}},
+            {"$set": {"status": "shortlisted"}} 
+        )
+        
+    return {"status": "success", "message": f"Team status updated to {new_status}"}

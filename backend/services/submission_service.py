@@ -3,6 +3,22 @@ from bson import ObjectId
 from datetime import datetime, timezone
 
 async def create_submission(data: dict):
+    # Backend File-Type Validation
+    for key, value in data.items():
+        if isinstance(value, str) and value.startswith('data:'):
+            # Extract MIME type
+            mime_type = value.split(';')[0].split(':')[1]
+            
+            # Allow PDF or Powerpoint MIME types
+            allowed_mime_types = [
+                'application/pdf', 
+                'application/vnd.ms-powerpoint', 
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+            ]
+            
+            if mime_type not in allowed_mime_types:
+                raise Exception(f"Invalid file type: {mime_type}. Only PDF, PPT, and PPTX are allowed.")
+
     data["created_at"] = datetime.now(timezone.utc).isoformat()
     data["status"] = data.get("status", "Submitted")
     result = await submissions_col.insert_one(data)

@@ -127,7 +127,7 @@ async def notify_shortlisted(
     Admin endpoint: Bulk notify shortlisted candidates.
     Supports 'dry_run' mode for verification.
     """
-    from db import submissions_col, events_col, users_col, teams_col
+    from db import submission_data_col as submissions_col, events_col, users_col, teams_col
     from services.email_service import send_notification_email
     from bson import ObjectId
     import asyncio
@@ -206,7 +206,7 @@ async def admin_view_event_submissions(
     Requires: User is institution owner of the event
     Returns: All submission data with participant info and submission history
     """
-    from db import submissions_col, events_col, users_col, teams_col, participants_col
+    from db import submission_data_col as submissions_col, events_col, users_col, teams_col, participants_col
     from bson import ObjectId
     
     try:
@@ -308,7 +308,7 @@ async def admin_view_stage_submissions(
     Requires: User is institution owner of the event
     Returns: Paginated submission list with participant details
     """
-    from db import submissions_col, events_col, users_col, teams_col
+    from db import submission_data_col as submissions_col, events_col, users_col, teams_col
     from bson import ObjectId
     
     try:

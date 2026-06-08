@@ -358,12 +358,18 @@ async def submit_stage_data(
             except Exception as e:
                 print(f"[WARN] Could not create submission notification: {e}")
         
+        # Prepare submission data for return
+        if existing_sub:
+            ret_submitted_at = existing_sub.get("submitted_at")
+        else:
+            ret_submitted_at = submission_doc["submitted_at"]
+
         return {
             "status": "success",
             "message": f"'{target_stage.get('name')}' submitted successfully",
             "submission_id": str(result.upserted_id) if result.upserted_id else "updated",
             "data": form_data,
-            "submitted_at": submission_doc["submitted_at"].isoformat(),
+            "submitted_at": ret_submitted_at.isoformat() if hasattr(ret_submitted_at, 'isoformat') else str(ret_submitted_at),
             "mirrored_application": mirrored,
             "mirrored_application_id": mirrored_app_id,
         }
