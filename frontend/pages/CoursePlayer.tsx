@@ -919,7 +919,7 @@ const CoursePlayer: React.FC = () => {
                       </p>
                     </div>
 
-                    {activeContentDb.practice.map((q: any, qIdx: number) => {
+                    {(activeContentDb.practice || []).map((q: any, qIdx: number) => {
                       const selectedIdx = practiceAnswers[`${activeModuleIndex}_${qIdx}`];
                       const hasSelected = selectedIdx !== undefined;
 
