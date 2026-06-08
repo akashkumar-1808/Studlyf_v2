@@ -4,16 +4,12 @@ import {
     Search, 
     Plus, 
     ChevronDown,
-    Calendar,
-    Users,
-    ChevronRight,
-    Trophy,
-    MoreVertical,
-    Edit2,
     Globe,
-    ExternalLink
+    Edit2,
+    MoreVertical
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useDashboardCache } from '../../contexts/DashboardDataContext';
 
 interface Event {
     id: string;
@@ -30,6 +26,7 @@ interface Event {
     registrationStatus: 'Open' | 'Close';
     lastSaved: string;
     organisation?: string;
+    category?: string;
 }
 
 interface OpportunitiesManagementProps {
@@ -98,10 +95,11 @@ const FilterDropdown = ({ label, options, value, onChange, onClear }: any) => {
 };
 
 const OpportunitiesManagement: React.FC<OpportunitiesManagementProps> = ({ institutionId, onViewEvent, onCreateEvent }) => {
+    const { cache, setCacheData, isLoading, setLoading } = useDashboardCache();
+    const events = cache['institutionOpportunities'] || [];
+    const loading = isLoading['institutionOpportunities'] ?? true;
     const [searchQuery, setSearchQuery] = useState('');
     const [typeTab, setTypeTab] = useState('All');
-    const [events, setEvents] = useState<Event[]>([]);
-    const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('');
     const [visibilityFilter, setVisibilityFilter] = useState('');
     const [registrationFilter, setRegistrationFilter] = useState('');
@@ -141,7 +139,7 @@ const OpportunitiesManagement: React.FC<OpportunitiesManagementProps> = ({ insti
                 headers: { ...authHeaders() },
             });
             if (response.ok) {
-                setEvents(prev => prev.filter(e => e.id !== eventToDelete));
+                setCacheData('institutionOpportunities', events.filter(e => e.id !== eventToDelete));
                 setShowToast(true);
                 setTimeout(() => setShowToast(false), 3000);
             }
@@ -155,32 +153,26 @@ const OpportunitiesManagement: React.FC<OpportunitiesManagementProps> = ({ insti
 
     useEffect(() => {
         const fetchEvents = async () => {
-            if (!institutionId) {
-                setEvents([]);
-                setLoading(false);
+            if (!institutionId || cache['institutionOpportunities']) {
+                if (loading) setLoading('institutionOpportunities', false);
                 return;
             }
             try {
+                setLoading('institutionOpportunities', true);
                 console.log(`DEBUG: Fetching events for institution: ${institutionId}`);
                 const response = await fetch(`${API_BASE_URL}/api/v1/institution/events/${institutionId}`, { headers: { ...authHeaders() } });
-                console.log(`DEBUG: Response status: ${response.status}`);
                 
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error(`DEBUG: API Error - Status: ${response.status}, Response: ${errorText}`);
-                    setEvents([]);
-                    setLoading(false);
-                    return;
+                    throw new Error(`API Error - Status: ${response.status}`);
                 }
                 
                 const data = await response.json();
-                console.log(`DEBUG: Events data received: ${data.length} events`);
                 
                 const filteredData = data.filter((e: any) => 
                     e.category !== 'Job' && e.category !== 'Internship'
                 );
 
-                setEvents(filteredData.map((e: any) => {
+                const mappedEvents = filteredData.map((e: any) => {
                     const rawStatus = (e.status || 'Draft').toLowerCase();
                     let displayStatus = 'Draft';
                     if (rawStatus === 'live' || rawStatus === 'published' || rawStatus === 'active') displayStatus = 'Live';
@@ -220,17 +212,20 @@ const OpportunitiesManagement: React.FC<OpportunitiesManagementProps> = ({ insti
                         image: e.image_url || '',
                         visibility: e.visibility || 'Unknown',
                         registrationStatus: e.registration_status || 'Unknown',
-                        lastSaved
+                        lastSaved,
+                        category: rawCat
                     };
-                }));
+                });
+                
+                setCacheData('institutionOpportunities', mappedEvents);
             } catch (err) {
                 console.error("Dynamic opportunities fetch error:", err);
             } finally {
-                setLoading(false);
+                setLoading('institutionOpportunities', false);
             }
         };
         fetchEvents();
-    }, [institutionId]);
+    }, [institutionId, cache, loading, setCacheData, setLoading]);
 
     const filteredEvents = events.filter(event => {
         const matchesSearch = event.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -441,20 +436,6 @@ const OpportunitiesManagement: React.FC<OpportunitiesManagementProps> = ({ insti
                             </table>
                         </div>
                     </div>
-                ) : events.length === 0 ? (
-                    <div className="min-h-[600px] flex flex-col items-center justify-center text-center">
-                        <div className="relative w-[500px] h-64 mb-12">
-                            <img 
-                                src="https://img.freepik.com/free-vector/no-data-concept-illustration_114360-536.jpg" 
-                                alt="No results" 
-                                className="w-full h-full object-contain mix-blend-multiply opacity-40"
-                            />
-                        </div>
-                        <div className="space-y-4">
-                            <h2 className="text-2xl font-black text-slate-800">No Opportunity created yet!</h2>
-                            <p className="text-sm text-slate-400 font-bold tracking-tight">Create your first opportunity to manage and view candidate registrations here.</p>
-                        </div>
-                    </div>
                 ) : (
                     <div className="min-h-[600px] flex flex-col items-center justify-center text-center">
                         <div className="relative w-[500px] h-64 mb-12">
@@ -465,8 +446,8 @@ const OpportunitiesManagement: React.FC<OpportunitiesManagementProps> = ({ insti
                             />
                         </div>
                         <div className="space-y-4">
-                            <h2 className="text-2xl font-black text-slate-800">No results found for the applied filter or search terms!</h2>
-                            <p className="text-sm text-slate-400 font-bold tracking-tight">Try adjusting your search terms or filters and try again</p>
+                            <h2 className="text-2xl font-black text-slate-800">No results found!</h2>
+                            <p className="text-sm text-slate-400 font-bold tracking-tight">Try adjusting your search terms or filters.</p>
                         </div>
                     </div>
                 )}

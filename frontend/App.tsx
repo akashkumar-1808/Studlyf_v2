@@ -17,6 +17,7 @@ const SplashScreen = lazy(() => import('./components/SplashScreen'));
 const RoleFixer = lazy(() => import('./RoleFixer'));
 
 import { AuthProvider, useAuth } from './AuthContext';
+import { DashboardDataProvider } from './contexts/DashboardDataContext';
 import ProtectedRoute from './ProtectedRoute';
 import PublicRoute from './PublicRoute';
 import { HeroUIProvider } from "@heroui/react";
@@ -559,18 +560,20 @@ const AppWrapper: React.FC = () => {
     <HeroUIProvider>
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AuthProvider>
-          <ScrollToTop />
-          {showSplash ? (
-            <SplashScreen duration={2000} onFinish={handleSplashFinish} />
-          ) : (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6 }}
-            >
-              <App />
-            </motion.div>
-          )}
+          <DashboardDataProvider>
+            <ScrollToTop />
+            {showSplash ? (
+              <SplashScreen duration={2000} onFinish={handleSplashFinish} />
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6 }}
+              >
+                <App />
+              </motion.div>
+            )}
+          </DashboardDataProvider>
         </AuthProvider>
       </Router>
     </HeroUIProvider>

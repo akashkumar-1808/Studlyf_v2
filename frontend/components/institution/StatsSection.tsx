@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Briefcase, Trophy, ClipboardCheck, Lock } from 'lucide-react';
 import { API_BASE_URL, authHeaders } from '../../apiConfig';
+import { useDashboardCache } from '../../contexts/DashboardDataContext';
 
 interface StatsSectionProps {
     institutionId?: string;
@@ -11,33 +12,33 @@ interface StatsSectionProps {
 }
 
 const StatsSection: React.FC<StatsSectionProps> = ({ institutionId, onUpgrade, onContact, onNavigate }) => {
-    const [stats, setStats] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+    const { cache, setCacheData, isLoading, setLoading } = useDashboardCache();
+    const stats = cache['institutionStats'];
+    const loading = isLoading['institutionStats'] ?? true;
 
     useEffect(() => {
         const fetchStats = async () => {
-            if (!institutionId) {
-                setStats(null);
-                setLoading(false);
+            if (!institutionId || stats) {
+                if (loading) setLoading('institutionStats', false);
                 return;
             }
             try {
-                setLoading(true);
+                setLoading('institutionStats', true);
                 const res = await fetch(
                     `${API_BASE_URL}/api/institution/dashboard/stats?institution_id=${encodeURIComponent(institutionId)}`,
                     { headers: { ...authHeaders() } }
                 );
                 if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                 const data = await res.json();
-                setStats(data);
+                setCacheData('institutionStats', data);
             } catch (err) {
                 console.error("Failed to load dynamic stats:", err);
             } finally {
-                setLoading(false);
+                setLoading('institutionStats', false);
             }
         };
         fetchStats();
-    }, [institutionId]);
+    }, [institutionId, stats, loading, setCacheData, setLoading]);
 
     if (!institutionId) {
         return (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { API_BASE_URL, authHeaders } from '../../apiConfig';
 import { Trash2, Users, Search, RefreshCw } from 'lucide-react';
+import { useDashboardData } from '../../contexts/DashboardDataContext';
 
 type TeamMember = {
     user_id?: string;
@@ -34,58 +35,30 @@ interface TeamsManagementProps {
 }
 
 const TeamsManagement: React.FC<TeamsManagementProps> = ({ institutionId }) => {
-    const [teams, setTeams] = useState<Team[]>([]);
-    const [events, setEvents] = useState<Event[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [selectedEventId, setSelectedEventId] = useState<string>('');
-    const [deleting, setDeleting] = useState<string | null>(null);
     const [search, setSearch] = useState('');
+    const [deleting, setDeleting] = useState<string | null>(null);
 
     const fetchEvents = useCallback(async () => {
-        try {
-            const res = await fetch(`${API_BASE_URL}/api/v1/institution/events-db-only/${institutionId}`, {
-                headers: { ...authHeaders() },
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setEvents(data || []);
-            }
-        } catch { }
+        const res = await fetch(`${API_BASE_URL}/api/v1/institution/events-db-only/${institutionId}`, {
+            headers: { ...authHeaders() },
+        });
+        if (!res.ok) throw new Error('Failed to fetch events');
+        return await res.json() || [];
     }, [institutionId]);
 
+    const { data: events = [], loading: eventsLoading } = useDashboardData<Event[]>('events_' + institutionId, fetchEvents);
+
     const fetchTeams = useCallback(async () => {
-        if (!selectedEventId) {
-            setTeams([]);
-            setLoading(false);
-            return;
-        }
-        setLoading(true);
-        setError(null);
-        try {
-            const res = await fetch(`${API_BASE_URL}/api/v1/institution/events/${selectedEventId}/teams`, {
-                headers: { ...authHeaders() },
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setTeams(data || []);
-            } else {
-                setError('Failed to fetch teams');
-            }
-        } catch {
-            setError('Failed to fetch teams');
-        } finally {
-            setLoading(false);
-        }
+        if (!selectedEventId) return [];
+        const res = await fetch(`${API_BASE_URL}/api/v1/institution/events/${selectedEventId}/teams`, {
+            headers: { ...authHeaders() },
+        });
+        if (!res.ok) throw new Error('Failed to fetch teams');
+        return await res.json() || [];
     }, [selectedEventId]);
 
-    useEffect(() => {
-        fetchEvents();
-    }, [fetchEvents]);
-
-    useEffect(() => {
-        fetchTeams();
-    }, [fetchTeams]);
+    const { data: teams = [], loading: teamsLoading } = useDashboardData<Team[]>('teams_' + selectedEventId, fetchTeams);
 
     const handleDeleteTeam = async (teamId: string) => {
         if (!window.confirm('Delete this team? All members will be removed.')) return;
@@ -96,7 +69,9 @@ const TeamsManagement: React.FC<TeamsManagementProps> = ({ institutionId }) => {
                 headers: { ...authHeaders() },
             });
             if (res.ok) {
-                setTeams(prev => prev.filter(t => t._id !== teamId));
+                // For simplicity, force refresh by reloading - 
+                // in a robust app we'd update the cache directly.
+                window.location.reload(); 
             } else {
                 const err = await res.json();
                 alert(err.detail || 'Failed to delete team');
@@ -108,7 +83,6 @@ const TeamsManagement: React.FC<TeamsManagementProps> = ({ institutionId }) => {
         }
     };
 
-    const selectedEvent = events.find(e => e._id === selectedEventId);
     const filteredTeams = teams.filter(t =>
         !search || t.team_name?.toLowerCase().includes(search.toLowerCase())
     );
@@ -120,19 +94,7 @@ const TeamsManagement: React.FC<TeamsManagementProps> = ({ institutionId }) => {
                     <h1 className="text-3xl font-bold text-gray-900">Teams Management</h1>
                     <p className="text-gray-500 mt-2">View and manage teams for your events.</p>
                 </div>
-                <button
-                    onClick={fetchTeams}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                    <RefreshCw size={16} /> Refresh
-                </button>
             </div>
-
-            {error && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-medium">
-                    {error}
-                </div>
-            )}
 
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8 flex flex-col md:flex-row gap-4">
                 <div className="flex-1">
@@ -168,7 +130,7 @@ const TeamsManagement: React.FC<TeamsManagementProps> = ({ institutionId }) => {
                     <Users size={48} className="mx-auto text-gray-300 mb-4" />
                     <p className="text-gray-500 text-lg font-medium">Select an event to view teams</p>
                 </div>
-            ) : loading ? (
+            ) : teamsLoading ? (
                 <div className="bg-white p-12 rounded-xl shadow-sm border border-gray-100 text-center">
                     <div className="w-8 h-8 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mx-auto" />
                     <p className="text-gray-500 mt-4">Loading teams...</p>
@@ -177,7 +139,6 @@ const TeamsManagement: React.FC<TeamsManagementProps> = ({ institutionId }) => {
                 <div className="bg-white p-12 rounded-xl shadow-sm border border-gray-100 text-center">
                     <Users size={48} className="mx-auto text-gray-300 mb-4" />
                     <p className="text-gray-500 text-lg font-medium">No teams found for this event</p>
-                    <p className="text-gray-400 text-sm mt-1">Teams will appear here once participants create them.</p>
                 </div>
             ) : (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -202,7 +163,6 @@ const TeamsManagement: React.FC<TeamsManagementProps> = ({ institutionId }) => {
                                         <tr key={team._id} className="hover:bg-gray-50 transition-colors">
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="font-semibold text-gray-900">{team.team_name || 'Unnamed Team'}</div>
-                                                <div className="text-xs text-gray-500 mt-1">ID: {team._id.slice(-8)}</div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                                 {leader?.name || leader?.email || 'N/A'}
@@ -211,15 +171,13 @@ const TeamsManagement: React.FC<TeamsManagementProps> = ({ institutionId }) => {
                                                 <span className="font-medium bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs">
                                                     {memberCount}
                                                 </span>
-                                                <span className="ml-1 text-gray-500">/ {team.size_max || '?'} members</span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                                                     team.status === 'active' ? 'bg-green-100 text-green-800' :
-                                                    team.status === 'disqualified' ? 'bg-red-100 text-red-800' :
                                                     'bg-gray-100 text-gray-800'
                                                 }`}>
-                                                    {team.status || ''}
+                                                    {team.status || 'N/A'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right">

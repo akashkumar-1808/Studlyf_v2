@@ -18,13 +18,18 @@ const RecentListings: React.FC<RecentListingsProps> = ({ institutionId, onViewEv
         const fetchRecent = async () => {
             try {
                 setLoading(true);
+                console.log('Fetching recent listings for:', institutionId);
                 const res = await fetch(`${API_BASE_URL}/api/v1/institution/events/${institutionId}`, { headers: { ...authHeaders() } });
+                console.log('Recent listings response status:', res.status);
                 if (res.ok) {
                     const data = await res.json();
+                    console.log('Recent listings data:', data);
                     setEvents(Array.isArray(data) ? data : []);
+                } else {
+                    console.error('Recent listings fetch failed:', await res.text());
                 }
             } catch (err) {
-                console.error("Failed to fetch recent listings");
+                console.error("Failed to fetch recent listings", err);
             } finally {
                 setLoading(false);
             }
