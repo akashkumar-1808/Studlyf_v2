@@ -612,15 +612,24 @@ async def get_registration_form_config(event_id: str, user: dict = Depends(get_a
         
         participant = await participants_col.find_one({"event_id": str(event_id), "user_id": user["user_id"]})
         
-        if reg_status == "NOT_REGISTERED" and participant:
+        # Participant record is the ultimate source of truth for progression state
+        if participant:
             ps = (participant.get("status") or "").lower()
-            if ps in ("shortlisted", "registered", "approved", "accepted"):
+            if ps in ("approved", "shortlisted", "accepted"):
+                reg_status = "APPROVED"
+                if not reg:
+                    reg = participant
+            elif ps == "rejected":
+                reg_status = "REJECTED"
+                if not reg:
+                    reg = participant
+            elif reg_status == "NOT_REGISTERED" and ps in ("registered", "pending", "pending_approval"):
                 reg_status = "REGISTERED"
                 reg = participant
         
-        # Cross-check: if registration says registered but participant was deleted,
-        # reset to NOT_REGISTERED so the user can re-register
-        if reg_status in ("REGISTERED", "APPROVED") and not participant:
+        # Cross-check: if registration indicates they applied but participant was deleted/missing,
+        # reset to NOT_REGISTERED so the user can re-register safely.
+        if reg_status in ("REGISTERED", "APPROVED", "PENDING_APPROVAL", "SHORTLISTED") and not participant:
             reg_status = "NOT_REGISTERED"
             reg = None
 

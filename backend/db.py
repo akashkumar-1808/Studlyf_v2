@@ -128,6 +128,7 @@ class DatabaseManager:
             await self.db.events.create_index([("institution_id", 1), ("status", 1)])
             await self.db.events.create_index([("institution_id", 1), ("created_at", -1)])
             await self.db.events.create_index("status")
+            await self.db.events.create_index("event_id", sparse=True)
             
             # ── Participants (critical for 1M+ scale: event+user lookup, stage filtering) ──
             await self.db.participants.create_index(
@@ -218,6 +219,23 @@ class DatabaseManager:
             # ── Announcements & Audit ──
             await self.db.announcements.create_index([("event_id", 1), ("created_at", -1)])
             await self.db.announcement_audit.create_index([("announcement_id", 1), ("recipient", 1)])
+
+            # ── Opportunity Reviews (Performance) ──
+            await self.db.opportunity_reviews.create_index("opportunity_id")
+            await self.db.opportunity_reviews.create_index([("opportunity_id", 1), ("created_at", -1)])
+
+            # ── Hackathon Management (Problem Statements & Team Selection) ──
+            await self.db.hackathon_problems.create_index([("institution_id", 1), ("status", 1)])
+            await self.db.hackathon_problems.create_index("problem_id", unique=True)
+            await self.db.hackathon_selections.create_index([("institution_id", 1)])
+            await self.db.hackathon_selections.create_index([("event_id", 1)])
+            await self.db.hackathon_submissions.create_index([("hackathonId", 1)])
+            await self.db.hackathon_submissions.create_index([("event_id", 1)])
+            await self.db.hackathon_submissions.create_index([("submittedBy", 1)])
+            await self.db.hackathon_submissions.create_index([("teamId", 1)])
+            
+            # ── Hackathon Event Config (Critical for Plan Rules N+1) ──
+            await self.db.hackathon_event_config.create_index([("institution_id", 1), ("key", 1)])
             
             logger.info("All production indexes ensured successfully")
         except Exception as e:

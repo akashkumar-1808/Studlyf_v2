@@ -37,7 +37,7 @@ export default defineConfig(({ mode }) => {
                 if (id.includes('qrcode')) return 'vendor_qrcode';
                 if (id.includes('react-syntax-highlighter')) return 'vendor_syntax';
                 if (id.includes('react-helmet-async')) return 'vendor_helmet';
-                return 'vendor_misc';
+                // Remove return 'vendor_misc' to let Rollup handle remaining dependencies
             }
           }
         }

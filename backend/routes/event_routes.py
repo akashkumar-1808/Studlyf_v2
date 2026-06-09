@@ -430,10 +430,16 @@ async def get_event_dashboard_data(event_id: str, user: dict = Depends(get_auth_
     import logging
     logger = logging.getLogger("event_routes")
 
+    logger.info(f"Attempting to fetch dashboard data for event: {event_id}")
+
+    event = None
     try:
         event = await events_col.find_one({"_id": ObjectId(event_id)})
-    except Exception:
-        event = None
+        logger.info(f"Event found: {event is not None}")
+    except Exception as e:
+        logger.error(f"Error finding event {event_id}: {e}", exc_info=True)
+        # We don't raise here, as not finding an event is handled below.
+        # This catch is for DB connection/query errors.
 
     if not event:
         logger.error(f"Event not found in dashboard data endpoint: {event_id}")
@@ -446,19 +452,65 @@ async def get_event_dashboard_data(event_id: str, user: dict = Depends(get_auth_
             logger.error(f"Access denied for user {user.get('user_id')} to event {event_id}")
             raise HTTPException(status_code=403, detail="Only event hosts can view dashboard data")
         
-    tasks = [
-        participants_col.find({"event_id": str(event_id)}).to_list(length=None),
-        quizzes_col.find({"event_id": str(event_id)}).to_list(length=None),
-        teams_col.find({"event_id": str(event_id)}).to_list(length=None),
-        submissions_col.find({"event_id": str(event_id)}).to_list(length=None),
-        submission_data_col.find({"event_id": str(event_id)}).to_list(length=None),
-    ]
+    tasks = []
+    try:
+        tasks.append(participants_col.find({"event_id": str(event_id)}).to_list(length=None))
+        logger.info("Added participants task.")
+    except Exception as e:
+        logger.error(f"Error adding participants task for {event_id}: {e}", exc_info=True)
+        # Decide if this should be a fatal error or return empty list
+        tasks.append(asyncio.sleep(0, result=[])) # Dummy task
     
     try:
-        results = await asyncio.gather(*tasks)
-        participants, quizzes, teams, submissions, stage_submissions = results
+        tasks.append(quizzes_col.find({"event_id": str(event_id)}).to_list(length=None))
+        logger.info("Added quizzes task.")
     except Exception as e:
-        logger.error(f"Error gathering dashboard data for {event_id}: {e}")
+        logger.error(f"Error adding quizzes task for {event_id}: {e}", exc_info=True)
+        tasks.append(asyncio.sleep(0, result=[]))
+        
+    try:
+        tasks.append(teams_col.find({"event_id": str(event_id)}).to_list(length=None))
+        logger.info("Added teams task.")
+    except Exception as e:
+        logger.error(f"Error adding teams task for {event_id}: {e}", exc_info=True)
+        tasks.append(asyncio.sleep(0, result=[]))
+        
+    try:
+        tasks.append(submissions_col.find({"event_id": str(event_id)}).to_list(length=None))
+        logger.info("Added submissions task.")
+    except Exception as e:
+        logger.error(f"Error adding submissions task for {event_id}: {e}", exc_info=True)
+        tasks.append(asyncio.sleep(0, result=[]))
+        
+    try:
+        tasks.append(submission_data_col.find({"event_id": str(event_id)}).to_list(length=None))
+        logger.info("Added submission_data task.")
+    except Exception as e:
+        logger.error(f"Error adding submission_data task for {event_id}: {e}", exc_info=True)
+        tasks.append(asyncio.sleep(0, result=[]))
+        
+    def convert_objectids_to_strings(obj):
+        if isinstance(obj, list):
+            return [convert_objectids_to_strings(item) for item in obj]
+        if isinstance(obj, dict):
+            return {k: str(v) if isinstance(v, ObjectId) else convert_objectids_to_strings(v) for k, v in obj.items()}
+        return obj
+
+    try:
+        results = await asyncio.gather(*tasks)
+        participants_raw, quizzes_raw, teams_raw, submissions_raw, stage_submissions_raw = results
+
+        # Convert ObjectIds to strings before returning
+        participants = convert_objectids_to_strings(participants_raw)
+        quizzes = convert_objectids_to_strings(quizzes_raw)
+        teams = convert_objectids_to_strings(teams_raw)
+        submissions = convert_objectids_to_strings(submissions_raw)
+        stage_submissions = convert_objectids_to_strings(stage_submissions_raw)
+        
+        logger.info(f"Successfully gathered all dashboard data for {event_id}.")
+        logger.info(f"Participants count: {len(participants)}, Quizzes count: {len(quizzes)}, Teams count: {len(teams)}, Submissions count: {len(submissions)}, Stage Submissions count: {len(stage_submissions)}")
+    except Exception as e:
+        logger.error(f"Error gathering dashboard data for {event_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error gathering data: {str(e)}")
     
     return {

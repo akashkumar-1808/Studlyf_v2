@@ -356,43 +356,23 @@ async def create_opportunity(data: dict) -> dict:
     return data
 
 async def get_all_opportunities(filters: dict = None) -> List[dict]:
-    """Retrieves all opportunities from the database with optional filtering and automated sync."""
-    # 1. Automated Sync Check (If collection is empty, populate from events)
-    opp_count = await opportunities_col.count_documents({})
-    if opp_count == 0:
-        cursor = events_col.find({"opportunityType": {"$exists": True}})
-        async for event in cursor:
-            # Simple mapping logic
-            inst = event.get("institution_id")
-            if not inst:
-                continue
-            opp_type = event.get("opportunityType") or event.get("category") or ""
-
-            opp_data = {
-                "title": event.get("title") or "",
-                "organization": event.get("organisation") or event.get("institution_name") or "",
-                "type": opp_type,
-                "description": event.get("description", ""),
-                "location": f"{event.get('city', 'Remote')}, {event.get('opportunityMode', 'Online')}",
-                "deadline": event.get("registrationDeadline", datetime.utcnow()),
-                "applicantsCount": 0,
-                "createdAt": event.get("created_at", datetime.utcnow()),
-                "createdBy": str(inst),
-                "institution_id": str(inst),
-                "status": "active",
-                "event_link_id": str(event["_id"])
-            }
-            await opportunities_col.insert_one(opp_data)
-
-    # 2. Regular Fetching
+    """Retrieves all opportunities from the database with optional filtering."""
+    # Performance Optimized: Removed automated sync loop which caused 30s+ latency.
+    # Regular Fetching
     query = {"status": "active"}
     if filters:
         if filters.get("type"):
             query["type"] = filters["type"]
         if filters.get("institution_id"):
             query["createdBy"] = filters["institution_id"]
-            
-    cursor = opportunities_col.find(query).sort("createdAt", -1)
+
+    # Use projection to exclude massive fields for list view
+    projection = {
+        "description": 0,
+        "logo_url": 0
+    }
+
+    cursor = opportunities_col.find(query, projection).sort("createdAt", -1)
     opportunities = []
     async for doc in cursor:
         doc["_id"] = str(doc["_id"])
@@ -661,7 +641,7 @@ async def apply_for_opportunity(application_data: dict) -> dict:
     return application_data
 
 async def get_user_applications(user_id: str) -> List[dict]:
-    """All portal applications for a learner, with opportunity and host labels."""
+    """All portal applications for a learner, with opportunity, host labels, and real-time status."""
     cursor = opportunity_applications_col.find({"user_id": user_id})
     applications = []
     async for doc in cursor:
@@ -678,6 +658,12 @@ async def get_user_applications(user_id: str) -> List[dict]:
                 eid = opp.get("event_link_id")
                 if eid:
                     doc["event_id"] = str(eid)
+                    # Fetch real-time status and stage from participants collection
+                    participant = await participants_col.find_one({"event_id": str(eid), "user_id": user_id})
+                    if participant:
+                        doc["status"] = participant.get("status", doc.get("status"))
+                        doc["current_stage"] = participant.get("current_stage", doc.get("current_stage"))
+                        
                 inst_key = opp.get("institution_id") or opp.get("createdBy")
                 if inst_key:
                     inst = await institutions_col.find_one({"institution_id": str(inst_key)})
@@ -843,15 +829,22 @@ async def set_opportunity_application_review_status(
     opportunity_id: Optional[str] = None,
 ) -> Optional[dict]:
     """Institution updates portal application status; mirrors to ``participants`` when linked to an event."""
+    import logging
+    logger = logging.getLogger("opportunity_service")
+
     st = (new_status or "pending").strip().lower()
+    logger.info(f"Attempting to set status to '{st}' for app_id: {application_id}")
+    
     if st not in _ALLOWED_APP_STATUSES:
+        logger.error(f"Invalid status '{st}' provided.")
         raise ValueError("Invalid status")
 
     app = None
     if application_id:
         try:
             app = await opportunity_applications_col.find_one({"_id": ObjectId(str(application_id))})
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error finding application by ID {application_id}: {e}")
             app = None
     elif user_id and opportunity_id:
         app = await opportunity_applications_col.find_one(
@@ -859,34 +852,40 @@ async def set_opportunity_application_review_status(
         )
 
     if not app:
+        logger.error(f"Application not found for app_id: {application_id} or user/opp combo.")
         return None
 
     oid = str(app.get("opportunity_id") or "")
     if not oid:
+        logger.error(f"Application {app['_id']} is missing 'opportunity_id'.")
         return None
 
     opp = await opportunities_col.find_one({"_id": ObjectId(oid)})
     if not await _institution_owns_opportunity(opp, institution_id):
+        logger.error(f"Permission denied: Inst {institution_id} does not own opp {oid}.")
         raise PermissionError("Institution not authorized for this application")
 
-    await opportunity_applications_col.update_one(
+    update_result_app = await opportunity_applications_col.update_one(
         {"_id": app["_id"]},
         {"$set": {"status": st, "reviewed_at": datetime.utcnow()}},
     )
+    logger.info(f"Updated opportunity_applications_col for {app['_id']}: {update_result_app.modified_count} modified.")
 
     uid = str(app.get("user_id") or "")
     eid = opp.get("event_link_id") if opp else None
     if eid and uid:
-        await participants_col.update_many(
+        update_result_part = await participants_col.update_many(
             {"event_id": str(eid), "user_id": uid},
             {"$set": {"status": st}},
         )
+        logger.info(f"Synced status to participants_col for event {eid} / user {uid}: {update_result_part.modified_count} modified.")
 
     app["status"] = st
     app["_id"] = str(app["_id"])
     try:
         await _notify_portal_review(dict(app), opp or {}, st)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error(f"Failed to send notification for app {app['_id']}: {e}")
+    
     return app
 

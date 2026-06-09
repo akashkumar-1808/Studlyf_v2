@@ -3020,50 +3020,101 @@ async def update_submission_data_status(event_id: str, submission_id: str, statu
 
 @router.patch("/events/{event_id}/teams/{team_id}/status")
 async def update_team_status(event_id: str, team_id: str, status_update: dict, user: dict = Depends(get_auth_user)):
-    """Updates the status of a team in an institution event."""
+    """Updates the status of a team in an institution event across all relevant collections."""
     await assert_institution_owns_event(event_id, user)
-    from db import participants_col, teams_col
+    from db import participants_col, teams_col, registrations_col, opportunity_applications_col, opportunities_col, events_col
+    from bson import ObjectId
+    from datetime import datetime
     
-    # Update participants with this team_id
-    result = await participants_col.update_many(
-        {"event_id": event_id, "team_id": team_id},
-        {"$set": {"status": status_update["status"]}}
+    # Normalize status: 'approved', 'rejected', 'waitlisted'
+    raw_status = str(status_update.get("status", "")).strip().lower()
+    if not raw_status:
+        raise HTTPException(status_code=400, detail="Status is required")
+        
+    # We use lowercase 'approved' for participants/teams and uppercase 'APPROVED' for registrations
+    # to match existing system conventions.
+    lower_status = raw_status
+    upper_status = raw_status.upper()
+
+    # 1. Update the actual team record
+    team_obj_id = None
+    try:
+        team_obj_id = ObjectId(team_id)
+    except:
+        pass
+
+    if team_obj_id:
+        await teams_col.update_one(
+            {"_id": team_obj_id},
+            {"$set": {"status": lower_status, "updated_at": datetime.utcnow()}}
+        )
+    
+    team_doc = await teams_col.find_one({"_id": team_obj_id}) if team_obj_id else None
+    
+    # 2. Update participants (Atomic check for both string and ObjectId event_id)
+    # We try both string and ObjectId just in case
+    ev_id_variants = [str(event_id)]
+    try:
+        ev_id_variants.append(ObjectId(event_id))
+    except:
+        pass
+
+    part_result = await participants_col.update_many(
+        {"event_id": {"$in": ev_id_variants}, "team_id": team_id},
+        {"$set": {"status": lower_status, "updated_at": datetime.utcnow()}}
     )
     
-    # Also update the team status if teams collection exists
-    try:
-        await teams_col.update_one(
-            {"_id": ObjectId(team_id)},
-            {"$set": {"status": status_update["status"]}}
-        )
-    except Exception:
-        pass  # Team might not exist or update might fail
+    # 3. Update registrations (Critical for Event Dashboard UI and stage unlocking)
+    reg_result = await registrations_col.update_many(
+        {"event_id": {"$in": ev_id_variants}, "team_id": team_id},
+        {"$set": {"status": upper_status, "updated_at": datetime.utcnow()}}
+    )
     
-    # Notify team members dynamically via in-app notification only
+    # 4. Sync status to portal opportunity applications
+    # This ensures the new Portal UI also sees the update
+    event_doc = await events_col.find_one({"_id": {"$in": [v for v in ev_id_variants if isinstance(v, ObjectId)]}})
+    if not event_doc:
+        event_doc = await events_col.find_one({"event_id": str(event_id)})
+
+    if event_doc:
+        member_ids = []
+        if team_doc:
+            member_ids = [str(m.get("user_id")) for m in team_doc.get("members", []) if m.get("user_id")]
+        else:
+            # Fallback: find all participants with this team_id
+            cursor = participants_col.find({"event_id": {"$in": ev_id_variants}, "team_id": team_id})
+            async for p in cursor:
+                member_ids.append(str(p["user_id"]))
+
+        event_link_id = str(event_doc.get("_id"))
+        opportunity = await opportunities_col.find_one({"event_link_id": event_link_id})
+        
+        if opportunity and member_ids:
+            opportunity_id = str(opportunity.get("_id"))
+            await opportunity_applications_col.update_many(
+                {"user_id": {"$in": member_ids}, "opportunity_id": opportunity_id},
+                {"$set": {"status": lower_status, "updated_at": datetime.utcnow()}}
+            )
+
+    # Notify team members via in-app notification
     try:
         from db import notifications_col
-        from datetime import datetime
-        
-        team_doc = await teams_col.find_one({"_id": ObjectId(team_id)})
-        event_doc = await events_col.find_one({"_id": ObjectId(event_id)})
-        if team_doc and event_doc:
-            members = team_doc.get("members", [])
-            for m in members:
-                m_uid = m.get("user_id")
-                if m_uid:
-                    # Schedule in background
-                    asyncio.create_task(notifications_col.insert_one({
-                        "user_id": str(m_uid),
-                        "title": f"Status Update: {event_doc.get('title')}",
-                        "message": f"Your team '{team_doc.get('name')}' status has been updated to '{status_update['status']}'.",
-                        "type": "selection_alert",
-                        "is_read": False,
-                        "created_at": datetime.utcnow()
-                    }))
+        if member_ids and event_doc:
+            for m_uid in member_ids:
+                asyncio.create_task(notifications_col.insert_one({
+                    "user_id": str(m_uid),
+                    "title": f"Status Update: {event_doc.get('title')}",
+                    "message": f"Your team status has been updated to '{upper_status}'.",
+                    "type": "selection_alert",
+                    "is_read": False,
+                    "created_at": datetime.utcnow()
+                }))
     except Exception as e:
-        logger.error(f"Failed to create manual team in-app notification: {e}")
+        logger.error(f"Failed to create team in-app notifications: {e}")
 
-    return {"status": "success", "updated_count": result.modified_count}
+    total_modified = part_result.modified_count + reg_result.modified_count
+    return {"status": "success", "updated_count": total_modified}
+
 
 @router.post("/events/{event_id}/send-status-email")
 async def send_status_email(event_id: str, email_data: dict, user: dict = Depends(get_auth_user)):
