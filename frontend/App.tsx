@@ -239,11 +239,10 @@ const App: React.FC = () => {
 
   return (
     <div
-      className={`relative min-h-screen flex flex-col selection:bg-[#7C3AED] selection:text-white ${
-        isDashboard || isAdmin || isCompanyModules
-          ? 'bg-transparent'
-          : 'bg-white'
-      }`}
+      className={`relative min-h-screen flex flex-col selection:bg-[#7C3AED] selection:text-white ${isDashboard || isAdmin || isCompanyModules
+        ? 'bg-transparent'
+        : 'bg-white'
+        }`}
     >
 
       {(() => {
@@ -266,7 +265,7 @@ const App: React.FC = () => {
           !pathname.startsWith('/institution-dashboard') &&
           !pathname.startsWith('/judge-portal');
 
-        return showNav && <Navigation />;
+        return showNav && false;
       })()}
 
       <main className="flex-grow">
@@ -549,29 +548,27 @@ const AppWrapper: React.FC = () => {
   });
 
   const handleSplashFinish = () => {
-    try { sessionStorage.setItem('studlyf_splash_shown', '1'); } catch (e) {}
+    try { sessionStorage.setItem('studlyf_splash_shown', '1'); } catch (e) { }
     setShowSplash(false);
   };
 
   return (
-    <HeroUIProvider>
-      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <AuthProvider>
-          <ScrollToTop />
-          {showSplash ? (
-            <SplashScreen duration={2000} onFinish={handleSplashFinish} />
-          ) : (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6 }}
-            >
-              <App />
-            </motion.div>
-          )}
-        </AuthProvider>
-      </Router>
-    </HeroUIProvider>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <AuthProvider>
+        <ScrollToTop />
+        {showSplash ? (
+          <SplashScreen duration={2000} onFinish={handleSplashFinish} />
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6 }}
+          >
+            <App />
+          </motion.div>
+        )}
+      </AuthProvider>
+    </Router>
   );
 };
 
