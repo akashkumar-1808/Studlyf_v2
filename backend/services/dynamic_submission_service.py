@@ -13,6 +13,7 @@ from services.field_validation import (
     normalize_stage_fields,
     validate_file_value,
     sanitize_submission_data_for_client,
+    persist_submission_file_fields,
 )
 from services.submission_format import format_submission_timestamp, resolve_notification_action_url
 
@@ -268,6 +269,9 @@ async def submit_stage_data(
                 )
                 if keep_existing and old_data.get(fid):
                     form_data[fid] = old_data[fid]
+
+        storage_key = f"{team_id or user_id}_{stage_id}"
+        form_data = persist_submission_file_fields(form_data, fields, str(event_id), storage_key)
 
         validation = await validate_submission_data(event_id, stage_id, form_data, fields)
         if not validation["valid"]:

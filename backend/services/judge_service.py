@@ -32,6 +32,20 @@ async def assign_judge_to_submission(submission_id: str, judge_id: str):
     """Assign a judge to a submission. Enforces 1 judge limit."""
     return await assign_judge_to_multiple_submissions([submission_id], judge_id)
 
+MAX_ASSIGNMENTS_PER_JUDGE = 20
+
+
+async def _count_judge_assignments(judge_id: str) -> int:
+    from db import submission_data_col
+
+    return await submission_data_col.count_documents({
+        "$or": [
+            {"assigned_judges.judge_id": judge_id},
+            {"assigned_judge_id": judge_id},
+        ]
+    })
+
+
 async def assign_judge_to_multiple_submissions(submission_ids: list, judge_id: str):
     """Assign a judge to multiple submissions and send a SINGLE consolidated email."""
     from db import submission_data_col, judges_col, events_col, submissions_col, teams_col
@@ -41,6 +55,16 @@ async def assign_judge_to_multiple_submissions(submission_ids: list, judge_id: s
     from services.email_service import send_notification_email
     
     print(f"DEBUG: Assigning judge {judge_id} to submissions: {submission_ids}")
+
+    existing_count = await _count_judge_assignments(judge_id)
+    new_ids = [str(s) for s in (submission_ids or []) if s]
+    if existing_count + len(new_ids) > MAX_ASSIGNMENTS_PER_JUDGE:
+        remaining = max(0, MAX_ASSIGNMENTS_PER_JUDGE - existing_count)
+        return {
+            "success": False,
+            "error": f"Judge already has {existing_count} assignments. Max {MAX_ASSIGNMENTS_PER_JUDGE} per judge ({remaining} slots left).",
+        }
+    submission_ids = new_ids[: max(0, MAX_ASSIGNMENTS_PER_JUDGE - existing_count)]
     
     # 1. Get judge details
     judge = await judges_col.find_one({"_id": ObjectId(judge_id)})

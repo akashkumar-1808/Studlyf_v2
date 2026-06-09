@@ -256,6 +256,47 @@ const EvaluationPage: React.FC = () => {
                                         <p className="text-slate-700">{submission.data.description}</p>
                                     </div>
                                 )}
+
+                                {/* Dynamic stage fields (text, links, stored files) */}
+                                {Object.entries(submission.data).map(([key, val]: [string, any]) => {
+                                    if (['file_url', 'filename', 'url', 'description'].includes(key)) return null;
+                                    if (val && typeof val === 'object' && val._stored_file) {
+                                        const fileUrl = `${API_BASE_URL}/api/evaluation/${token}/file/${encodeURIComponent(key)}`;
+                                        return (
+                                            <div key={key} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
+                                                <FileText size={20} className="text-slate-500" />
+                                                <div className="flex-1">
+                                                    <p className="font-medium text-slate-900">{val.filename || key}</p>
+                                                    <p className="text-sm text-slate-500">Uploaded deliverable</p>
+                                                </div>
+                                                <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                                                    <Download size={16} /> View
+                                                </a>
+                                            </div>
+                                        );
+                                    }
+                                    if (typeof val === 'string' && val.startsWith('http')) {
+                                        return (
+                                            <div key={key} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
+                                                <ExternalLink size={20} className="text-slate-500" />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-medium text-slate-900">{key.replace(/_/g, ' ')}</p>
+                                                    <p className="text-sm text-slate-500 truncate">{val}</p>
+                                                </div>
+                                                <a href={val} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm">Open</a>
+                                            </div>
+                                        );
+                                    }
+                                    if (typeof val === 'string' && val.trim() && !val.startsWith('data:')) {
+                                        return (
+                                            <div key={key} className="p-4 bg-blue-50 rounded-xl">
+                                                <h4 className="font-medium text-slate-900 mb-2 capitalize">{key.replace(/_/g, ' ')}</h4>
+                                                <p className="text-slate-700 whitespace-pre-wrap">{val}</p>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })}
                             </div>
                         )}
                         

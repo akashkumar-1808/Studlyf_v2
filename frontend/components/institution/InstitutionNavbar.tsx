@@ -185,17 +185,23 @@ const InstitutionNavbar: React.FC<{ refreshKey?: number, onNavigate?: (tab: stri
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
                 
-                const res = await fetch(`${API_BASE_URL}/api/v1/institution/profile/${institutionId}/branding`, {
+                let res = await fetch(`${API_BASE_URL}/api/v1/institution/profile/${institutionId}/branding`, {
                     headers: { ...authHeaders() },
                     signal: controller.signal
                 });
+                if (res.status === 404) {
+                    res = await fetch(`${API_BASE_URL}/api/v1/institution/profile/${institutionId}`, {
+                        headers: { ...authHeaders() },
+                        signal: controller.signal
+                    });
+                }
                 
                 clearTimeout(timeoutId);
                 
                 if (res.ok) {
                     const data = await res.json();
                     setProfile(data);
-                    setImgError(false); // Reset error state on fresh fetch
+                    setImgError(false);
                 } else {
                     console.error("[PROFILE] Error:", res.status);
                 }

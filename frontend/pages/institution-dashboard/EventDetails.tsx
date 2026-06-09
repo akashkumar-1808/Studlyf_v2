@@ -465,6 +465,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                     template_id: templateId,
                     top_n: 3,
                     min_score: bundleData?.thresholds?.shortlist_min || threshold,
+                    stage_id: getCurrentStageInfo().stage_id || selectedSubmissionStageId,
                     send_email: true,
                 }),
             });
@@ -1458,36 +1459,47 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
         return 'active';
     };
 
+    const submissionStageList = stages.filter((s) => {
+        const t = String(s.type || '').toUpperCase();
+        const n = String(s.name || '').toLowerCase();
+        return !['REGISTRATION', 'TEAM_FORMATION', 'QUIZ'].includes(t)
+            && !n.includes('registration')
+            && !n.includes('team formation');
+    });
+
+    const isTerminalStageType = (stage: any) => {
+        const t = String(stage?.type || '').toUpperCase();
+        const n = String(stage?.name || '').toUpperCase();
+        const terminal = ['FINAL', 'FINALE', 'RESULTS', 'CERTIFICATION', 'AWARDS'];
+        return terminal.includes(t) || terminal.some((x) => n.includes(x));
+    };
+
     const getCurrentStageInfo = () => {
-        const sortedStages = [...stages].sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+        const sortedStages = [...submissionStageList].sort(
+            (a, b) => new Date(a.start_date || 0).getTime() - new Date(b.start_date || 0).getTime()
+        );
         const totalStages = sortedStages.length;
-        
-        const activeStageIndex = sortedStages.findIndex((stage) => getStageStatus(stage) === 'active');
-        const selectedStageIndex = activeStageIndex !== -1
-            ? activeStageIndex
-            : Math.max(0, sortedStages.findLastIndex ? sortedStages.findLastIndex((stage) => getStageStatus(stage) !== 'upcoming') : (() => {
-                for (let i = sortedStages.length - 1; i >= 0; i--) {
-                    if (getStageStatus(sortedStages[i]) !== 'upcoming') return i;
-                }
-                return 0;
-            })());
-        
-        const stageNumber = selectedStageIndex + 1; // 1-based
-        const stageName = sortedStages[selectedStageIndex]?.name || '';
-        const isFinalStage = stageNumber === totalStages && totalStages > 0;
-        
-        // Get next stage name if available (for "advance to" messages)
+        const selectedIdx = selectedSubmissionStageId
+            ? sortedStages.findIndex((s) => s.id === selectedSubmissionStageId)
+            : -1;
+        const selectedStageIndex = selectedIdx >= 0 ? selectedIdx : Math.max(0, totalStages - 1);
+        const stageNumber = selectedStageIndex + 1;
+        const currentStage = sortedStages[selectedStageIndex];
+        const stageName = currentStage?.name || '';
+        const isFinalStage = totalStages > 0 && (
+            isTerminalStageType(currentStage)
+            || selectedStageIndex === totalStages - 1
+        );
         const nextStageIndex = selectedStageIndex + 1;
-        const nextStageName = nextStageIndex < totalStages 
-            ? sortedStages[nextStageIndex]?.name || ''
-            : "";
-        
+        const nextStageName = nextStageIndex < totalStages ? sortedStages[nextStageIndex]?.name || '' : '';
+
         return {
             stage_number: stageNumber,
             total_stages: totalStages,
             stage_name: stageName,
+            stage_id: currentStage?.id || selectedSubmissionStageId,
             next_stage_name: nextStageName,
-            is_final_stage: isFinalStage
+            is_final_stage: isFinalStage,
         };
     };
 
@@ -2540,13 +2552,14 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                             )}
                         </button>
                     ))}
-                    {getCurrentStageInfo().is_final_stage && (bundleData?.approved?.length || 0) > 0 && (
+                    {getCurrentStageInfo().is_final_stage && (
                         <button
                             onClick={handleIssueCertificates}
-                            disabled={issuingCertificates}
+                            disabled={issuingCertificates || !(bundleData?.approved?.length || bundleData?.shortlisted?.length)}
                             className="ml-auto mb-5 px-4 py-2 rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-[10px] font-black uppercase tracking-[0.2em]"
+                            title={`Final stage: ${getCurrentStageInfo().stage_name || 'last submission stage'}. Issues winner/runner-up + participation certificates.`}
                         >
-                            {issuingCertificates ? 'Issuing Certificates...' : 'Issue Certificates'}
+                            {issuingCertificates ? 'Issuing Certificates...' : `Issue Certificates (${getCurrentStageInfo().stage_name})`}
                         </button>
                     )}
                 </div>

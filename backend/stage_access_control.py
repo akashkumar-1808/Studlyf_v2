@@ -257,6 +257,7 @@ async def _dependency_completed(
     participant: dict,
     stages: List[dict],
     submitted_stage_ids: Optional[set] = None,
+    team_doc: Optional[dict] = None,
 ) -> bool:
     """Return True when a dependency stage is satisfied for this participant."""
     participant_status = (participant.get("status") or "pending").lower()
@@ -272,13 +273,12 @@ async def _dependency_completed(
         return participant_status not in ("not_registered", "rejected")
 
     if dep_type == "TEAM_FORMATION" or "team" in dep_name_lower or "formation" in dep_name_lower:
-        team_doc = None
-        if participant_team_id:
+        if team_doc is None and participant_team_id:
             try:
                 team_doc = await teams_col.find_one({"_id": ObjectId(participant_team_id)})
             except Exception:
                 team_doc = await teams_col.find_one({"team_id": participant_team_id})
-        if not team_doc:
+        if team_doc is None:
             team_doc = await teams_col.find_one({
                 "event_id": str(event_id),
                 "team_leader_id": str(user_id),
@@ -338,6 +338,7 @@ async def get_stage_access_state(
     stages: Optional[List[dict]] = None,
     event: Optional[dict] = None,
     submitted_stage_ids: Optional[set] = None,
+    team_doc: Optional[dict] = None,
 ) -> Dict[str, Any]:
     """
     Single source of truth for per-stage unlock/submit state.
@@ -372,10 +373,11 @@ async def get_stage_access_state(
 
     # Self-heal: team already approved by admin but participant record not synced (legacy)
     if participant_status in ("registered", "pending", "active") and participant_team_id:
-        try:
-            team_doc = await teams_col.find_one({"_id": ObjectId(participant_team_id)})
-        except Exception:
-            team_doc = await teams_col.find_one({"team_id": participant_team_id})
+        if team_doc is None:
+            try:
+                team_doc = await teams_col.find_one({"_id": ObjectId(participant_team_id)})
+            except Exception:
+                team_doc = await teams_col.find_one({"team_id": participant_team_id})
         if team_doc and str(team_doc.get("status") or "").lower() in ("approved", "finalized", "shortlisted", "accepted"):
             participant_status = "shortlisted"
             heal_update = {"status": "shortlisted", "updated_at": datetime.now(timezone.utc)}
@@ -419,7 +421,7 @@ async def get_stage_access_state(
         if not dep_stage:
             continue
         if not await _dependency_completed(
-            event_id, user_id, dep_stage, participant, stages, submitted_stage_ids
+            event_id, user_id, dep_stage, participant, stages, submitted_stage_ids, team_doc=team_doc
         ):
             dep_label = dep_stage.get("name") or dep_ref
             return {
@@ -574,6 +576,21 @@ async def get_all_stages_access(event_id: str, user_id: str) -> Dict[str, Any]:
             if sid:
                 submitted_stage_ids.add(str(sid))
 
+    event_stage_fields: Dict[str, list] = {}
+    if event and event.get("stages"):
+        for raw in event.get("stages", []):
+            sid = str(raw.get("id") or "")
+            if sid:
+                event_stage_fields[sid] = raw.get("fields") or (raw.get("config") or {}).get("fields") or []
+
+    team_doc = None
+    team_id_str = str(participant.get("team_id") or "") if participant else ""
+    if team_id_str:
+        try:
+            team_doc = await teams_col.find_one({"_id": ObjectId(team_id_str)})
+        except Exception:
+            team_doc = await teams_col.find_one({"team_id": team_id_str})
+
     access_list = []
     active_stage_id = None
     for idx, stage in enumerate(stages):
@@ -585,16 +602,14 @@ async def get_all_stages_access(event_id: str, user_id: str) -> Dict[str, Any]:
             continue
 
         state = await get_stage_access_state(
-            event_id, user_id, stage, participant, stages, event, submitted_stage_ids
+            event_id, user_id, stage, participant, stages, event, submitted_stage_ids, team_doc=team_doc
         )
         state["order"] = stage.get("order", idx)
         state["description"] = stage.get("description") or (stage.get("config") or {}).get("description") or ""
         raw_fields = stage.get("fields") or (stage.get("config") or {}).get("fields") or []
-        if event and event.get("stages"):
-            for raw in event.get("stages", []):
-                if str(raw.get("id")) == str(stage.get("id")):
-                    raw_fields = raw.get("fields") or (raw.get("config") or {}).get("fields") or raw_fields
-                    break
+        sid = str(stage.get("id") or "")
+        if sid and sid in event_stage_fields:
+            raw_fields = event_stage_fields[sid] or raw_fields
         try:
             from services.field_validation import normalize_stage_fields
             state["fields"] = normalize_stage_fields(raw_fields)
@@ -615,14 +630,8 @@ async def get_all_stages_access(event_id: str, user_id: str) -> Dict[str, Any]:
                 break
 
     team_name = None
-    team_id_str = str(participant.get("team_id") or "") if participant else ""
-    if team_id_str:
-        try:
-            team_doc = await teams_col.find_one({"_id": ObjectId(team_id_str)})
-        except Exception:
-            team_doc = await teams_col.find_one({"team_id": team_id_str})
-        if team_doc:
-            team_name = team_doc.get("team_name") or team_doc.get("name")
+    if team_doc:
+        team_name = team_doc.get("team_name") or team_doc.get("name")
 
     active_stage_obj = next((s for s in access_list if s.get("stage_id") == active_stage_id), None)
     # Only expose unlocked or already-submitted stages — hide locked future stages from participant UI

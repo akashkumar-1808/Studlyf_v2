@@ -1,6 +1,8 @@
 """Shared field validation for dynamic stage submissions."""
 import base64
+import os
 import re
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
@@ -143,3 +145,71 @@ def validate_file_value(value: Any, accept_types: List[str], label: str = "File"
         allowed = ", ".join(accept_types)
         return f"{label}: file type not allowed. Allowed: {allowed}"
     return None
+
+
+def _guess_ext_from_bytes(raw: bytes, mime: str, accept_types: List[str]) -> str:
+    mime_lower = (mime or "").lower()
+    if raw[:4] == b"%PDF" or "pdf" in mime_lower:
+        return "pdf"
+    if raw[:8] == b"\x89PNG\r\n\x1a\n" or "png" in mime_lower:
+        return "png"
+    if raw[:2] == b"\xff\xd8" or "jpeg" in mime_lower or "jpg" in mime_lower:
+        return "jpeg"
+    if raw[:2] == b"PK":
+        if any("ppt" in str(a).lower() for a in (accept_types or [])):
+            return "pptx"
+        if any("doc" in str(a).lower() for a in (accept_types or [])):
+            return "docx"
+        return "zip"
+    if "/" in mime_lower:
+        return mime_lower.split("/")[-1].split("+")[0] or "bin"
+    return "bin"
+
+
+def persist_submission_file_fields(
+    form_data: Dict[str, Any],
+    fields: List[dict],
+    event_id: str,
+    storage_key: str,
+) -> Dict[str, Any]:
+    """Write data-URL uploads to disk; store lightweight metadata in MongoDB."""
+    if not isinstance(form_data, dict):
+        return form_data
+    out = dict(form_data)
+    upload_root = Path(os.getenv("UPLOAD_DIR", "uploads"))
+    for field in fields:
+        if str(field.get("field_type", "")).lower() != "file":
+            continue
+        fid = str(field.get("field_id") or "")
+        if not fid:
+            continue
+        val = out.get(fid)
+        if val is None or val == "":
+            continue
+        if isinstance(val, dict) and val.get("_stored_file"):
+            continue
+        if isinstance(val, str) and val.startswith("http"):
+            continue
+        if not isinstance(val, str):
+            continue
+        parsed = parse_data_url(val)
+        if not parsed:
+            continue
+        try:
+            raw = base64.b64decode(parsed["data"], validate=True)
+        except Exception:
+            continue
+        ext = _guess_ext_from_bytes(raw, parsed["mime"], field.get("accept_types") or [])
+        rel = f"submissions/{event_id}/{storage_key}/{fid}.{ext}"
+        dest = upload_root / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(raw)
+        label = (fid or "upload").replace("_", " ").strip() or "upload"
+        out[fid] = {
+            "_stored_file": True,
+            "mime": parsed["mime"],
+            "size": len(raw),
+            "filename": f"{label}.{ext}",
+            "storage_key": rel,
+        }
+    return out
