@@ -119,7 +119,6 @@ const SDLProjectCreate: React.FC = () => {
         alert('Failed to create project. Please try again.');
       }
     } catch (err) {
-      console.error(err);
       alert('Network error. Check your connection.');
     } finally {
       setSubmitting(false);
@@ -523,3 +522,4 @@ const SDLProjectCreate: React.FC = () => {
 };
 
 export default SDLProjectCreate;
+

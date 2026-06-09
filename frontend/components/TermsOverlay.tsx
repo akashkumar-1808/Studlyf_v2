@@ -271,3 +271,4 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onClose }) => {
 };
 
 export default TermsOverlay;
+

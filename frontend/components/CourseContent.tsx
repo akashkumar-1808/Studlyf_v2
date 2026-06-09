@@ -85,3 +85,4 @@ const CourseContent: React.FC<Props> = ({ activeStage, activeContentDb, isCurren
 };
 
 export default CourseContent;
+

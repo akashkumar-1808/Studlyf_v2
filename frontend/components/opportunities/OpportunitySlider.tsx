@@ -66,3 +66,4 @@ const OpportunitySlider: React.FC<OpportunitySliderProps> = ({ opportunities, ap
 };
 
 export default OpportunitySlider;
+

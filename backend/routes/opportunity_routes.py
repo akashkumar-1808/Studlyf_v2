@@ -837,12 +837,19 @@ async def add_opportunity_review(
 @router.get("/{opportunity_id}/reviews")
 async def get_opportunity_reviews(opportunity_id: str):
     """Fetch reviews for an opportunity."""
+    opp = None
     try:
         opp_oid = ObjectId(opportunity_id)
+        opp = await opportunities_col.find_one({"_id": opp_oid})
     except:
-        opp_oid = opportunity_id
-        
-    opp = await opportunities_col.find_one({"$or": [{"_id": opp_oid}, {"_id": opportunity_id}]})
+        pass
+    if not opp:
+        opp = await opportunities_col.find_one({"event_link_id": opportunity_id})
+    if not opp:
+        try:
+            opp = await opportunities_col.find_one({"_id": opportunity_id})
+        except:
+            pass
     if not opp:
         raise HTTPException(status_code=404, detail="Opportunity not found")
         

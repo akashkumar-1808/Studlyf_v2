@@ -36,3 +36,4 @@ export function AnimatedCube({ element, targetX }: AnimatedCubeProps) {
     </group>
   );
 }
+

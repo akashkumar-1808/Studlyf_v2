@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
@@ -10,7 +9,7 @@ import AvatarImage from './AvatarImage';
 const StudlyfLogo = ({ className = "h-8 sm:h-10" }: { className?: string }) => (
   <div className={`flex items-center ${className}`}>
     <img
-      src="/images/studlyf_secondary.png"
+      src="/images-optimized/studlyf_secondary.webp"
       alt="STUDLYF Logo"
       className="h-full w-auto object-contain"
     />
@@ -592,3 +591,4 @@ const Navigation: React.FC = () => {
 };
 
 export default Navigation;
+

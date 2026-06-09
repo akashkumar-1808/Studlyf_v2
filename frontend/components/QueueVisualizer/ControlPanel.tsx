@@ -33,3 +33,4 @@ export default function ControlPanel({ onCreateQueue, onEnqueue, onDequeue, onPe
     </div>
   );
 }
+

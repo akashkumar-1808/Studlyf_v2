@@ -52,3 +52,4 @@ export default function DynamicBadges({ badges, size = 'md', className = '' }: D
     </div>
   );
 }
+

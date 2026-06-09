@@ -116,7 +116,7 @@ const InstitutionNavbar: React.FC<{ refreshKey?: number, onNavigate?: (tab: stri
                 }
             } catch (err: any) { 
                 if (err.name !== 'AbortError') {
-                    console.error("[NOTIF] Failed", err);
+                    try { console.error("[NOTIF] Failed", err instanceof Error ? err.message : String(err)); } catch (_) {}
                     setNotifications([]);
                     setNotifCount(0);
                 }
@@ -168,7 +168,7 @@ const InstitutionNavbar: React.FC<{ refreshKey?: number, onNavigate?: (tab: stri
                 const matchedPages = pages.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()));
                 setSearchResults([...matchedPages, ...data]);
             } catch (err) {
-                console.error("Search failed", err);
+                try { console.error("Search failed", err instanceof Error ? err.message : String(err)); } catch (_) {}
             } finally {
                 setIsSearching(false);
             }
@@ -201,7 +201,7 @@ const InstitutionNavbar: React.FC<{ refreshKey?: number, onNavigate?: (tab: stri
                 }
             } catch (err: any) { 
                 if (err.name !== 'AbortError') {
-                    console.error("[PROFILE] Failed", err);
+                    try { console.error("[PROFILE] Failed", err instanceof Error ? err.message : String(err)); } catch (_) {}
                     setProfile(null);
                 }
             }
@@ -254,7 +254,7 @@ const InstitutionNavbar: React.FC<{ refreshKey?: number, onNavigate?: (tab: stri
                 console.error("Failed to clear notifications on backend");
             }
         } catch (err) {
-            console.error("Mark all as read failed", err);
+            try { console.error("Mark all as read failed", err instanceof Error ? err.message : String(err)); } catch (_) {}
         }
     };
 
@@ -480,3 +480,4 @@ const InstitutionNavbar: React.FC<{ refreshKey?: number, onNavigate?: (tab: stri
 };
 
 export default InstitutionNavbar;
+

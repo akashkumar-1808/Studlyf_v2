@@ -65,7 +65,7 @@ const EventHub: React.FC = () => {
                 }
             }
         } catch (error) {
-            console.error("Failed to fetch hub data", error);
+            try { console.error("Failed to fetch hub data", error instanceof Error ? error.message : String(error)); } catch (_) {}
         } finally {
             setLoading(false);
         }
@@ -1133,3 +1133,4 @@ const EventHub: React.FC = () => {
 };
 
 export default EventHub;
+

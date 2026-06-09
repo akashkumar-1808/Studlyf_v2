@@ -25,3 +25,4 @@ export function Arrow({ fromX, toX, y = 1.2 }: ArrowProps) {
     </group>
   );
 }
+

@@ -547,3 +547,4 @@ const SubmissionsPanel: React.FC<SubmissionsPanelProps> = ({ eventId, opportunit
 };
 
 export default SubmissionsPanel;
+

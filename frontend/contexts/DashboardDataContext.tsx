@@ -50,7 +50,7 @@ export const useDashboardData = <T,>(key: string, fetcher: () => Promise<T>) => 
                     setCacheData(key, result);
                 })
                 .catch(err => {
-                    console.error(`Error fetching ${key}:`, err);
+                    try { console.error(`Error fetching ${key}:`, err instanceof Error ? err.message : String(err)); } catch (_) {}
                 })
                 .finally(() => {
                     setLoading(key, false);
@@ -62,3 +62,4 @@ export const useDashboardData = <T,>(key: string, fetcher: () => Promise<T>) => 
 
     return { data, loading };
 };
+

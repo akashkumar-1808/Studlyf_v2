@@ -280,3 +280,4 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, transparent = f
 };
 
 export default LoginForm;
+

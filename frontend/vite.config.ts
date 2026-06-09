@@ -37,7 +37,6 @@ export default defineConfig(({ mode }) => {
             if (id.includes('node_modules/@heroui')) return 'vendor_heroui';
             if (id.includes('node_modules/html2pdf.js') || id.includes('node_modules/html2canvas') || id.includes('node_modules/jspdf')) return 'vendor_pdf';
             if (id.includes('node_modules/pdfjs-dist')) return 'vendor_pdfjs';
-            if (id.includes('node_modules/three') || id.includes('node_modules/@react-three')) return 'vendor_three';
             if (id.includes('node_modules/react-markdown') || id.includes('node_modules/remark-gfm') || id.includes('node_modules/rehype-raw')) return 'vendor_markdown';
             if (id.includes('node_modules/lottie-react')) return 'vendor_lottie';
             if (id.includes('node_modules/qrcode')) return 'vendor_qrcode';

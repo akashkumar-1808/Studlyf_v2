@@ -31,7 +31,7 @@ const MockInterviews: React.FC = () => {
                 const data = await response.json();
                 setInterviews(data);
             } catch (error) {
-                console.error("Error fetching interviews:", error);
+                try { console.error("Error fetching interviews:", error instanceof Error ? error.message : String(error)); } catch (_) {}
             } finally {
                 setLoading(false);
             }
@@ -155,3 +155,4 @@ const MockInterviews: React.FC = () => {
 };
 
 export default MockInterviews;
+

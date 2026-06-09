@@ -51,7 +51,7 @@ const DownloadsPage: React.FC<DownloadsPageProps> = ({ onNavigate }) => {
             window.open(`${API_BASE_URL}${file.endpoint}`, '_blank');
             // We use window.open for simplicity in this demo, but typically would be a fetch blob
         } catch (error) {
-            console.error("Download failed", error);
+            try { console.error("Download failed", error instanceof Error ? error.message : String(error)); } catch (_) {}
         } finally {
             setTimeout(() => setLoading(null), 2000);
         }
@@ -135,3 +135,4 @@ const DownloadsPage: React.FC<DownloadsPageProps> = ({ onNavigate }) => {
 };
 
 export default DownloadsPage;
+

@@ -35,3 +35,4 @@ const AIToolGrid: React.FC<{ tools: Tool[] }> = ({ tools }) => {
 };
 
 export default AIToolGrid;
+

@@ -68,7 +68,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ institutionId }) => {
                 if (res4.ok) setSubDist(await res4.json());
 
             } catch (error) {
-                console.error("Failed to fetch analytics:", error);
+                try { console.error("Failed to fetch analytics:", error instanceof Error ? error.message : String(error)); } catch (_) {}
             } finally {
                 setLoading(false);
             }
@@ -329,3 +329,4 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ institutionId }) => {
 };
 
 export default ReportsPage;
+

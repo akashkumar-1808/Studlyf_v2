@@ -229,3 +229,4 @@ const JudgeInvitation: React.FC = () => {
 };
 
 export default JudgeInvitation;
+

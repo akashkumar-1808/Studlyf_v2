@@ -30,3 +30,4 @@ const JudgeStatsCard: React.FC<JudgeStatsCardProps> = ({ title, value, icon, col
 };
 
 export default JudgeStatsCard;
+

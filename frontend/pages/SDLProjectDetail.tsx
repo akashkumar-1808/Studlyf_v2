@@ -227,7 +227,6 @@ const SDLProjectDetail: React.FC = () => {
         fetchProject();
       }
     } catch (err) {
-      console.error(err);
     }
   };
 
@@ -240,7 +239,6 @@ const SDLProjectDetail: React.FC = () => {
       });
       fetchProject();
     } catch (err) {
-      console.error(err);
     }
   };
 
@@ -261,7 +259,6 @@ const SDLProjectDetail: React.FC = () => {
       setNewComment('');
       fetchProject();
     } catch (err) {
-      console.error(err);
     }
   };
 
@@ -287,7 +284,6 @@ const SDLProjectDetail: React.FC = () => {
         setJoinMessage('');
       }
     } catch (err) {
-      console.error(err);
     } finally {
       setJoinSubmitting(false);
     }
@@ -303,7 +299,6 @@ const SDLProjectDetail: React.FC = () => {
       });
       fetchProject();
     } catch (err) {
-      console.error(err);
     }
   };
 
@@ -320,7 +315,6 @@ const SDLProjectDetail: React.FC = () => {
       });
       setProject({ ...project, feature_checklist: updated });
     } catch (err) {
-      console.error(err);
     }
   };
 
@@ -1028,3 +1022,4 @@ const SDLProjectDetail: React.FC = () => {
 };
 
 export default SDLProjectDetail;
+

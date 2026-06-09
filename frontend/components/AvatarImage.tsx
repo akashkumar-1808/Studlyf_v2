@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 
-const CATALOG_URL = '/avatars/catalog.png';
+const CATALOG_URL = '/avatars/catalog.webp';
 const CATALOG_SIZE = 1024;
 
 interface AvatarImageProps {
@@ -54,3 +54,4 @@ const AvatarImage: React.FC<AvatarImageProps> = ({ src, alt = '', className = ''
 };
 
 export default AvatarImage;
+

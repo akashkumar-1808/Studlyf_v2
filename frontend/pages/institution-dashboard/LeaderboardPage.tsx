@@ -55,7 +55,7 @@ const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ eventId, refreshCount
                     setRankings([]);
                 }
             } catch (error) {
-                console.error("Integration Error:", error);
+                try { console.error("Integration Error:", error instanceof Error ? error.message : String(error)); } catch (_) {}
                 setRankings([]);
             } finally {
                 setLoading(false);
@@ -271,3 +271,4 @@ const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ eventId, refreshCount
 };
 
 export default LeaderboardPage;
+

@@ -146,3 +146,4 @@ const PackageManager: React.FC<PackageManagerProps> = ({ institutionId }) => {
 };
 
 export default PackageManager;
+

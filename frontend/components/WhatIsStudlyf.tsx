@@ -94,7 +94,7 @@ const WhatIsStudlyf: React.FC = () => {
                             className="inline-block align-middle"
                         >
                             <div className="bg-white p-5 rounded-[2.5rem] inline-block shadow-2xl border border-gray-100">
-                                <img src="/images/studlyf.png" alt="STUDLYF" className="h-[60px] md:h-[100px] lg:h-[120px] w-auto inline-block" />
+                                <img src="/images-optimized/studlyf.webp" alt="STUDLYF" loading="lazy" className="h-[60px] md:h-[100px] lg:h-[120px] w-auto inline-block" />
                             </div>
                         </motion.span>
                     </motion.h3>
@@ -177,3 +177,4 @@ const WhatIsStudlyf: React.FC = () => {
 };
 
 export default WhatIsStudlyf;
+

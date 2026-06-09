@@ -292,3 +292,4 @@ const CertificateTemplateBuilder: React.FC<{ institutionId: string; onSave?: (da
 };
 
 export default CertificateTemplateBuilder;
+

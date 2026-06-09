@@ -32,7 +32,7 @@ const Analytics: React.FC = () => {
                 const data = await response.json();
                 setStats(data);
             } catch (error) {
-                console.error("Error fetching analytics:", error);
+                try { console.error("Error fetching analytics:", error instanceof Error ? error.message : String(error)); } catch (_) {}
             } finally {
                 setLoading(false);
             }
@@ -260,3 +260,4 @@ const Analytics: React.FC = () => {
 };
 
 export default Analytics;
+

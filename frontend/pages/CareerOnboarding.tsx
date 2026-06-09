@@ -1159,7 +1159,7 @@ const CareerOnboarding: React.FC = () => {
                 setCarouselIndex(0);
             }
         } catch (err) {
-            console.error("Failed to fetch certifications:", err);
+            try { console.error("Failed to fetch certifications:", err instanceof Error ? err.message : String(err)); } catch (_) {}
         } finally {
             setIsGeneratingCourses(false);
         }
@@ -1186,7 +1186,7 @@ const CareerOnboarding: React.FC = () => {
                 setPathDetails((prev: any) => prev ? { ...prev, day_in_the_life: data.day_in_the_life } : null);
             }
         } catch (err) {
-            console.error("Day in the life regeneration failed:", err);
+            try { console.error("Day in the life regeneration failed:", err instanceof Error ? err.message : String(err)); } catch (_) {}
         } finally {
             setIsRegeneratingDay(false);
         }
@@ -1212,7 +1212,7 @@ const CareerOnboarding: React.FC = () => {
                 setInsightData(data);
             }
         } catch (err) {
-            console.error("Failed to fetch insights:", err);
+            try { console.error("Failed to fetch insights:", err instanceof Error ? err.message : String(err)); } catch (_) {}
             setInsightData({
                 importance: `Mastering this is vital to execute operational and high-fidelity frameworks for becoming a successful ${selectedPath?.name || "Professional"}.`,
                 mastery_steps: [
@@ -1255,7 +1255,7 @@ const CareerOnboarding: React.FC = () => {
             const data = await res.json();
             if (data.identity_statement) setIdentityStatement(data.identity_statement);
         } catch (err) {
-            console.error("Identity fetch failed:", err);
+            try { console.error("Identity fetch failed:", err instanceof Error ? err.message : String(err)); } catch (_) {}
         } finally {
             setIsGeneratingIdentity(false);
         }
@@ -1282,7 +1282,7 @@ const CareerOnboarding: React.FC = () => {
                 setGeneratedPaths(DEFAULT_PATHS);
             }
         } catch (err) {
-            console.error("Paths fetch failed:", err);
+            try { console.error("Paths fetch failed:", err instanceof Error ? err.message : String(err)); } catch (_) {}
             setGeneratedPaths(DEFAULT_PATHS);
         } finally {
             setIsGeneratingPaths(false);
@@ -1305,7 +1305,7 @@ const CareerOnboarding: React.FC = () => {
             const data = await res.json();
             if (data.identity_statement) setIdentityStatement(data.identity_statement);
         } catch (err) {
-            console.error("Identity fetch failed:", err);
+            try { console.error("Identity fetch failed:", err instanceof Error ? err.message : String(err)); } catch (_) {}
         } finally {
             setIsGeneratingIdentity(false);
         }
@@ -1332,7 +1332,7 @@ const CareerOnboarding: React.FC = () => {
                 setGeneratedPaths(DEFAULT_PATHS);
             }
         } catch (err) {
-            console.error("Paths fetch failed:", err);
+            try { console.error("Paths fetch failed:", err instanceof Error ? err.message : String(err)); } catch (_) {}
             setGeneratedPaths(DEFAULT_PATHS);
         } finally {
             setIsGeneratingPaths(false);
@@ -1387,7 +1387,7 @@ const CareerOnboarding: React.FC = () => {
                 fetchPathsDirect(nextFormData)
             ]);
         } catch (err) {
-            console.error("Analysis failed:", err);
+            try { console.error("Analysis failed:", err instanceof Error ? err.message : String(err)); } catch (_) {}
         } finally {
             setIsAnalyzing(false);
             setStep(3);
@@ -1425,7 +1425,7 @@ const CareerOnboarding: React.FC = () => {
                 setRoadmapData(FALLBACK_ROADMAP);
             }
         } catch (err) {
-            console.error("Roadmap generation failed:", err);
+            try { console.error("Roadmap generation failed:", err instanceof Error ? err.message : String(err)); } catch (_) {}
             setRoadmapData(FALLBACK_ROADMAP);
         } finally {
             setIsGeneratingRoadmap(false);
@@ -1459,7 +1459,7 @@ const CareerOnboarding: React.FC = () => {
             const data = await res.json();
             setPathDetails(data);
         } catch (err) {
-            console.error("Details fetch failed:", err);
+            try { console.error("Details fetch failed:", err instanceof Error ? err.message : String(err)); } catch (_) {}
             setPathDetails({
                 description: `A ${path.name} is a highly specialized expert responsible for designing, deploying, and optimizing critical industrial and technical solutions.`,
                 avg_salary: "$118,000",
@@ -2895,3 +2895,4 @@ const CareerOnboarding: React.FC = () => {
 };
 
 export default CareerOnboarding;
+

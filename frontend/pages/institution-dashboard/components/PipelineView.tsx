@@ -63,7 +63,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ eventId, stages }) => {
                 setAnalytics(aData.stage_stats || []);
             }
         } catch (err) {
-            console.error('Pipeline fetch error:', err);
+            try { console.error('Pipeline fetch error:', err instanceof Error ? err.message : String(err)); } catch (_) {}
         } finally {
             setLoading(false);
         }
@@ -525,3 +525,4 @@ const PipelineView: React.FC<PipelineViewProps> = ({ eventId, stages }) => {
 };
 
 export default PipelineView;
+

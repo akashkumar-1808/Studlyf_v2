@@ -814,7 +814,8 @@ const OpportunityDetails: React.FC = () => {
                         profile_data,
                         custom_answers,
                         ...(teamAction === 'create' && teamName ? { team_action: 'CREATE', team_payload: teamName } : {}),
-                        ...(teamAction === 'join' && inviteCode ? { team_action: 'JOIN', team_payload: inviteCode } : {})
+                        ...(teamAction === 'join' && inviteCode ? { team_action: 'JOIN', team_payload: inviteCode } : {}),
+                        ...(teamAction === 'individual' ? { team_action: 'INDIVIDUAL', team_payload: 'solo' } : {})
                     }),
                 });
 
@@ -1106,16 +1107,37 @@ const OpportunityDetails: React.FC = () => {
         const participantStage = myApplication?.current_stage || '';
         const regStatusStrLower = regStatusStr.toLowerCase();
         
-        const stages = event?.stages || [];
+        const stages = opportunity?.stages || [];
         const stageIndex = stages.findIndex((st: any) => st.name === s.name);
         const participantStageIndex = stages.findIndex((st: any) => st.name === participantStage);
         
         console.log(`[DEBUG] Locking Check: Stage: ${s.name} (Idx: ${stageIndex}), Participant Stage: ${participantStage} (Idx: ${participantStageIndex}), RegStatus: ${regStatusStrLower}`);
 
-        // Unlock if participant is approved/shortlisted OR has progressed stage
-        const isAuthorized = ['approved', 'shortlisted', 'accepted'].includes(regStatusStrLower) || (participantStageIndex >= stageIndex - 1);
+        // Dynamically determine required status from stage visibility
+        const stageVisibility = String(s?.visibility || s?.config?.visibility || '').toLowerCase().trim();
+        const requiresShortlist = stageVisibility.includes('shortlist');
+        const pType = String(opportunity?.participationType || opportunity?.participation_type || '').toLowerCase();
+        const isSoloEvent = pType === 'individual' || pType === 'both';
+        const isSoloParticipant = !myApplication?.team_id || myApplication?.is_solo_participant === true;
 
-        console.log(`[DEBUG] Authorization result: ${isAuthorized}`);
+        let isAuthorized = false;
+        if (!requiresShortlist) {
+            // Public stages: any registered participant can access
+            isAuthorized = regStatusStrLower !== 'not_registered' && regStatusStrLower !== 'rejected';
+        } else {
+            // Shortlisted-only stages: require approved/shortlisted/accepted
+            const allowedStatuses = ['approved', 'shortlisted', 'accepted'];
+            if (isSoloEvent && isSoloParticipant) {
+                allowedStatuses.push('registered');
+            }
+            isAuthorized = allowedStatuses.includes(regStatusStrLower);
+        }
+        // Also unlock if participant has progressed past this stage
+        if (!isAuthorized && participantStageIndex >= stageIndex - 1) {
+            isAuthorized = true;
+        }
+
+        console.log(`[DEBUG] Locking Check: Stage: ${s.name}, visibility: ${stageVisibility}, requiresShortlist: ${requiresShortlist}, RegStatus: ${regStatusStrLower}, Authorized: ${isAuthorized}`);
 
         if (!isAuthorized) {
             alert(`This stage is locked. You must be approved or shortlisted to proceed.`);
@@ -1232,6 +1254,15 @@ const OpportunityDetails: React.FC = () => {
 
     const stagesList = Array.isArray(opportunity?.stages) ? opportunity.stages : [];
     
+    // Stages where participant submits data (exclude registration & team formation)
+    const submittableStages = stagesList.filter((s: any) => {
+        const st = String(s?.type || '').toUpperCase();
+        const sn = String(s?.name || '').toLowerCase();
+        return st !== 'REGISTRATION' && st !== 'TEAM_FORMATION'
+            && !sn.includes('regist') && !sn.includes('team formation');
+    });
+    const hasSubmittableStages = submittableStages.length > 0;
+    
     // Find Registration Stage
     const regStage = stagesList.find((s: any) => 
         String(s?.type || '').toUpperCase() === 'REGISTRATION' || 
@@ -1309,7 +1340,7 @@ const OpportunityDetails: React.FC = () => {
                             <Home size={16} className="hidden sm:inline" />
                             Details
                         </button>
-                        {Boolean(submissionStage) && (
+                        {hasSubmittableStages && (
                             <button
                                 type="button"
                                 onClick={() => scrollToSection('submissions')}
@@ -1391,13 +1422,59 @@ const OpportunityDetails: React.FC = () => {
                     </div>
                 ) : activeTab === 'submissions' && opportunity ? (
                     <div className="my-8">
-                        {eventId && submissionStage ? (
-                            <div className="space-y-4">
-                                <SubmissionForm eventId={eventId} stage={submissionStage} participationType={opportunity?.participationType} />
+                        {eventId && submittableStages.length > 0 ? (
+                            <div className="space-y-8">
+                                {submittableStages.map((stage: any, idx: number) => {
+                                    // Determine lock status from participant data
+                                    const st = String(stage.type || '').toUpperCase();
+                                    const stageRegStatus = String(myApplication?.status || '').toLowerCase();
+                                    const pType = String(opportunity?.participationType || opportunity?.participation_type || '').toLowerCase();
+                                    const isSoloEvent = pType === 'individual' || pType === 'both';
+                                    const isSolo = !myApplication?.team_id || myApplication?.is_solo_participant === true;
+                                    const allowedStatuses = ['approved', 'shortlisted', 'accepted'];
+                                    if (isSoloEvent && isSolo) allowedStatuses.push('registered');
+                                    const isStageAuthorized = allowedStatuses.includes(stageRegStatus);
+
+                                    return (
+                                        <div key={stage.id || idx} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                                                <div>
+                                                    <h3 className="text-lg font-black text-slate-900">{stage.name || stage.type || `Stage ${idx + 1}`}</h3>
+                                                    {stage.description && (
+                                                        <p className="text-sm text-slate-500 mt-0.5">{stage.description}</p>
+                                                    )}
+                                                </div>
+                                                <span className={`text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full ${
+                                                    isStageAuthorized
+                                                        ? 'bg-emerald-50 text-emerald-700'
+                                                        : 'bg-amber-50 text-amber-700'
+                                                }`}>
+                                                    {isStageAuthorized ? 'Open' : 'Locked'}
+                                                </span>
+                                            </div>
+                                            <div className="p-5">
+                                                {isStageAuthorized ? (
+                                                    <SubmissionForm eventId={eventId} stage={stage} participationType={opportunity?.participationType} />
+                                                ) : (
+                                                    <div className="bg-slate-50 rounded-xl p-6 text-center">
+                                                        <p className="text-sm font-bold text-slate-500">
+                                                            This stage is locked. You must be shortlisted or approved to proceed.
+                                                        </p>
+                                                        {stage.depends_on && stage.depends_on.length > 0 && (
+                                                            <p className="text-xs text-slate-400 mt-1">
+                                                                Complete the previous stages to unlock this one.
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className="bg-white p-6 rounded-lg shadow-md text-slate-600">
-                                Submission stage is not configured for this event yet.
+                                No submission stages configured for this event yet.
                             </div>
                         )}
                     </div>

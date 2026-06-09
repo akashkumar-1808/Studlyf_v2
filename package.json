@@ -4,5 +4,8 @@
   "scripts": {
     "install:frontend": "cd frontend && npm install",
     "build": "cd frontend && npm run build"
+  },
+  "dependencies": {
+    "sharp": "^0.34.5"
   }
 }

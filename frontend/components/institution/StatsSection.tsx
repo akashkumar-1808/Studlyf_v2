@@ -32,7 +32,7 @@ const StatsSection: React.FC<StatsSectionProps> = ({ institutionId, onUpgrade, o
                 const data = await res.json();
                 setCacheData('institutionStats', data);
             } catch (err) {
-                console.error("Failed to load dynamic stats:", err);
+                try { console.error("Failed to load dynamic stats:", err instanceof Error ? err.message : String(err)); } catch (_) {}
             } finally {
                 setLoading('institutionStats', false);
             }
@@ -193,3 +193,4 @@ const StatsSection: React.FC<StatsSectionProps> = ({ institutionId, onUpgrade, o
 };
 
 export default StatsSection;
+

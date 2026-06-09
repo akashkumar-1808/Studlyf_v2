@@ -34,3 +34,4 @@ const WebImage: React.FC<WebImageProps> = ({ src, alt, className = "", aspectRat
 };
 
 export default WebImage;
+

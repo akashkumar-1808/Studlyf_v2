@@ -69,3 +69,4 @@ const ProgressHeader: React.FC<ProgressHeaderProps> = ({
 };
 
 export default ProgressHeader;
+

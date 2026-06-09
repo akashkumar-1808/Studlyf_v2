@@ -82,7 +82,6 @@ const CertificatesPage: React.FC<CertificatesPageProps> = ({ institutionId }) =>
                     setSelectedEventId(mapped[0]._id);
                 }
             } catch (error) {
-                console.error(error);
             }
         })();
     }, [institutionId]);
@@ -124,7 +123,6 @@ const CertificatesPage: React.FC<CertificatesPageProps> = ({ institutionId }) =>
                     }
                 }
             } catch (error) {
-                console.error(error);
             }
         })();
 
@@ -147,7 +145,6 @@ const CertificatesPage: React.FC<CertificatesPageProps> = ({ institutionId }) =>
                 }));
                 setLeaderboard(mapped);
             } catch (error) {
-                console.error(error);
                 setLeaderboard([]);
             } finally {
                 setLoadingPreview(false);
@@ -172,7 +169,6 @@ const CertificatesPage: React.FC<CertificatesPageProps> = ({ institutionId }) =>
                     setSelectedTemplateId(mapped[0].template_id);
                 }
             } catch (error) {
-                console.error(error);
             }
         })();
     }, [institutionId]);
@@ -662,3 +658,4 @@ const CertificatesPage: React.FC<CertificatesPageProps> = ({ institutionId }) =>
 };
 
 export default CertificatesPage;
+

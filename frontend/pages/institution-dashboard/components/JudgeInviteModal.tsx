@@ -117,3 +117,4 @@ const JudgeInviteModal: React.FC<JudgeInviteModalProps> = ({ isOpen, onClose, on
 };
 
 export default JudgeInviteModal;
+

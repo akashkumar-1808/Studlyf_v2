@@ -2,17 +2,17 @@ import React from 'react';
 import { motion } from 'framer-motion';
 
 const logos = [
-  { name: 'Varenyam', src: '/images/varenyam.jpg' },
-  { name: 'S', src: '/images/s.jpg' },
-  { name: 'RGES', src: '/images/rges.jpg' },
-  { name: 'GED', src: '/images/ged.jpg' },
-  { name: 'Centle', src: '/images/centle.jpg' },
-  { name: 'AI', src: '/images/ai.webp' },
-  { name: 'Prompt', src: '/images/prompt.jpg' },
-  { name: 'Code Questers', src: '/images/codequesters.jpg' },
-  { name: 'Next', src: '/images/next.webp' },
-  { name: 'Ground Zero', src: '/images/groundzero.jpg' },
-  { name: 'TG10X', src: '/images/tg10x.jpg' },
+  { name: 'Varenyam', src: '/images-optimized/varenyam.webp' },
+  { name: 'S', src: '/images-optimized/s.webp' },
+  { name: 'RGES', src: '/images-optimized/rges.webp' },
+  { name: 'GED', src: '/images-optimized/ged.webp' },
+  { name: 'Centle', src: '/images-optimized/centle.webp' },
+  { name: 'AI', src: '/images-optimized/ai.webp' },
+  { name: 'Prompt', src: '/images-optimized/prompt.webp' },
+  { name: 'Code Questers', src: '/images-optimized/codequesters.webp' },
+  { name: 'Next', src: '/images-optimized/next.webp' },
+  { name: 'Ground Zero', src: '/images-optimized/groundzero.webp' },
+  { name: 'TG10X', src: '/images-optimized/tg10x.webp' },
 ];
 
 const FeaturedColleges: React.FC = () => {
@@ -65,6 +65,7 @@ const FeaturedColleges: React.FC = () => {
                 <img
                   src={logo.src}
                   alt={logo.name}
+                  loading="lazy"
                   className="h-14 sm:h-16 md:h-20 max-w-[180px] w-auto object-contain rounded-xl bg-white mix-blend-multiply transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:scale-[1.02] cursor-pointer"
                 />
               </div>
@@ -81,3 +82,4 @@ const FeaturedColleges: React.FC = () => {
 };
 
 export default FeaturedColleges;
+

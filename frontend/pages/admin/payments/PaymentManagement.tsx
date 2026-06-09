@@ -23,7 +23,7 @@ const PaymentManagement: React.FC = () => {
             const data = await response.json();
             if (Array.isArray(data)) setPayments(data);
         } catch (error) {
-            console.error('Failed to fetch payments:', error);
+            try { console.error('Failed to fetch payments:', error instanceof Error ? error.message : String(error)); } catch (_) {}
         } finally {
             setLoading(false);
         }
@@ -196,3 +196,4 @@ const PaymentManagement: React.FC = () => {
 };
 
 export default PaymentManagement;
+

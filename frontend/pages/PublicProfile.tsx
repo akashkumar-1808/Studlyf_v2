@@ -289,3 +289,4 @@ const PublicProfile: React.FC = () => {
 };
 
 export default PublicProfile;
+

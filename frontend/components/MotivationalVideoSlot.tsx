@@ -32,9 +32,10 @@ const MotivationalVideoSlot: React.FC<MotivationalVideoSlotProps> = ({
           <video 
             src={videoUrl} 
             controls 
+            preload="none"
             controlsList="nodownload"
             className="w-full h-full object-cover"
-            poster="/stud.png" 
+            poster="/images-optimized/stud.webp" 
           />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#F8F9FC] border border-gray-100">
@@ -50,3 +51,4 @@ const MotivationalVideoSlot: React.FC<MotivationalVideoSlotProps> = ({
 };
 
 export default MotivationalVideoSlot;
+

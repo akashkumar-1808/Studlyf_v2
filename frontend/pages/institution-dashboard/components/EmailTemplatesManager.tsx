@@ -497,3 +497,4 @@ const EmailTemplatesManager: React.FC<{ eventId: string; institutionId: string }
 };
 
 export default EmailTemplatesManager;
+

@@ -26,3 +26,4 @@ const AIToolSearch: React.FC<SearchFilterProps> = ({ onSearch }) => {
 };
 
 export default AIToolSearch;
+

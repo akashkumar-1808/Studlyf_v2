@@ -303,20 +303,9 @@ async def check_stage_submission_access(
     if stage:
         await check_stage_unlock_rules(event_id, user_id, stage)
 
-    # Stage-specific validation
-    if stage_type in ["submission", "final"]:
-        # Only shortlisted/accepted/approved participants can submit in these stages
-        allowed_statuses = ["shortlisted", "accepted", "approved"]
-        
-        if current_status not in allowed_statuses:
-            raise HTTPException(
-                status_code=403,
-                detail=f"You cannot submit at this stage. Your application status is '{current_status}'. "
-                       f"Only shortlisted or approved participants can submit. Please wait for admin review."
-            )
-
-        # Additional rule: if the stage requires a team, ensure participant belongs to a team
-        # unless the event explicitly allows individual progression without a team.
+    # Stage-specific validation (applies to all types except team_formation)
+    if stage_type not in ("team_formation",):
+        # Fetch event to determine participation rules
         try:
             event = await events_col.find_one({"_id": ObjectId(event_id)})
         except Exception:
@@ -329,37 +318,35 @@ async def check_stage_submission_access(
         except:
             allow_individual = False
 
-        # If participant has no team, check stage config for team requirement
-        if not participant.get("team_id") and not allow_individual:
-            # Look up event stages and find a SUBMISSION stage config
-            try:
-                stages = await get_event_stages(str(event.get("_id"))) if event else []
-                submission_stage = None
-                for s in stages:
-                    if (s.get("type") or "").upper() == "SUBMISSION":
-                        submission_stage = s
-                        break
-                team_required = False
-                if submission_stage:
-                    # stage-level config overrides
-                    cfg = submission_stage.get("config") or {}
-                    if isinstance(cfg, dict) and cfg.get("team_required") is not None:
-                        team_required = bool(cfg.get("team_required"))
-                    else:
-                        team_required = bool(submission_stage.get("team_required", False))
+        # Dynamically determine required status from stage visibility
+        stage_visibility = str((stage and (stage.get("visibility") or (stage.get("config") or {}).get("visibility"))) or "").lower().strip()
+        requires_shortlist = "shortlist" in stage_visibility
 
-                if team_required:
-                    raise HTTPException(
-                        status_code=403,
-                        detail="This stage requires a team. Please form or join a team before submitting."
-                    )
-            except HTTPException:
-                raise
-            except Exception:
-                # If we can't determine stage config, be conservative and allow (don't block unexpectedly)
-                pass
+        allowed_statuses = ["shortlisted", "accepted", "approved"] if requires_shortlist else ["registered"]
+        # Allow registered if event explicitly allows individual progress without team
+        if allow_individual:
+            allowed_statuses.append("registered")
+        
+        if current_status not in allowed_statuses:
+            raise HTTPException(
+                status_code=403,
+                detail=f"You cannot submit at this stage. Your application status is '{current_status}'. "
+                       f"Only shortlisted or approved participants can submit. Please wait for admin review."
+            )
+
+        # If the current stage requires a team, ensure participant belongs to a team
+        if stage and not participant.get("team_id") and not allow_individual:
+            cfg = stage.get("config") or {}
+            stage_team_required = cfg.get("team_required") if isinstance(cfg, dict) else None
+            if stage_team_required is None:
+                stage_team_required = stage.get("team_required", False)
+            if stage_team_required:
+                raise HTTPException(
+                    status_code=403,
+                    detail="This stage requires a team. Please form or join a team before submitting."
+                )
     
-    elif stage_type == "team_formation":
+    if stage_type == "team_formation":
         # Registered participants can form teams
         # But rejected participants cannot
         if current_status == "rejected":
@@ -544,11 +531,15 @@ async def check_stage_access(event_id: str, user_id: str, stage_index: int = Non
         )
     
     current_status = (participant.get("status") or "pending").lower()
+    stage_type = str(stage.get("type") or "").upper()
     stage_name_lower = (stage.get("name") or "").lower()
     
-    # Submission/Final stages require shortlisted status
-    if "submission" in stage_name_lower or "final" in stage_name_lower:
-        if current_status not in ["shortlisted", "accepted", "approved"]:
+    # Dynamically check stage visibility — only require shortlist if stage has Shortlisted Only visibility
+    if stage_type not in ("REGISTRATION", "TEAM_FORMATION") and "regist" not in stage_name_lower:
+        stage_visibility = str(stage.get("visibility") or (stage.get("config") or {}).get("visibility") or "").lower().strip()
+        requires_shortlist = "shortlist" in stage_visibility
+        allowed_statuses = ["shortlisted", "accepted", "approved"] if requires_shortlist else ["registered"]
+        if current_status not in allowed_statuses:
             raise HTTPException(
                 status_code=403,
                 detail=f"You cannot access this stage. Your status is '{current_status}'. "
@@ -556,7 +547,7 @@ async def check_stage_access(event_id: str, user_id: str, stage_index: int = Non
             )
     
     # Rejected users blocked from team formation onwards
-    elif "team" in stage_name_lower or "formation" in stage_name_lower:
+    if stage_type == "TEAM_FORMATION" or "team" in stage_name_lower or "formation" in stage_name_lower:
         if current_status == "rejected":
             raise HTTPException(
                 status_code=403,

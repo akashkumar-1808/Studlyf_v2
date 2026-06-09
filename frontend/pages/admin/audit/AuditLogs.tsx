@@ -22,7 +22,7 @@ const AuditLogs: React.FC = () => {
             const data = await response.json();
             if (Array.isArray(data)) setLogs(data);
         } catch (error) {
-            console.error('Failed to fetch audit logs:', error);
+            try { console.error('Failed to fetch audit logs:', error instanceof Error ? error.message : String(error)); } catch (_) {}
         } finally {
             setLoading(false);
         }
@@ -153,3 +153,4 @@ const AuditLogs: React.FC = () => {
 };
 
 export default AuditLogs;
+

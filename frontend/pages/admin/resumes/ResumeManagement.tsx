@@ -22,7 +22,7 @@ const ResumeManagement: React.FC = () => {
             const data = await response.json();
             if (Array.isArray(data)) setResumes(data);
         } catch (error) {
-            console.error('Failed to fetch resumes:', error);
+            try { console.error('Failed to fetch resumes:', error instanceof Error ? error.message : String(error)); } catch (_) {}
         } finally {
             setLoading(false);
         }
@@ -171,3 +171,4 @@ const ResumeManagement: React.FC = () => {
 };
 
 export default ResumeManagement;
+

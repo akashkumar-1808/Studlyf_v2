@@ -35,7 +35,7 @@ const AITools: React.FC = () => {
             setTools(data);
             setFilteredTools(data);
         } catch (err) {
-            console.error('Error fetching AI tools:', err);
+            try { console.error('Error fetching AI tools:', err instanceof Error ? err.message : String(err)); } catch (_) {}
             setError('Unable to fetch AI tools right now. Please try again later.');
         } finally {
             setLoading(false);
@@ -137,3 +137,4 @@ const AITools: React.FC = () => {
 };
 
 export default AITools;
+

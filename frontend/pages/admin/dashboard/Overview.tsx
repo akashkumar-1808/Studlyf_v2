@@ -35,7 +35,7 @@ const DashboardOverview: React.FC = () => {
                 const data = await response.json();
                 setStats(data);
             } catch (error) {
-                console.error("Failed to fetch admin stats:", error);
+                try { console.error("Failed to fetch admin stats:", error instanceof Error ? error.message : String(error)); } catch (_) {}
             } finally {
                 setLoading(false);
             }
@@ -302,3 +302,4 @@ const DashboardOverview: React.FC = () => {
 };
 
 export default DashboardOverview;
+

@@ -29,3 +29,4 @@ const HashTablePage: React.FC = () => {
 };
 
 export default HashTablePage;
+

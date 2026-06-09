@@ -105,7 +105,7 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ institutionId }) => {
             }
 
         } catch (error) {
-            console.error('Error fetching submissions:', error);
+            try { console.error('Error fetching submissions:', error instanceof Error ? error.message : String(error)); } catch (_) {}
         } finally {
             setLoading(false);
         }
@@ -148,7 +148,7 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ institutionId }) => {
                 alert('Failed to load available judges');
             }
         } catch (error) {
-            console.error('Failed to fetch judges:', error);
+            try { console.error('Failed to fetch judges:', error instanceof Error ? error.message : String(error)); } catch (_) {}
             alert('Failed to load available judges');
         }
     };
@@ -207,7 +207,7 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ institutionId }) => {
             setSelectedSubmissions([]);
             setRefreshCounter(prev => prev + 1);
         } catch (error) {
-            console.error('Error assigning judge:', error);
+            try { console.error('Error assigning judge:', error instanceof Error ? error.message : String(error)); } catch (_) {}
             alert((error as any)?.message || 'Network error while assigning judge');
         }
     };
@@ -225,7 +225,7 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ institutionId }) => {
                 setCriteria(eventData.judging_criteria || []);
             }
         } catch (err) {
-            console.error("Failed to fetch criteria", err);
+            try { console.error("Failed to fetch criteria", err instanceof Error ? err.message : String(err)); } catch (_) {}
         }
     };
 
@@ -251,7 +251,7 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ institutionId }) => {
                 alert(err.detail || "Failed to submit evaluation");
             }
         } catch (err) {
-            console.error("Evaluation error:", err);
+            try { console.error("Evaluation error:", err instanceof Error ? err.message : String(err)); } catch (_) {}
             alert("Network error while submitting evaluation");
         }
     };
@@ -275,7 +275,7 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ institutionId }) => {
                 alert('Failed to update status');
             }
         } catch (error) {
-            console.error('Error updating status:', error);
+            try { console.error('Error updating status:', error instanceof Error ? error.message : String(error)); } catch (_) {}
         }
     };
 
@@ -283,7 +283,7 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ institutionId }) => {
         navigator.clipboard.writeText(text).then(() => {
             alert('Link copied to clipboard!');
         }).catch(err => {
-            console.error('Failed to copy link: ', err);
+            try { console.error('Failed to copy link: ', err instanceof Error ? err.message : String(err)); } catch (_) {}
         });
     };
 
@@ -972,3 +972,4 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ institutionId }) => {
 };
 
 export default SubmissionList;
+

@@ -196,3 +196,4 @@ const GlassCard: React.FC<{ isMobile?: boolean }> = ({ isMobile }) => {
 };
 
 export default GetHiredSection;
+

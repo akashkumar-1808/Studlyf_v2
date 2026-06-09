@@ -38,3 +38,4 @@ export function StackCube({ element, targetY, isTop }: StackCubeProps) {
     </group>
   );
 }
+

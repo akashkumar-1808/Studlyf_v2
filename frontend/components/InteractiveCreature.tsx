@@ -219,3 +219,4 @@ const InteractiveCreature: React.FC<InteractiveCreatureProps> = ({
 };
 
 export default InteractiveCreature;
+

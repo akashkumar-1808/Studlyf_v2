@@ -71,7 +71,7 @@ const JudgeDashboard: React.FC = () => {
                 });
             }
         } catch (error) {
-            console.error("Failed to fetch assignments", error);
+            try { console.error("Failed to fetch assignments", error instanceof Error ? error.message : String(error)); } catch (_) {}
         } finally {
             setLoading(false);
         }
@@ -123,7 +123,7 @@ const JudgeDashboard: React.FC = () => {
                 }
             }
         } catch (error) {
-            console.error("Failed to fetch criteria", error);
+            try { console.error("Failed to fetch criteria", error instanceof Error ? error.message : String(error)); } catch (_) {}
         }
     };
 
@@ -147,7 +147,7 @@ const JudgeDashboard: React.FC = () => {
                 fetchData();
             } else {
                 const err = await res.json().catch(() => ({}));
-                console.error('Score submission failed:', err);
+                try { console.error('Score submission failed:', err instanceof Error ? err.message : String(err)); } catch (_) {}
             }
         } catch (error) {
             alert('Sync failed.');
@@ -479,3 +479,4 @@ const JudgeDashboard: React.FC = () => {
 };
 
 export default JudgeDashboard;
+

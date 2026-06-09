@@ -55,8 +55,9 @@ const HackathonWelcomePopup: React.FC<Props> = ({ open, onClose, onProblemStatem
                             {/* Image */}
                             <div className="bg-slate-50">
                                 <img
-                                    src="/popup.png"
+                                    src="/images-optimized/popup.webp"
                                     alt="AI Hackathon"
+                                    loading="lazy"
                                     className="w-full h-auto block select-none"
                                     draggable={false}
                                 />
@@ -88,4 +89,5 @@ const HackathonWelcomePopup: React.FC<Props> = ({ open, onClose, onProblemStatem
 };
 
 export default HackathonWelcomePopup;
+
 

@@ -30,7 +30,7 @@ const MentorManagement: React.FC = () => {
             const data = await response.json();
             if (Array.isArray(data)) setMentors(data);
         } catch (error) {
-            console.error('Failed to fetch mentors:', error);
+            try { console.error('Failed to fetch mentors:', error instanceof Error ? error.message : String(error)); } catch (_) {}
         } finally {
             setLoading(false);
         }
@@ -52,7 +52,7 @@ const MentorManagement: React.FC = () => {
                 setNewMentor({ name: '', expertise: '', students: 0, status: 'Available' });
                 fetchMentors();
             }
-        } catch (err) { console.error(err); }
+        } catch (err) { }
     };
 
     useEffect(() => {
@@ -283,3 +283,4 @@ const MentorManagement: React.FC = () => {
 };
 
 export default MentorManagement;
+

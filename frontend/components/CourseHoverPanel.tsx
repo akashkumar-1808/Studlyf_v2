@@ -218,3 +218,4 @@ const CourseHoverPanel: React.FC<CourseHoverPanelProps> = ({
 };
 
 export default CourseHoverPanel;
+

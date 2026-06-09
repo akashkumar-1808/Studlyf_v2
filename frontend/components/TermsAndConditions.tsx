@@ -502,3 +502,4 @@ const TermsAndConditions: React.FC<TermsAndConditions> = ({ onClose }) => {
 };
 
 export default TermsAndConditions;
+

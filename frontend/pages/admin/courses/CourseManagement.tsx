@@ -412,7 +412,7 @@ const CourseManagement: React.FC = () => {
                 headers: { 'X-Admin-Email': user.email }
             });
             if (res.ok) setSubmissions(await res.json());
-        } catch (err) { console.error(err); }
+        } catch (err) { }
     };
 
     const reviewSubmission = async (userId: string, moduleId: string, status: string) => {
@@ -430,7 +430,7 @@ const CourseManagement: React.FC = () => {
                 alert(`Project ${status} successfully!`);
                 fetchSubmissions();
             }
-        } catch (err) { console.error(err); }
+        } catch (err) { }
     };
 
     const fetchCourses = async () => {
@@ -442,7 +442,7 @@ const CourseManagement: React.FC = () => {
             const data = await response.json();
             setCourses(data);
         } catch (error) {
-            console.error("Error fetching courses:", error);
+            try { console.error("Error fetching courses:", error instanceof Error ? error.message : String(error)); } catch (_) {}
         } finally {
             setLoading(false);
         }
@@ -461,7 +461,7 @@ const CourseManagement: React.FC = () => {
             });
             setCourses(courses.filter(c => c._id !== id));
         } catch (error) {
-            console.error("Error deleting course:", error);
+            try { console.error("Error deleting course:", error instanceof Error ? error.message : String(error)); } catch (_) {}
         }
     };
 
@@ -537,7 +537,7 @@ const CourseManagement: React.FC = () => {
                 setErrorMsg(`Server Error: ${errData.detail || 'Unknown error'}`);
             }
         } catch (error: any) {
-            console.error("Error publishing course", error);
+            try { console.error("Error publishing course", error instanceof Error ? error.message : String(error)); } catch (_) {}
             setErrorMsg(`Network or Script Error: ${error.message}`);
         }
     };
@@ -1234,3 +1234,4 @@ const CourseManagement: React.FC = () => {
 };
 
 export default CourseManagement;
+

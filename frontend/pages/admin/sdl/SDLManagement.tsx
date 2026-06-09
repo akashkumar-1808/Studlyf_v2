@@ -101,7 +101,7 @@ const SDLManagement: React.FC = () => {
       if (statsRes.ok) setStats(await statsRes.json());
       if (projRes.ok) setProjects(await projRes.json());
     } catch (err) {
-      console.error('Failed to fetch SDL admin data:', err);
+      try { console.error('Failed to fetch SDL admin data:', err instanceof Error ? err.message : String(err)); } catch (_) {}
     } finally {
       setLoading(false);
     }
@@ -405,3 +405,4 @@ const SDLManagement: React.FC = () => {
 };
 
 export default SDLManagement;
+

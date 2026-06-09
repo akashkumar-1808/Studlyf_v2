@@ -390,7 +390,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ institutionId, onProfileUpd
             }
             setProfile(prev => ({ ...prev, [field]: data.url }));
         } catch (err) {
-            console.error('[MediaUpload] network error', err);
+            try { console.error('[MediaUpload] network error', err instanceof Error ? err.message : String(err)); } catch (_) {}
             alert('Network error during upload.');
         }
     };
@@ -1339,3 +1339,4 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ institutionId, onProfileUpd
 };
 
 export default SettingsPage;
+

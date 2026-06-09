@@ -267,7 +267,7 @@ const CoursePlayer: React.FC = () => {
       setLoading(false);
       return formatted;
     } catch (err) {
-      console.error('Error fetching modules:', err);
+      try { console.error('Error fetching modules:', err instanceof Error ? err.message : String(err)); } catch (_) {}
       let fetched: any[] = [];
       if (courseCurriculum && courseCurriculum.length > 0) {
         fetched = courseCurriculum.map((_, i) => ({
@@ -1542,3 +1542,4 @@ const CoursePlayer: React.FC = () => {
 };
 
 export default CoursePlayer;
+

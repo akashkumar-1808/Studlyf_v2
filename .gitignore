@@ -177,5 +177,23 @@ frontend/dist/
 hackathon-admin/
 participant-card/
 
-# Backend diagnostic files
+# Backend diagnostic and user-generated files
 backend/db_diagnostics.txt
+backend/generated_portfolios/
+backend/tmp_admin_event_submissions.json
+
+# Generated/optimized asset files
+frontend/public/images-optimized/
+frontend/public/avatars/catalog.webp
+
+# Root-level temp scripts & audit files
+assets_audit.txt
+assets_map.txt
+check_opp.py
+cleanup_codeforge_event.py
+dump_avatars.py
+fixall.py
+inspect_submissions.py
+temp_opp.tsx
+unsquash.py
+verify.py

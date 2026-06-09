@@ -185,7 +185,7 @@ const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, institutio
                 alert(`Failed to save job: ${errorData.detail || response.statusText || 'Unknown Error'}`);
             }
         } catch (err) {
-            console.error("Job submit failed", err);
+            try { console.error("Job submit failed", err instanceof Error ? err.message : String(err)); } catch (_) {}
             alert("Network error: Failed to connect to the server.");
         } finally {
             setLoading(false);
@@ -536,3 +536,4 @@ const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, institutio
 };
 
 export default PostJobModal;
+

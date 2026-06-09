@@ -43,7 +43,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ eventId }) => {
                 setLastUpdated(new Date());
             }
         } catch (error) {
-            console.error("Failed to fetch leaderboard", error);
+            try { console.error("Failed to fetch leaderboard", error instanceof Error ? error.message : String(error)); } catch (_) {}
         } finally {
             setLoading(false);
         }
@@ -255,3 +255,4 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ eventId }) => {
 };
 
 export default Leaderboard;
+

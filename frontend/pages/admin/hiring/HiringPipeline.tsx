@@ -34,7 +34,7 @@ const HiringPipeline: React.FC = () => {
                 setCandidates(data.pipeline || []);
                 setMetrics(data.metrics || null);
             } catch (error) {
-                console.error("Error fetching hiring pipeline:", error);
+                try { console.error("Error fetching hiring pipeline:", error instanceof Error ? error.message : String(error)); } catch (_) {}
             } finally {
                 setLoading(false);
             }
@@ -204,3 +204,4 @@ const HiringPipeline: React.FC = () => {
 };
 
 export default HiringPipeline;
+

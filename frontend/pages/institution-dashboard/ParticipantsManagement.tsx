@@ -315,3 +315,4 @@ const ParticipantsManagement: React.FC<{ institutionId?: string }> = ({ institut
 };
 
 export default ParticipantsManagement;
+

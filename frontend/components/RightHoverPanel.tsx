@@ -180,3 +180,4 @@ const RightHoverPanel: React.FC = () => {
 };
 
 export default RightHoverPanel;
+

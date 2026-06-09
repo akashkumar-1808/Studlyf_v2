@@ -260,3 +260,4 @@ export const AdminRegistrationsDashboard: React.FC<AdminRegistrationsDashboardPr
 };
 
 export default AdminRegistrationsDashboard;
+

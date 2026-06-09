@@ -211,7 +211,7 @@ const JudgeTeamAssignment: React.FC<JudgeTeamAssignmentProps> = ({
             setAssignments(newAssignments);
             onAssignmentUpdate(newAssignments);
         } catch (error) {
-            console.error('Auto-assignment failed:', error);
+            try { console.error('Auto-assignment failed:', error instanceof Error ? error.message : String(error)); } catch (_) {}
             alert('Auto-assignment failed. Please try manual assignment.');
         } finally {
             setIsAutoAssigning(false);
@@ -528,3 +528,4 @@ const JudgeTeamAssignment: React.FC<JudgeTeamAssignmentProps> = ({
 };
 
 export default JudgeTeamAssignment;
+

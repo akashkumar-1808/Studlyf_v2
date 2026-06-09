@@ -32,3 +32,4 @@ export default function ControlPanel({ onCreateBST, onInsert, onDelete, onSearch
     </div>
   );
 }
+

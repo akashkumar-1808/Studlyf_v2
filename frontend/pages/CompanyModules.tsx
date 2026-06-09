@@ -508,7 +508,6 @@ const CompanyModules: React.FC = () => {
         triggerToast('Failed to evaluate. Please try again.');
       }
     } catch (err) {
-      console.error(err);
       triggerToast('Evaluation request failed.');
     } finally {
       setEvaluatingHr(false);
@@ -2068,3 +2067,4 @@ const CompanyModules: React.FC = () => {
 };
 
 export default CompanyModules;
+

@@ -31,7 +31,7 @@ export const InstitutionDataProvider: React.FC<{ children: ReactNode }> = ({ chi
                 return response;
             } catch (err) {
                 clearTimeout(id);
-                console.error(`[DataProv] Request failed: ${url}`, err);
+                try { console.error(`[DataProv] Request failed: ${url}`, err instanceof Error ? err.message : String(err)); } catch (_) {}
                 return { ok: false, json: async () => null };
             }
         };
@@ -51,7 +51,7 @@ export const InstitutionDataProvider: React.FC<{ children: ReactNode }> = ({ chi
 
             setData({ profile, notifications, events, stats, loading: false });
         } catch (error) {
-            console.error("Failed to fetch shared institution data:", error);
+            try { console.error("Failed to fetch shared institution data:", error instanceof Error ? error.message : String(error)); } catch (_) {}
             setData(prev => ({ ...prev, loading: false }));
         }
     };
@@ -72,3 +72,4 @@ export const useInstitutionData = () => {
     if (!context) throw new Error('useInstitutionData must be used within InstitutionDataProvider');
     return context;
 };
+

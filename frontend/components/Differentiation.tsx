@@ -62,3 +62,4 @@ const Differentiation: React.FC = () => {
 };
 
 export default Differentiation;
+

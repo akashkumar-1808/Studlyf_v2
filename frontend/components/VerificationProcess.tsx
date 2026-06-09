@@ -24,3 +24,4 @@ const VerificationProcess: React.FC = () => {
 };
 
 export default VerificationProcess;
+

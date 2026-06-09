@@ -31,3 +31,4 @@ export default function ControlPanel({ onCreateStack, onPush, onPop, onPeek, onC
     </div>
   );
 }
+

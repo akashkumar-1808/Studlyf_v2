@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE_URL, authHeaders } from '../../apiConfig';
 import EmailTemplatesManager from './components/EmailTemplatesManager';
 import { 
@@ -148,6 +148,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
     const [debouncedThreshold, setDebouncedThreshold] = useState(0);
     const [bundleTab, setBundleTab] = useState<string>('shortlisted');
     const [teams, setTeams] = useState<ITeam[]>([]);
+    const [selectedTeam, setSelectedTeam] = useState<any | null>(null);
     const [submissions, setSubmissions] = useState<ISubmission[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -264,7 +265,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 setRegTotalPages(1);
             }
         } catch (err) {
-            console.error('Failed to fetch registrations:', err);
+            try { console.error('Failed to fetch registrations:', err instanceof Error ? err.message : String(err)); } catch (_) {}
         } finally {
             setRegLoading(false);
         }
@@ -283,31 +284,60 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
         return () => clearTimeout(handler);
     }, [regSearch]);
 
+    const fetchTeams = useCallback(async () => {
+        if (!eventId) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/v1/institution/events/${eventId}/teams`, {
+                headers: { ...authHeaders() },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setTeams(Array.isArray(data) ? data : []);
+            }
+        } catch (err) {
+            console.error('Failed to fetch teams:', err);
+        }
+    }, [eventId]);
+
+    useEffect(() => {
+        fetchTeams();
+    }, [fetchTeams, refreshCounter]);
+
     const handleUpdateTeamStatus = async (teamId: string, newStatus: string) => {
         if (!eventId) return;
+        
+        // Optimistic UI update
+        const previousTeams = [...teams];
+        setTeams(prevTeams => prevTeams.map(t => (t._id === teamId || t.team_id === teamId) ? { ...t, status: newStatus } : t));
+        
         setRegActionBusy(teamId);
         try {
-            const res = await fetch(`${API_BASE_URL}/api/v1/registration/events/${eventId}/teams/${teamId}/status`, {
+            const res = await fetch(`${API_BASE_URL}/api/v1/institution/events/${eventId}/teams/${teamId}/status`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                     ...authHeaders()
                 },
-                body: JSON.stringify({ status_update: newStatus })
+                body: JSON.stringify({ status: newStatus })
             });
             if (res.ok) {
-                setRefreshCounter(prev => prev + 1);
                 setShowSaveSuccess(true);
                 setTimeout(() => setShowSaveSuccess(false), 2000);
             } else {
+                // Rollback on failure
+                setTeams(previousTeams);
                 const err = await res.json().catch(() => ({}));
                 alert(`Failed to update team status: ${err.detail || 'Unknown error'}`);
             }
         } catch (err) {
-            console.error('Error updating team status:', err);
+            // Rollback on failure
+            setTeams(previousTeams);
+            try { console.error('Error updating team status:', err instanceof Error ? err.message : String(err)); } catch (_) {}
             alert('Network error while updating team status.');
         } finally {
             setRegActionBusy(null);
+            // Optionally re-fetch to ensure complete consistency
+            setRefreshCounter(prev => prev + 1);
         }
     };
 
@@ -332,7 +362,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 alert(`Failed to update status: ${err.detail || 'Unknown error'}`);
             }
         } catch (err) {
-            console.error('Error updating registration status:', err);
+            try { console.error('Error updating registration status:', err instanceof Error ? err.message : String(err)); } catch (_) {}
             alert('Network error while updating registration status.');
         } finally {
             setRegActionBusy(null);
@@ -356,7 +386,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 alert(`Failed: ${err.detail || 'Unknown error'}`);
             }
         } catch (err) {
-            console.error('Error marking registration notified:', err);
+            try { console.error('Error marking registration notified:', err instanceof Error ? err.message : String(err)); } catch (_) {}
             alert('Network error.');
         } finally {
             setRegActionBusy(null);
@@ -471,7 +501,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 alert('Failed to export CSV. Please try again.');
             }
         } catch (err) {
-            console.error('Export CSV error:', err);
+            try { console.error('Export CSV error:', err instanceof Error ? err.message : String(err)); } catch (_) {}
             alert('Network error during export.');
         }
     };
@@ -612,80 +642,64 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
     useEffect(() => {
         const fetchData = async () => {
             if (!eventId) return;
+            setLoading(true);
+
             try {
-                // Fetch basic event details first as we need institution_id for other calls
+                // Step 1: Fetch basic event details to get the institution ID
                 const eventRes = await fetch(`${API_BASE_URL}/api/v1/institution/events/${eventId}/details`, { headers: { ...authHeaders() } });
+                if (!eventRes.ok) throw new Error("Failed to fetch event details");
+                
                 const eventData = await eventRes.json();
-                
-                if (eventData && typeof eventData.description === 'string') {
-                    eventData.description = eventData.description
-                        .replace(/data-start="[^"]*"/g, '')
-                        .replace(/data-end="[^"]*"/g, '')
-                        .replace(/data-section-id="[^"]*"/g, '')
-                        .replace(/&amp;/g, '&')
-                        .replace(/\s\s+/g, ' ')
-                        .trim();
-                }
-                
                 setEvent(eventData);
-                setPrizeDistribution(
-                    Array.isArray(eventData.prize_distribution) ? eventData.prize_distribution :
-                    Array.isArray(eventData.prizeDistribution) ? eventData.prizeDistribution :
-                    Array.isArray(eventData.prizes) ? eventData.prizes : []
-                );
-                setStages(
-                    (Array.isArray(eventData.stages) ? eventData.stages : []).map((s: any, idx: number) => ({
-                        ...s,
-                        id: s?.id || `${eventId}-${idx}-${Math.random().toString(36).slice(2, 9)}`,
-                        roundMode: s?.roundMode || s?.mode || s?.round_mode || '',
-                    }))
-                );
+                setStages(Array.isArray(eventData.stages) ? eventData.stages : []);
                 setCriteria(eventData.judging_criteria || []);
-
                 const instId = eventData.institution_id;
-                
-                // Parallelize all other data fetches
-                const fetchPromises = [
-                    fetch(`${API_BASE_URL}/api/v1/events/${eventId}/dashboard-data`, { headers: { ...authHeaders() } }).then(r => r.json()).catch(() => ({ participants: [], quizzes: [], teams: [], submissions: [] })),
-                    instId ? fetch(`${API_BASE_URL}/api/v1/institution/profile/${instId}`, { headers: { ...authHeaders() } }).then(r => r.json()).catch(() => null) : Promise.resolve(null),
-                ];
 
-                const [dashboardData, instData] = await Promise.all(fetchPromises);
+                // Step 2: Fetch dashboard data and institution profile in parallel
+                const [dashboardData, instData] = await Promise.all([
+                    fetch(`${API_BASE_URL}/api/v1/events/${eventId}/dashboard-data`, { headers: { ...authHeaders() } })
+                        .then(res => {
+                            if (!res.ok) throw new Error(`Dashboard data fetch failed with status ${res.status}`);
+                            return res.json();
+                        })
+                        .catch(err => {
+                            console.error("Critical: Failed to load dashboard data.", err);
+                            return null; // Ensure Promise.all doesn't fail completely
+                        }),
+                    instId 
+                        ? fetch(`${API_BASE_URL}/api/v1/institution/profile/${instId}`, { headers: { ...authHeaders() } }).then(res => res.json()).catch(() => null) 
+                        : Promise.resolve(null)
+                ]);
 
-                setParticipants(Array.isArray(dashboardData.participants) ? dashboardData.participants : []);
-                setQuizzes(dashboardData.quizzes || []);
-                setTeams(Array.isArray(dashboardData.teams) ? dashboardData.teams : []);
-                setSubmissions(Array.isArray(dashboardData.submissions) ? dashboardData.submissions : []);
-                setInstitution(instData);
+                // Step 3: Set state with the fetched data, with proper validation
+                if (dashboardData) {
+                    setParticipants(Array.isArray(dashboardData.participants) ? dashboardData.participants : []);
+                    setQuizzes(Array.isArray(dashboardData.quizzes) ? dashboardData.quizzes : []);
 
-                // Secondary parallel fetch for admin-specific data if needed
-                if (role === 'super_admin' || role === 'admin') {
-                    try {
-                        const adminRes = await fetch(`${API_BASE_URL}/api/admin/events/${eventId}/submissions`, {
-                            headers: {
-                                ...authHeaders(),
-                                'X-Admin-Email': user?.email || ''
-                            }
-                        });
-
-                        if (adminRes.ok) {
-                            const adminData = await adminRes.json();
-                            if (adminData.stages && Array.isArray(adminData.stages)) {
-                                setStages(adminData.stages);
-                                const flatSubs = adminData.stages.flatMap((s: any) => (Array.isArray(s.submissions) ? s.submissions : []));
-                                setSubmissions(flatSubs);
-                                const aggregatedParts = adminData.stages.flatMap((s: any) => (Array.isArray(s.participants) ? s.participants : []));
-                                setParticipants(aggregatedParts);
-                            }
-                        }
-                    } catch (e) { /* non-fatal */ }
+                    const legacySubmissions = Array.isArray(dashboardData.submissions) ? dashboardData.submissions : [];
+                    const stageSubmissions = Array.isArray(dashboardData.stage_submissions) ? dashboardData.stage_submissions.map((ss: any) => ({
+                        ...ss,
+                        _sourceType: 'stage',
+                        source: 'stage_deliverable',
+                        teamName: ss.team_id || (ss.data?.team_name) || '',
+                        user_name: ss.data?.name || ss.data?.full_name || '',
+                        submitted_at: ss.submitted_at || ss.last_updated_at,
+                    })) : [];
+                    setSubmissions([...legacySubmissions, ...stageSubmissions]);
                 }
+                
+                if (instData) {
+                    setInstitution(instData);
+                }
+
             } catch (err) {
-                console.error("Failed to load event data");
+                console.error("Failed to load essential event data:", err);
+                // Optionally set an error state to show in the UI
             } finally {
                 setLoading(false);
             }
         };
+
         fetchData();
     }, [eventId, refreshCounter]);
 
@@ -1087,7 +1101,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
             else setBannerError(false);
             setShowSaveSuccess(true);
         } catch (err) {
-            console.error('[MediaUpload] network error', err);
+            try { console.error('[MediaUpload] network error', err instanceof Error ? err.message : String(err)); } catch (_) {}
             alert('Network error during upload.');
         }
     };
@@ -1199,7 +1213,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 alert('Failed to dispatch notifications');
             }
         } catch (error) {
-            console.error('Dispatch failed:', error);
+            try { console.error('Dispatch failed:', error instanceof Error ? error.message : String(error)); } catch (_) {}
             alert('Network error during dispatch');
         } finally {
             setNotifying(false);
@@ -1394,7 +1408,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                     setTimeout(() => setShowSaveSuccess(false), 2000);
                 }
             } catch (err) {
-                console.error('Failed to update application status:', err);
+                try { console.error('Failed to update application status:', err instanceof Error ? err.message : String(err)); } catch (_) {}
             }
         } else if (sourceType === 'stage_deliverable') {
             try {
@@ -1414,7 +1428,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                     setTimeout(() => setShowSaveSuccess(false), 2000);
                 }
             } catch (err) {
-                console.error('Failed to update stage submission status:', err);
+                try { console.error('Failed to update stage submission status:', err instanceof Error ? err.message : String(err)); } catch (_) {}
             }
         } else if (item?.team_id || teamId) {
             const resolvedTeamId = item?.team_id || teamId;
@@ -1451,12 +1465,12 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                 })
                             });
                         } catch (emailErr) {
-                            console.error('Failed to send email:', emailErr);
+                            try { console.error('Failed to send email:', emailErr instanceof Error ? emailErr.message : String(emailErr)); } catch (_) {}
                         }
                     }
                 }
             } catch (err) {
-                console.error('Failed to update team status:', err);
+                try { console.error('Failed to update team status:', err instanceof Error ? err.message : String(err)); } catch (_) {}
             }
         } else if (submissionId) {
             try {
@@ -1476,7 +1490,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                     setTimeout(() => setShowSaveSuccess(false), 2000);
                 }
             } catch (err) {
-                console.error('Failed to update submission status:', err);
+                try { console.error('Failed to update submission status:', err instanceof Error ? err.message : String(err)); } catch (_) {}
             }
         }
     };
@@ -1511,7 +1525,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 alert(`Failed to load judges: ${errorData.detail || 'Unknown error'}`);
             }
         } catch (error) {
-            console.error('Failed to fetch judges:', error);
+            try { console.error('Failed to fetch judges:', error instanceof Error ? error.message : String(error)); } catch (_) {}
             alert('Failed to load available judges');
         }
     };
@@ -1520,7 +1534,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
         navigator.clipboard.writeText(text).then(() => {
             alert('Link copied to clipboard!');
         }).catch(err => {
-            console.error('Failed to copy link: ', err);
+            try { console.error('Failed to copy link: ', err instanceof Error ? err.message : String(err)); } catch (_) {}
         });
     };
 
@@ -1573,7 +1587,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 alert(error.detail || 'Failed to assign judge');
             }
         } catch (error) {
-            console.error('Error assigning judge:', error);
+            try { console.error('Error assigning judge:', error instanceof Error ? error.message : String(error)); } catch (_) {}
             alert('Network error while assigning judge');
         }
     };
@@ -1587,7 +1601,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
             });
             setRefreshCounter(prev => prev + 1);
         } catch (e) {
-            console.error('Delete judge error:', e);
+            try { console.error('Delete judge error:', e instanceof Error ? e.message : String(e)); } catch (_) {}
         }
     };
 
@@ -1612,7 +1626,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 alert(error.detail || 'Failed to add judge');
             }
         } catch (error) {
-            console.error('Error adding judge:', error);
+            try { console.error('Error adding judge:', error instanceof Error ? error.message : String(error)); } catch (_) {}
             alert('Network error while adding judge');
         } finally {
             setIsInvitingJudge(false);
@@ -1655,7 +1669,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 alert(err.detail || "Failed to submit evaluation");
             }
         } catch (err) {
-            console.error("Evaluation error:", err);
+            try { console.error("Evaluation error:", err instanceof Error ? err.message : String(err)); } catch (_) {}
             alert("Network error while submitting evaluation");
         }
     };
@@ -1690,7 +1704,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 alert(err.detail || "Failed to assign judge");
             }
         } catch (err) {
-            console.error("Bulk assign error:", err);
+            try { console.error("Bulk assign error:", err instanceof Error ? err.message : String(err)); } catch (_) {}
             alert("Network error while assigning judge");
         }
     };
@@ -2110,89 +2124,109 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                             <div className="space-y-2">
                                                 {(() => {
                                                     const stageData = sub._sourceType === 'stage' ? sub.data : null;
-                                                    const descText = stageData
-                                                        ? (stageData.description || stageData.problem_statement || stageData.solution || '')
-                                                        : (sub.problemStatement && sub.problemStatement !== 'Submitted link' && sub.problemStatement !== 'Submitted file' ? sub.problemStatement : '');
-                                                    interface FileAsset { type: 'file'; url: string; mime: string }
-                                                    interface LinkAsset { type: 'link'; url: string; domain: string }
-                                                    const assets: (FileAsset | LinkAsset)[] = [];
                                                     if (stageData && typeof stageData === 'object') {
-                                                        for (const [key, value] of Object.entries(stageData)) {
-                                                            if (typeof value !== 'string') continue;
-                                                            if (['description', 'problem_statement', 'solution'].includes(key)) continue;
-                                                            if (value.startsWith('data:')) {
-                                                                const mime = value.split(';')[0].split(':')[1] || '';
-                                                                assets.push({ type: 'file', url: value, mime });
-                                                            } else if (value.startsWith('http://') || value.startsWith('https://')) {
-                                                                let domain = '';
-                                                                try { domain = new URL(value).hostname; } catch {}
-                                                                assets.push({ type: 'link', url: value, domain });
+                                                        // Find stage config for field labels
+                                                        const stageConfig = stages.find((st: any) =>
+                                                            st.id === sub.stage_id || st._id === sub.stage_id
+                                                        );
+                                                        const fieldConfigs: Record<string, any> = {};
+                                                        if (stageConfig) {
+                                                            const fields = stageConfig.fields || (stageConfig.config?.fields) || [];
+                                                            for (const f of fields) {
+                                                                fieldConfigs[f.id || f.key] = f;
                                                             }
                                                         }
-                                                    } else {
-                                                        if (sub.pptLink) {
-                                                            if (sub.pptLink.startsWith('data:')) {
-                                                                const mime = sub.pptLink.split(';')[0].split(':')[1] || '';
-                                                                assets.push({ type: 'file', url: sub.pptLink, mime });
-                                                            } else {
-                                                                let domain = '';
-                                                                try { domain = new URL(sub.pptLink).hostname; } catch {}
-                                                                assets.push({ type: 'link', url: sub.pptLink, domain });
-                                                            }
-                                                        }
-                                                        if (sub.githubLink) {
+                                                        const fieldEntries = Object.entries(stageData).filter(
+                                                            ([k, v]) => typeof v === 'string' && v.trim()
+                                                        );
+                                                        return (
+                                                            <div className="divide-y divide-slate-100">
+                                                                {fieldEntries.map(([key, value]) => {
+                                                                    const label = fieldConfigs[key]?.label || key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+                                                                    if (value.startsWith('data:')) {
+                                                                        const mime = value.split(';')[0].split(':')[1] || '';
+                                                                        const icon = mime.includes('pdf') ? <FileText size={14} /> :
+                                                                            mime.includes('presentation') || mime.includes('ppt') ? <FileCheck size={14} /> :
+                                                                            mime.startsWith('image/') ? <FileImage size={14} /> :
+                                                                            mime.startsWith('video/') ? <FileVideo size={14} /> : <FileText size={14} />;
+                                                                        return (
+                                                                            <div key={key} className="py-2 first:pt-0 last:pb-0">
+                                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">{label}</span>
+                                                                                <button onClick={() => setPreviewAsset({ url: value, filename: `Attachment.${mime.split('/')[1] || 'bin'}`, type: 'file' })}
+                                                                                    className="flex items-center gap-2 text-xs font-bold text-purple-600 hover:text-purple-800 transition-colors">
+                                                                                    {icon} View {mime.includes('pdf') ? 'PDF' : mime.includes('presentation') ? 'PPT' : mime.startsWith('image/') ? 'Image' : 'File'}
+                                                                                </button>
+                                                                            </div>
+                                                                        );
+                                                                    }
+                                                                    if (value.startsWith('http://') || value.startsWith('https://')) {
+                                                                        let domain = '';
+                                                                        try { domain = new URL(value).hostname; } catch {}
+                                                                        const icon = domain.includes('github.com') ? <Github size={14} /> : <Globe size={14} />;
+                                                                        return (
+                                                                            <div key={key} className="py-2 first:pt-0 last:pb-0">
+                                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">{label}</span>
+                                                                                <a href={value} target="_blank" rel="noreferrer"
+                                                                                    className="flex items-center gap-2 text-xs font-bold text-purple-600 hover:text-purple-800 transition-colors">
+                                                                                    {icon} {domain}
+                                                                                </a>
+                                                                            </div>
+                                                                        );
+                                                                    }
+                                                                    return (
+                                                                        <div key={key} className="py-2 first:pt-0 last:pb-0">
+                                                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">{label}</span>
+                                                                            <p className="text-sm font-bold text-slate-800">{value}</p>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        );
+                                                    }
+                                                    // Legacy non-stage submissions
+                                                    const descText = sub.problemStatement && sub.problemStatement !== 'Submitted link' && sub.problemStatement !== 'Submitted file' ? sub.problemStatement : '';
+                                                    interface LegacyAsset { type: 'file' | 'link'; url: string; mime?: string; domain?: string }
+                                                    const assets: LegacyAsset[] = [];
+                                                    if (sub.pptLink) {
+                                                        if (sub.pptLink.startsWith('data:')) {
+                                                            const mime = sub.pptLink.split(';')[0].split(':')[1] || '';
+                                                            assets.push({ type: 'file', url: sub.pptLink, mime });
+                                                        } else {
                                                             let domain = '';
-                                                            try { domain = new URL(sub.githubLink).hostname; } catch {}
-                                                            assets.push({ type: 'link', url: sub.githubLink, domain });
+                                                            try { domain = new URL(sub.pptLink).hostname; } catch {}
+                                                            assets.push({ type: 'link', url: sub.pptLink, domain });
                                                         }
                                                     }
-                                                    const assetFilename = (url: string, mime: string) => {
-                                                        if (url.startsWith('data:')) {
-                                                            const ext = mime.split('/')[1] || 'bin';
-                                                            return `Attachment.${ext}`;
-                                                        }
-                                                        try {
-                                                            const u = new URL(url);
-                                                            return u.pathname.split('/').pop() || 'Attachment';
-                                                        } catch {
-                                                            return 'Attachment';
-                                                        }
-                                                    };
-                                                    const renderIcon = (asset: FileAsset | LinkAsset) => {
-                                                        if (asset.type === 'file') {
-                                                            const { mime } = asset;
-                                                            if (mime.includes('pdf')) return <FileText size={16} />;
-                                                            if (mime.includes('presentation') || mime.includes('pptx') || mime.includes('ppt')) return <FileCheck size={16} />;
-                                                            if (mime.startsWith('image/')) return <FileImage size={16} />;
-                                                            if (mime.startsWith('video/')) return <FileVideo size={16} />;
-                                                            return <FileText size={16} />;
-                                                        }
-                                                        if (asset.domain.includes('github.com')) return <Github size={16} />;
-                                                        return <Globe size={16} />;
-                                                    };
+                                                    if (sub.githubLink) {
+                                                        let domain = '';
+                                                        try { domain = new URL(sub.githubLink).hostname; } catch {}
+                                                        assets.push({ type: 'link', url: sub.githubLink, domain });
+                                                    }
                                                     return (
                                                         <>
                                                             {descText && <p className="text-sm font-bold text-slate-800 line-clamp-2">{descText}</p>}
                                                             {assets.length > 0 && (
                                                                 <div className="flex items-center gap-2 mt-1">
-                                                                    {assets.map((asset, ai) => (
-                                                                        asset.type === 'file' ? (
+                                                                    {assets.map((asset, ai) => {
+                                                                        const icon = asset.type === 'file'
+                                                                            ? (asset.mime?.includes('pdf') ? <FileText size={16} /> :
+                                                                                asset.mime?.includes('presentation') ? <FileCheck size={16} /> :
+                                                                                asset.mime?.startsWith('image/') ? <FileImage size={16} /> :
+                                                                                asset.mime?.startsWith('video/') ? <FileVideo size={16} /> : <FileText size={16} />)
+                                                                            : (asset.domain?.includes('github.com') ? <Github size={16} /> : <Globe size={16} />);
+                                                                        return asset.type === 'file' ? (
                                                                             <button key={ai}
-                                                                                onClick={() => setPreviewAsset({ url: asset.url, filename: assetFilename(asset.url, asset.mime), type: 'file' })}
-                                                                                title={`View ${asset.mime.includes('pdf') ? 'PDF' : asset.mime.includes('presentation') ? 'PPT' : 'file'}`}
+                                                                                onClick={() => setPreviewAsset({ url: asset.url, filename: `Attachment.${(asset.mime || '').split('/')[1] || 'bin'}`, type: 'file' })}
                                                                                 className="flex items-center justify-center w-9 h-9 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 hover:bg-amber-100 transition-colors cursor-pointer">
-                                                                                {renderIcon(asset)}
+                                                                                {icon}
                                                                             </button>
                                                                         ) : (
-                                                                            <a key={ai}
-                                                                                href={asset.url}
-                                                                                target="_blank" rel="noreferrer"
-                                                                                title={`Open ${asset.domain.includes('github.com') ? 'GitHub' : 'link'}`}
+                                                                            <a key={ai} href={asset.url} target="_blank" rel="noreferrer"
                                                                                 className="flex items-center justify-center w-9 h-9 bg-slate-100 text-slate-600 rounded-xl border border-slate-200 hover:bg-slate-200 transition-colors">
-                                                                                {renderIcon(asset)}
+                                                                                {icon}
                                                                             </a>
-                                                                        )
-                                                                    ))}
+                                                                        );
+                                                                    })}
                                                                 </div>
                                                             )}
                                                         </>
@@ -2668,6 +2702,11 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
     );
 
     const renderTabContent_Registrations = () => {
+        const dynamicFields = registrationUiFields.length > 0 ? registrationUiFields : [
+            { id: 'full_name', label: 'Applicant' },
+            { id: 'college', label: 'College' },
+        ];
+        const totalCols = 1 + dynamicFields.length + 2; // checkbox + fields + status + actions
         // Filter team list by status / notification filter
         const filteredTeams = rosterTeams.filter((team: any) => {
             if (regStatusFilter === 'APPROVED_NOTIFIED') {
@@ -2861,8 +2900,9 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                                 }
                                             }} />
                                         </th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Applicant</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">College</th>
+                                        {dynamicFields.map((f: any) => (
+                                            <th key={f.id} className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">{f.label}</th>
+                                        ))}
                                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
                                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
                                     </tr>
@@ -2872,40 +2912,21 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                     {filteredTeams.length > 0 && filteredTeams.filter((t: any) => t.team_id).map((team: any) => {
                                         const isTeamExpanded = expandedRegId === team.team_id;
                                         const isActionBusy = regActionBusy === team.team_id;
+                                        const firstMember = team.members?.[0] || {};
+                                        const firstProf = firstMember.profile_snapshot || {};
                                         return (
                                             <React.Fragment key={team.team_id}>
                                                 <tr className="hover:bg-purple-50/40 transition-colors group bg-slate-50/30">
                                                     <td className="px-8 py-5">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-4 h-4 shrink-0" /> {/* Spacer to align with solo checkboxes */}
-                                                            <button 
-                                                                onClick={() => setExpandedRegId(isTeamExpanded ? null : team.team_id)}
-                                                                className="p-1.5 hover:bg-purple-100 rounded-lg text-purple-400 hover:text-[#6C3BFF] transition-all shadow-sm"
-                                                                title={isTeamExpanded ? "Collapse Team" : "Expand Team Details"}
-                                                            >
-                                                                <ChevronRight 
-                                                                    size={14} 
-                                                                    className={`transform transition-transform duration-300 ${isTeamExpanded ? 'rotate-90 text-[#6C3BFF]' : ''}`} 
-                                                                />
-                                                            </button>
-                                                        </div>
+                                                        <div className="w-4 h-4 shrink-0" />
                                                     </td>
-                                                    <td className="px-8 py-5">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-10 h-10 bg-[#6C3BFF] text-white rounded-xl flex items-center justify-center font-black text-sm shadow-inner shrink-0 uppercase tracking-widest">
-                                                                {(team.team_name || 'T').substring(0, 2)}
-                                                            </div>
-                                                            <div className="min-w-0">
-                                                                <p className="font-black text-slate-900 text-sm leading-tight mb-0.5 truncate max-w-[200px]">{team.team_name}</p>
-                                                                <p className="text-[11px] font-bold text-purple-600 truncate uppercase tracking-widest">{team.members?.length || 0} Members</p>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-8 py-5">
-                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
-                                                            Bundled Application
-                                                        </span>
-                                                    </td>
+                                                    {dynamicFields.map((f: any, fi: number) => (
+                                                        <td key={f.id} className={`px-8 py-5 ${fi === 0 ? 'cursor-pointer' : ''}`}
+                                                            onClick={fi === 0 ? () => setExpandedRegId(isTeamExpanded ? null : team.team_id) : undefined}
+                                                        >
+                                                            <p className="font-bold text-slate-900 text-sm leading-tight truncate max-w-[200px]">{firstProf[f.id] || firstProf[f.label] || '—'}</p>
+                                                        </td>
+                                                    ))}
                                                     <td className="px-8 py-5">
                                                         <div className="flex flex-col items-start gap-1.5">
                                                             <span className={`px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${
@@ -2968,21 +2989,11 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                                                 </button>
                                                                 <span className="text-[9px] font-black text-slate-300"># {idx + 1}</span>
                                                             </td>
-                                                            <td className="px-8 py-4">
-                                                                <div className="flex flex-col min-w-0">
-                                                                    <p className="font-bold text-slate-700 text-xs leading-tight mb-0.5 truncate">{prof.full_name || 'Anonymous User'}</p>
-                                                                    <p className="text-[10px] font-medium text-slate-400 truncate">{prof.email || '—'}</p>
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-8 py-4">
-                                                                <div className="text-xs">
-                                                                    <p className="font-semibold text-slate-600 leading-tight truncate">{prof.college || 'No college'}</p>
-                                                                    <p className="text-[10px] text-slate-400 mt-0.5">
-                                                                        {prof.degree || ''}{prof.degree && prof.branch ? ' • ' : ''}{prof.branch || ''}
-                                                                        {prof.graduation_year ? ` • ${prof.graduation_year}` : ''}
-                                                                    </p>
-                                                                </div>
-                                                            </td>
+                                                            {dynamicFields.map((f: any) => (
+                                                                <td key={f.id} className="px-8 py-4">
+                                                                    <p className="font-bold text-slate-700 text-xs leading-tight mb-0.5 truncate">{prof[f.id] || prof[f.label] || '—'}</p>
+                                                                </td>
+                                                            ))}
                                                             <td className="px-8 py-4">
                                                                 <div className="flex flex-col items-start gap-1">
                                                                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Inherits Team Status</span>
@@ -3006,7 +3017,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                                         </tr>
                                                         {isExpanded && (
                                                             <tr>
-                                                                <td colSpan={5} className="px-10 py-10 bg-slate-50 border-t border-b border-slate-100 shadow-inner">
+                                                                <td colSpan={totalCols} className="px-10 py-10 bg-slate-50 border-t border-b border-slate-100 shadow-inner">
                                                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                                                                         {/* Full Global Profile info */}
                                                                         <div className="p-8 bg-white border border-slate-100 rounded-[2.5rem] shadow-sm space-y-6">
@@ -3143,44 +3154,15 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                                                     onChange={() => toggleRegistrationSelection(reg._id)} 
                                                                     className="rounded border-slate-300 text-[#6C3BFF] focus:ring-[#6C3BFF]"
                                                                 />
-                                                                <button 
-                                                                    onClick={() => setExpandedRegId(isExpanded ? null : reg._id)}
-                                                                    className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-[#6C3BFF] transition-all"
-                                                                    title={isExpanded ? "Collapse Details" : "Expand Custom Answers & Profile"}
-                                                                >
-                                                                    <ChevronRight 
-                                                                        size={14} 
-                                                                        className={`transform transition-transform duration-300 ${isExpanded ? 'rotate-90 text-[#6C3BFF]' : ''}`} 
-                                                                    />
-                                                                </button>
                                                             </div>
                                                         </td>
-                                                        <td className="px-8 py-5">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-10 h-10 bg-purple-50 text-[#6C3BFF] border border-purple-100 rounded-xl flex items-center justify-center font-black text-sm shadow-inner shrink-0 uppercase">
-                                                                    {(prof.full_name || 'U').charAt(0)}
-                                                                </div>
-                                                                <div className="min-w-0">
-                                                                    <p className="font-bold text-slate-900 text-sm leading-tight mb-0.5 truncate max-w-[200px]">{prof.full_name || 'Anonymous User'}</p>
-                                                                    <p className="text-[11px] font-medium text-slate-500 truncate max-w-[200px]">{prof.email || '—'}</p>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-8 py-5">
-                                                            <div className="text-sm">
-                                                                <p className="font-semibold text-slate-700 leading-tight">
-                                                                    {prof.college || 'No college'}
-                                                                </p>
-                                                                <p className="text-[11px] text-slate-400 mt-0.5">
-                                                                    {prof.degree || ''}{prof.degree && prof.branch ? ' • ' : ''}{prof.branch || ''}
-                                                                    {prof.graduation_year ? ` • ${prof.graduation_year}` : ''}
-                                                                    {prof.cgpa ? ` • CGPA: ${prof.cgpa}` : ''}
-                                                                </p>
-                                                                {prof.location && (
-                                                                    <p className="text-[11px] text-slate-400 mt-0.5">{prof.location}</p>
-                                                                )}
-                                                            </div>
-                                                        </td>
+                                                        {dynamicFields.map((f: any, fi: number) => (
+                                                            <td key={f.id} className={`px-8 py-5 ${fi === 0 ? 'cursor-pointer' : ''}`}
+                                                                onClick={fi === 0 ? () => setExpandedRegId(isExpanded ? null : reg._id) : undefined}
+                                                            >
+                                                                <p className="font-bold text-slate-900 text-sm leading-tight truncate max-w-[200px]">{prof[f.id] || prof[f.label] || '—'}</p>
+                                                            </td>
+                                                        ))}
                                                         <td className="px-8 py-5">
                                                             <div className="flex flex-col items-start gap-1.5">
                                                                 <span className={`px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${
@@ -3252,7 +3234,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                                 {/* 5. Custom Answers & Detailed Profile Expansion Panel */}
                                                 {isExpanded && (
                                                     <tr>
-                                                        <td colSpan={5} className="px-10 py-10 bg-slate-50 border-t border-b border-slate-100 shadow-inner">
+                                                        <td colSpan={totalCols} className="px-10 py-10 bg-slate-50 border-t border-b border-slate-100 shadow-inner">
                                                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                                                                 {/* Full Global Profile info */}
                                                                 <div className="p-8 bg-white border border-slate-100 rounded-[2.5rem] shadow-sm space-y-6">
@@ -3368,7 +3350,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                     })
                                 ) : (filteredSolos.length === 0 && filteredTeams.length === 0) ? (
                                     <tr>
-                                        <td colSpan={5} className="px-10 py-32 text-center">
+                                        <td colSpan={totalCols} className="px-10 py-32 text-center">
                                             <div className="flex flex-col items-center opacity-30">
                                                 <Users size={64} className="text-slate-300 mb-6" />
                                                 <h4 className="text-lg font-black text-slate-400 uppercase tracking-widest leading-none mb-2">No Applications Found</h4>
@@ -3560,59 +3542,221 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                     </div>
                 );
             case 'teams':
-                if (hackathonSubmissions.length > 0) return renderTabContent_HackathonTeams();
+                const filteredTeams = teams.filter(t => 
+                    !searchQuery || 
+                    (t.team_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (t.leader_name || '').toLowerCase().includes(searchQuery.toLowerCase())
+                );
                 return (
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                             <div>
                                 <h3 className="text-2xl font-black text-slate-900 tracking-tight">Team Management</h3>
-                                <p className="text-slate-500 text-sm font-medium mt-1">Direct control over participant grouping and identities.</p>
+                                <p className="text-slate-500 text-sm font-medium mt-1">Direct control over participant grouping and identities for this event.</p>
                             </div>
                             <div className="relative group">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#6C3BFF] transition-colors" size={18} />
-                                <input 
-                                    type="text" 
-                                    placeholder="Search team or lead..." 
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+                                <input
+                                    type="text"
+                                    placeholder="Search team or lead..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="pl-12 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-[#6C3BFF]/5 focus:border-[#6C3BFF] transition-all w-80 font-medium"
+                                    className="pl-12 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all w-full md:w-80 font-medium"
                                 />
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {(Array.isArray(teams) ? teams : []).filter(t => t.team_name?.toLowerCase().includes(searchQuery.toLowerCase())).map((team, i) => (
-                                <div key={i} className="p-8 bg-white border border-slate-100 rounded-[2.5rem] shadow-sm hover:shadow-xl transition-all group relative overflow-hidden">
-                                    <div className="flex justify-between items-start mb-6">
-                                        <div className="w-14 h-14 bg-purple-50 text-[#6C3BFF] rounded-2xl flex items-center justify-center font-black text-lg group-hover:bg-[#6C3BFF] group-hover:text-white transition-all shadow-inner">
-                                            {team.team_name?.charAt(0)}
-                                        </div>
-                                        <div className="flex flex-col items-end gap-1">
-                                            <span className="px-3 py-1 bg-slate-50 text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-widest">
-                                                {team.members?.length || 0} Members
-                                            </span>
-                                            <span className="text-[9px] font-black text-[#6C3BFF] uppercase tracking-widest">Verified</span>
-                                        </div>
-                                    </div>
-                                    <h4 className="text-xl font-black text-slate-900 mb-6 tracking-tight">{team.team_name}</h4>
-                                    <div className="space-y-4 mb-8">
-                                        {(team.members || []).map((m: any, idx: number) => (
-                                            <div key={idx} className="flex items-center justify-between group/mem">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-[#6C3BFF]"></div>
-                                                    <span className="text-sm text-slate-600 font-bold">{m.name}</span>
-                                                </div>
-                                                {m.is_leader && <span className="text-[8px] font-black text-[#6C3BFF] bg-purple-50 px-2 py-0.5 rounded-full uppercase tracking-tighter">Leader</span>}
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <button className="w-full py-4 bg-slate-50 text-slate-500 hover:text-white hover:bg-[#6C3BFF] rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-sm">Inspect Full Dossier</button>
-                                </div>
-                            ))}
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Team Name</th>
+                                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Team Leader</th>
+                                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Members Count</th>
+                                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                            <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {filteredTeams.map(team => {
+                                            const leader = team.members?.find(m => m.is_leader || String(m.user_id) === String(team.team_leader_id));
+                                            return (
+                                                <tr key={team._id} className="hover:bg-gray-50 transition-colors">
+                                                    <td 
+                                                        className="px-6 py-4 whitespace-nowrap font-semibold text-gray-900 cursor-pointer hover:text-indigo-600"
+                                                        onClick={() => setSelectedTeam(team)}
+                                                    >
+                                                        {team.team_name || 'Unnamed Team'}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                        <div className="font-medium">{leader?.name || leader?.email || 'N/A'}</div>
+                                                        <div className="text-xs text-gray-500">{leader?.email || ''}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center text-sm text-gray-700 font-bold">
+                                                        {team.members?.length || 0}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                         <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                            team.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                                            team.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                                            team.status === 'waitlisted' ? 'bg-yellow-100 text-yellow-800' :
+                                                            'bg-gray-100 text-gray-800'
+                                                        }`}>
+                                                            {team.status || 'N/A'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-right flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => handleUpdateTeamStatus(team._id, 'approved')}
+                                                            className="px-3 py-1 bg-green-100 text-green-700 rounded text-xs font-bold hover:bg-green-200 transition-colors disabled:opacity-50"
+                                                            disabled={team.status === 'approved'}
+                                                        >
+                                                            Approve
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleUpdateTeamStatus(team._id, 'rejected')}
+                                                            className="px-3 py-1 bg-red-100 text-red-700 rounded text-xs font-bold hover:bg-red-200 transition-colors disabled:opacity-50"
+                                                            disabled={team.status === 'rejected'}
+                                                        >
+                                                            Reject
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleUpdateTeamStatus(team._id, 'waitlisted')}
+                                                            className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-bold hover:bg-yellow-200 transition-colors disabled:opacity-50"
+                                                            disabled={team.status === 'waitlisted'}
+                                                        >
+                                                            Waitlist
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
+
+                        {selectedTeam && (
+                            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center p-4 animate-in fade-in duration-300" onClick={() => setSelectedTeam(null)}>
+                                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()}>
+                                    <div className="p-8 border-b bg-slate-50/50">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">{selectedTeam.team_name || 'Unnamed Team'}</h2>
+                                                    <span className={`px-3 py-1 inline-flex text-[10px] font-black uppercase tracking-widest rounded-full border ${
+                                                        selectedTeam.status === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                                        selectedTeam.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-100' :
+                                                        'bg-slate-50 text-slate-600 border-slate-100'
+                                                    }`}>
+                                                        {selectedTeam.status || 'Pending'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                                    <span className="flex items-center gap-1.5"><Users size={14} /> {selectedTeam.members?.length || 0} Members</span>
+                                                    <span>•</span>
+                                                    <span>Team ID: {selectedTeam._id}</span>
+                                                </div>
+                                            </div>
+                                            <button 
+                                                onClick={() => setSelectedTeam(null)}
+                                                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-400 hover:text-slate-900 hover:border-slate-200 transition-all shadow-sm"
+                                            >
+                                                <X size={20} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex-1 overflow-y-auto p-8">
+                                        <div className="space-y-8">
+                                            <div>
+                                                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Team Roster</h3>
+                                                <div className="bg-slate-50 rounded-[1.5rem] border border-slate-100 overflow-hidden">
+                                                    <table className="min-w-full divide-y divide-slate-200">
+                                                        <thead className="bg-slate-100/50">
+                                                            <tr>
+                                                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Member</th>
+                                                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Role</th>
+                                                                <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">Registration</th>
+                                                                <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">Submission</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-100 bg-white">
+                                                            {selectedTeam.members?.map((member: any, index: number) => (
+                                                                <tr key={index} className="hover:bg-slate-50/50 transition-colors">
+                                                                    <td className="px-6 py-4">
+                                                                        <div className="font-bold text-slate-900 text-sm">{member.name || 'N/A'}</div>
+                                                                        <div className="text-xs text-slate-400 font-medium">{member.email || 'N/A'}</div>
+                                                                    </td>
+                                                                    <td className="px-6 py-4">
+                                                                        {member.is_leader ? (
+                                                                            <span className="px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-wider border border-indigo-100">
+                                                                                Leader
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="text-[11px] font-bold text-slate-400">Member</span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="px-6 py-4 text-center">
+                                                                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                                                                            member.registration_status === 'shortlisted' ? 'bg-emerald-50 text-emerald-600' :
+                                                                            member.registration_status === 'rejected' ? 'bg-red-50 text-red-600' :
+                                                                            'bg-slate-50 text-slate-500'
+                                                                        }`}>
+                                                                            {member.registration_status || 'Registered'}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-6 py-4 text-center">
+                                                                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                                                                            member.submission_status === 'submitted' ? 'bg-indigo-50 text-indigo-600' :
+                                                                            'bg-slate-50 text-slate-500'
+                                                                        }`}>
+                                                                            {member.submission_status === 'submitted' ? 'Submitted' : 'Pending'}
+                                                                        </span>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="p-8 border-t bg-slate-50/50 flex justify-end gap-3">
+                                        <button 
+                                            onClick={() => setSelectedTeam(null)}
+                                            className="px-8 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm"
+                                        >
+                                            Close
+                                        </button>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    handleUpdateTeamStatus(selectedTeam._id, 'approved');
+                                                    setSelectedTeam(null);
+                                                }}
+                                                className="px-6 py-3 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-900/20"
+                                            >
+                                                Approve Team
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    handleUpdateTeamStatus(selectedTeam._id, 'rejected');
+                                                    setSelectedTeam(null);
+                                                }}
+                                                className="px-6 py-3 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-900/20"
+                                            >
+                                                Reject Team
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 );
-
             case 'basic':
                 return (
                     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 font-sans">
@@ -5206,36 +5350,59 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                 <div className="text-sm font-medium text-slate-600 bg-slate-50 p-6 rounded-2xl border border-slate-100">
                                     {(() => {
                                         const subData = evaluatingSubmission.data || {};
-                                        const desc = evaluatingSubmission.solution || subData.description || subData.problem_statement || '';
-                                        const fileField = Object.keys(subData).find(k => typeof subData[k] === 'string' && subData[k].startsWith('data:'));
-                                        const urlField = Object.keys(subData).find(k => typeof subData[k] === 'string' && (subData[k].startsWith('http://') || subData[k].startsWith('https://')));
-                                        return (
-                                            <>
-                                                {desc ? <p className="whitespace-pre-wrap mb-4">{desc}</p> : <p className="text-slate-400 italic">No description provided</p>}
-                                                {(fileField || urlField) && (
-                                                    <div className="flex items-center gap-3 mt-4 pt-4 border-t border-slate-200">
-                                                        {fileField && (
-                                                            <button onClick={() => {
-                                                                const raw = subData[fileField];
-                                                                const mime = raw.startsWith('data:') ? raw.split(';')[0].split(':')[1] : '';
-                                                                const ext = mime.includes('pdf') ? '.pdf' : mime.includes('presentation') ? '.pptx' : mime.includes('image') ? '.png' : '.file';
-                                                                setPreviewAsset({ url: raw, filename: 'Asset' + ext });
-                                                            }}
-                                                                className="px-4 py-2 bg-amber-50 text-amber-700 rounded-xl text-[10px] font-black uppercase tracking-widest border border-amber-200 hover:bg-amber-100 cursor-pointer">
-                                                                <FileText size={12} className="inline mr-1.5" /> View File
-                                                            </button>
-                                                        )}
-                                                        {urlField && (
-                                                            <a href={subData[urlField].startsWith('http') ? subData[urlField] : `${API_BASE_URL}${subData[urlField]}`}
-                                                                target="_blank" rel="noreferrer"
-                                                                className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-purple-700 transition-all">
-                                                                <ExternalLink size={12} className="inline mr-1.5" /> Open Link
-                                                            </a>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </>
-                                        );
+                                        if (subData && typeof subData === 'object' && Object.keys(subData).length > 0) {
+                                            const stageConfig = stages.find((st: any) =>
+                                                st.id === evaluatingSubmission.stage_id || st._id === evaluatingSubmission.stage_id
+                                            );
+                                            const fieldConfigs: Record<string, any> = {};
+                                            if (stageConfig) {
+                                                const fields = stageConfig.fields || (stageConfig.config?.fields) || [];
+                                                for (const f of fields) {
+                                                    fieldConfigs[f.id || f.key] = f;
+                                                }
+                                            }
+                                            const fieldEntries = Object.entries(subData).filter(
+                                                ([k, v]) => typeof v === 'string' && v.trim()
+                                            );
+                                            return (
+                                                <div className="divide-y divide-slate-100">
+                                                    {fieldEntries.map(([key, value]) => {
+                                                        const label = fieldConfigs[key]?.label || key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+                                                        if (value.startsWith('data:')) {
+                                                            const mime = value.split(';')[0].split(':')[1] || '';
+                                                            const ext = mime.includes('pdf') ? '.pdf' : mime.includes('presentation') ? '.pptx' : mime.includes('image') ? '.png' : '.file';
+                                                            return (
+                                                                <div key={key} className="py-3 first:pt-0 last:pb-0">
+                                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">{label}</span>
+                                                                    <button onClick={() => setPreviewAsset({ url: value, filename: 'Asset' + ext })}
+                                                                        className="flex items-center gap-2 text-xs font-bold text-purple-600 hover:text-purple-800">
+                                                                        <FileText size={14} /> View {mime.includes('pdf') ? 'PDF' : mime.includes('presentation') ? 'PPT' : 'File'}
+                                                                    </button>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        if (value.startsWith('http://') || value.startsWith('https://')) {
+                                                            return (
+                                                                <div key={key} className="py-3 first:pt-0 last:pb-0">
+                                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">{label}</span>
+                                                                    <a href={value} target="_blank" rel="noreferrer"
+                                                                        className="flex items-center gap-2 text-xs font-bold text-purple-600 hover:text-purple-800">
+                                                                        <ExternalLink size={14} /> Open Link
+                                                                    </a>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return (
+                                                            <div key={key} className="py-3 first:pt-0 last:pb-0">
+                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">{label}</span>
+                                                                <p className="text-sm font-medium text-slate-700 whitespace-pre-wrap">{value}</p>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        }
+                                        return <p className="text-slate-400 italic">No submission data provided</p>;
                                     })()}
                                 </div>
                             </div>
@@ -5300,3 +5467,4 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
 };
 
 export default EventDetails;
+

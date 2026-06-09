@@ -31,3 +31,4 @@ const EventPackagePage: React.FC = () => {
 };
 
 export default EventPackagePage;
+

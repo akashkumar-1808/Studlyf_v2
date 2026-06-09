@@ -34,7 +34,7 @@ const Topbar: React.FC<{ onNavigateToSettings?: () => void }> = ({ onNavigateToS
                 setProfile(data);
             }
         } catch (err) {
-            console.error("[Topbar] Profile fetch error:", err);
+            try { console.error("[Topbar] Profile fetch error:", err instanceof Error ? err.message : String(err)); } catch (_) {}
         }
     };
 
@@ -65,7 +65,7 @@ const Topbar: React.FC<{ onNavigateToSettings?: () => void }> = ({ onNavigateToS
                 setNotifCount(0);
             }
         } catch (err) {
-            console.error("[Topbar] Mark as read failed:", err);
+            try { console.error("[Topbar] Mark as read failed:", err instanceof Error ? err.message : String(err)); } catch (_) {}
             // Fallback: Clear locally if API fails to keep UI responsive
             setNotifications([]);
             setNotifCount(0);
@@ -94,7 +94,7 @@ const Topbar: React.FC<{ onNavigateToSettings?: () => void }> = ({ onNavigateToS
             await logout();
             navigate('/login');
         } catch (error) {
-            console.error('Error signing out:', error);
+            try { console.error('Error signing out:', error instanceof Error ? error.message : String(error)); } catch (_) {}
         }
     };
 
@@ -250,3 +250,4 @@ const Topbar: React.FC<{ onNavigateToSettings?: () => void }> = ({ onNavigateToS
 };
 
 export default Topbar;
+

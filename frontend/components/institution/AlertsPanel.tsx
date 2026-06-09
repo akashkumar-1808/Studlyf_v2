@@ -47,7 +47,7 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ institutionId, onUpgrade }) =
                     }
                 }
             } catch (err) {
-                console.error("Failed to load alerts/events:", err);
+                try { console.error("Failed to load alerts/events:", err instanceof Error ? err.message : String(err)); } catch (_) {}
             } finally {
                 setLoading(false);
             }
@@ -191,3 +191,4 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ institutionId, onUpgrade }) =
 };
 
 export default AlertsPanel;
+

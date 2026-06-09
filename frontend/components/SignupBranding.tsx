@@ -124,3 +124,4 @@ const SignupBranding: React.FC = () => {
 };
 
 export default SignupBranding;
+

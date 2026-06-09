@@ -40,3 +40,4 @@ export default function ControlPanel({ onCreateArray, onInsert, onDelete, onUpda
     </div>
   );
 }
+

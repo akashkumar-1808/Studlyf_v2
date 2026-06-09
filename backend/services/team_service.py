@@ -304,7 +304,7 @@ async def join_team_with_code(
         # Update participant with team_id
         await participants_col.update_one(
             {"_id": participant["_id"]},
-            {"$set": {"team_id": str(team["_id"]), "updated_at": datetime.now(timezone.utc)}}
+            {"$set": {"team_id": team_id, "is_solo_participant": True, "updated_at": datetime.now(timezone.utc)}}
         )
 
         return {
@@ -385,6 +385,76 @@ async def leave_team(event_id: str, user_id: str) -> dict:
     except Exception as e:
         print(f"[ERROR] leave_team: {e}")
         return {"error": str(e)}
+
+async def create_solo_team(event_id: str, user_id: str) -> dict:
+    """Create a solo team for individual participation."""
+    try:
+        participant = await participants_col.find_one({
+            "event_id": str(event_id),
+            "user_id": str(user_id)
+        })
+        if not participant:
+            return {"error": "You must register for the event first", "status": "not_registered"}
+
+        if participant.get("team_id"):
+            existing_team = await teams_col.find_one({"_id": ObjectId(participant["team_id"])})
+            if existing_team:
+                return {
+                    "status": "already_in_team",
+                    "team": {"_id": str(existing_team["_id"]), "team_name": existing_team.get("team_name")}
+                }
+
+        user = await users_col.find_one({"user_id": str(user_id)})
+        user_name = user.get("full_name", user.get("username", "Solo Participant")) if user else "Solo Participant"
+        team_name = f"{user_name}'s Solo Entry"
+
+        team_doc = {
+            "event_id": str(event_id),
+            "team_name": team_name,
+            "team_leader_id": str(user_id),
+            "leader_name": user_name,
+            "is_solo": True,
+            "members": [
+                {
+                    "user_id": str(user_id),
+                    "name": user_name,
+                    "email": user.get("email", "") if user else "",
+                    "role": "LEADER",
+                    "joined_at": datetime.now(timezone.utc),
+                }
+            ],
+            "status": "active",
+            "size_min": 1,
+            "size_max": 1,
+            "invite_code": None,
+            "invites": [],
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        }
+
+        result = await teams_col.insert_one(team_doc)
+        team_id = str(result.inserted_id)
+
+        await participants_col.update_one(
+            {"_id": participant["_id"]},
+            {"$set": {"team_id": team_id, "updated_at": datetime.now(timezone.utc)}}
+        )
+
+        return {
+            "status": "success",
+            "message": "Solo team created successfully",
+            "team": {
+                "_id": team_id,
+                "team_name": team_name,
+                "team_leader_id": str(user_id),
+                "members": team_doc["members"],
+                "is_solo": True,
+            }
+        }
+    except Exception as e:
+        print(f"[ERROR] create_solo_team: {e}")
+        return {"error": str(e), "status": "error"}
+
 
 async def get_team_details(team_id: str) -> dict:
     """Get full team details including member info."""

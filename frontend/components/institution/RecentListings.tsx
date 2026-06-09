@@ -29,7 +29,7 @@ const RecentListings: React.FC<RecentListingsProps> = ({ institutionId, onViewEv
                     console.error('Recent listings fetch failed:', await res.text());
                 }
             } catch (err) {
-                console.error("Failed to fetch recent listings", err);
+                try { console.error("Failed to fetch recent listings", err instanceof Error ? err.message : String(err)); } catch (_) {}
             } finally {
                 setLoading(false);
             }
@@ -119,3 +119,4 @@ const RecentListings: React.FC<RecentListingsProps> = ({ institutionId, onViewEv
 };
 
 export default RecentListings;
+

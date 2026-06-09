@@ -40,3 +40,4 @@ export function QueueCube({ element, targetX, isFront, isRear }: QueueCubeProps)
     </group>
   );
 }
+

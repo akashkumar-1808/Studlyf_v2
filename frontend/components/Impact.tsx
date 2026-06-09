@@ -70,10 +70,10 @@ const StatCard = ({ number, suffix, label, delay, floatDirection = 1, floatDurat
 
 const Impact = () => {
     const images = [
-        { src: '/images/impact/hackathon.png', alt: 'Hackathon', size: 'h-48 md:h-60', delay: 0.1 },
-        { src: '/images/impact/certificates.png', alt: 'Certificates', size: 'h-56 md:h-72', delay: 0.2 },
-        { src: '/images/impact/mentorship.png', alt: 'Mentorship', size: 'h-64 md:h-80', delay: 0.3 },
-        { src: '/images/impact/online_sessions.png', alt: 'Online Sessions', size: 'h-48 md:h-60', delay: 0.4 },
+        { src: '/images-optimized/impact/hackathon.webp', alt: 'Hackathon', size: 'h-48 md:h-60', delay: 0.1 },
+        { src: '/images-optimized/impact/certificates.webp', alt: 'Certificates', size: 'h-56 md:h-72', delay: 0.2 },
+        { src: '/images-optimized/impact/mentorship.webp', alt: 'Mentorship', size: 'h-64 md:h-80', delay: 0.3 },
+        { src: '/images-optimized/impact/online_sessions.webp', alt: 'Online Sessions', size: 'h-48 md:h-60', delay: 0.4 },
     ];
 
     const stats = [
@@ -209,3 +209,4 @@ const Impact = () => {
 };
 
 export default Impact;
+

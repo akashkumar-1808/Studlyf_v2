@@ -151,3 +151,4 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleCollapse }) => {
 };
 
 export default Sidebar;
+

@@ -172,7 +172,7 @@ const WhoWeServe: React.FC = () => {
                         >
                             <span className="block mb-4">
                                 <div className="bg-white p-3 rounded-2xl inline-block shadow-sm">
-                                    <img src="/images/studlyf.png" alt="Studlyf" className="h-12 md:h-20 w-auto inline-block" />
+                                    <img src="/images-optimized/studlyf.webp" alt="Studlyf" loading="lazy" className="h-12 md:h-20 w-auto inline-block" />
                                 </div>
                             </span>
                             <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#6C4DFF] via-[#EC4899] to-[#FF5B5B]">For</span>
@@ -356,3 +356,4 @@ const WhoWeServe: React.FC = () => {
 };
 
 export default WhoWeServe;
+

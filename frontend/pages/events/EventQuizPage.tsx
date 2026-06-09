@@ -124,7 +124,7 @@ const EventQuizPage: React.FC = () => {
             navigate(`/events/${eventId}`);
         } catch (err: any) {
             submittedRef.current = false;
-            console.error('Quiz submission error:', err);
+            try { console.error('Quiz submission error:', err instanceof Error ? err.message : String(err)); } catch (_) {}
             alert(err.message || 'Failed to submit quiz');
         } finally {
             setSaving(false);
@@ -255,3 +255,4 @@ const EventQuizPage: React.FC = () => {
 };
 
 export default EventQuizPage;
+

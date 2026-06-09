@@ -1,22 +1,22 @@
 import React from 'react';
 
 const institutions = [
-    { name: 'Woxsen', logo: '/images/woxen.png' },
-    { name: 'VJIM', logo: '/images/vjim.png' },
-    { name: 'Vishnu', logo: '/images/vishnu.webp' },
-    { name: 'SRM', logo: '/images/srm.webp' },
-    { name: 'MRU', logo: '/images/mru.png' },
-    { name: 'IIT Madras', logo: '/images/iitm.png' },
-    { name: 'IIT Kanpur', logo: '/images/iit k.png' },
-    { name: 'IIT Hyderabad', logo: '/images/iit h.webp' },
-    { name: 'IIT Delhi', logo: '/images/iit-delhi.png' },
-    { name: 'IIT Bombay', logo: '/images/iit-bombay.png' },
-    { name: 'IIM K', logo: '/images/iim k.webp' },
-    { name: 'GRIET', logo: '/images/griet.jpg' },
-    { name: 'CMR', logo: '/images/cmr.png' },
-    { name: 'CBIT', logo: '/images/cbit.png' },
-    { name: 'BITS', logo: '/images/bits.webp' },
-    { name: 'Anurag University', logo: '/images/anuraguni.png' },
+    { name: 'Woxsen', logo: '/images-optimized/woxen.webp' },
+    { name: 'VJIM', logo: '/images-optimized/vjim.webp' },
+    { name: 'Vishnu', logo: '/images-optimized/vishnu.webp' },
+    { name: 'SRM', logo: '/images-optimized/srm.webp' },
+    { name: 'MRU', logo: '/images-optimized/mru.webp' },
+    { name: 'IIT Madras', logo: '/images-optimized/iitm.webp' },
+    { name: 'IIT Kanpur', logo: '/images-optimized/iit k.webp' },
+    { name: 'IIT Hyderabad', logo: '/images-optimized/iit h.webp' },
+    { name: 'IIT Delhi', logo: '/images-optimized/iit-delhi.webp' },
+    { name: 'IIT Bombay', logo: '/images-optimized/iit-bombay.webp' },
+    { name: 'IIM K', logo: '/images-optimized/iim k.webp' },
+    { name: 'GRIET', logo: '/images-optimized/griet.webp' },
+    { name: 'CMR', logo: '/images-optimized/cmr.webp' },
+    { name: 'CBIT', logo: '/images-optimized/cbit.webp' },
+    { name: 'BITS', logo: '/images-optimized/bits.webp' },
+    { name: 'Anurag University', logo: '/images-optimized/anuraguni.webp' },
 ];
 
 const FeaturedInstitutions: React.FC = () => {
@@ -78,6 +78,7 @@ const FeaturedInstitutions: React.FC = () => {
                             <img
                                 src={institution.logo}
                                 alt={institution.name}
+                                loading="lazy"
                                 className="inst-logo max-w-full max-h-full object-contain"
                                 onError={(e) => {
                                     const target = e.target as HTMLImageElement;
@@ -97,3 +98,4 @@ const FeaturedInstitutions: React.FC = () => {
 };
 
 export default FeaturedInstitutions;
+

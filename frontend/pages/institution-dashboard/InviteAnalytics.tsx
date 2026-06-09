@@ -54,3 +54,4 @@ const InviteAnalytics: React.FC = () => {
 };
 
 export default InviteAnalytics;
+

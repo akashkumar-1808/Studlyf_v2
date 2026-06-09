@@ -89,7 +89,7 @@ const DashboardFooter: React.FC = () => {
                         <div className="flex flex-col items-center">
                             <div className="w-32 h-32 md:w-40 md:h-40 bg-white/[0.04] rounded-3xl border border-white/10 flex items-center justify-center overflow-hidden shadow-2xl group">
                                 <img
-                                    src="/images/Eshwar.jpg"
+                                    src="/images-optimized/Eshwar.webp"
                                     alt="Founder"
                                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                 />
@@ -210,7 +210,7 @@ const DashboardFooter: React.FC = () => {
                                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(0,0,0,0.02)_0%,_transparent_75%)]" />
                                 
                                 <img 
-                                    src="/images/studlyf.png" 
+                                    src="/images-optimized/studlyf.webp" 
                                     alt="Studlyf" 
                                     className="h-10 md:h-14 w-auto object-contain relative z-10"
                                 />
@@ -292,3 +292,4 @@ const DashboardFooter: React.FC = () => {
 };
 
 export default DashboardFooter;
+

@@ -36,7 +36,7 @@ const AIInsightsPanel: React.FC = () => {
                 const data = await response.json();
                 setInsights(data);
             } catch (error) {
-                console.error("Error fetching insights:", error);
+                try { console.error("Error fetching insights:", error instanceof Error ? error.message : String(error)); } catch (_) {}
             } finally {
                 setLoading(false);
             }
@@ -108,3 +108,4 @@ const AIInsightsPanel: React.FC = () => {
 };
 
 export default AIInsightsPanel;
+

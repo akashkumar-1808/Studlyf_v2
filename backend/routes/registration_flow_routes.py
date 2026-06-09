@@ -1116,10 +1116,18 @@ async def submit_event_registration(event_id: str, request: ApplyRegistrationReq
         final_team_name = None
         
         if request.team_action and request.team_payload:
-            from services.team_service import create_team, generate_invite_code, join_team_with_code
+            from services.team_service import create_team, create_solo_team, generate_invite_code, join_team_with_code
             
             action = request.team_action.upper()
-            if action == "CREATE":
+            if action == "INDIVIDUAL":
+                solo_resp = await create_solo_team(
+                    event_id=str(event_id),
+                    user_id=user["user_id"]
+                )
+                if solo_resp.get("status") == "success":
+                    final_team_id = solo_resp["team"]["_id"]
+                    final_team_name = solo_resp["team"]["team_name"]
+            elif action == "CREATE":
                 team_resp = await create_team(
                     event_id=str(event_id),
                     user_id=user["user_id"],

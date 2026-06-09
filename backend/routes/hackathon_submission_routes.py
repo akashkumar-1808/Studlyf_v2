@@ -207,7 +207,13 @@ async def get_event_submissions(
         except:
             pass
             
-    query = {"hackathonId": {"$in": hack_ids}}
+    # FIX: Query by hackathonId OR eventId to be more inclusive
+    query = {
+        "$or": [
+            {"hackathonId": {"$in": hack_ids}},
+            {"eventId": {"$in": hack_ids}}
+        ]
+    }
     
     if domain: query["domain"] = domain
     if status: query["status"] = status

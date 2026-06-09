@@ -174,3 +174,4 @@ const JudgeAssignment: React.FC<JudgeAssignmentProps> = ({
 };
 
 export default JudgeAssignment;
+

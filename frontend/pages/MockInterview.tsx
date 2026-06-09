@@ -573,7 +573,7 @@ export default function MockInterview() {
             speak(nextQuestion, roundIndex);
         } catch (err) {
             setIsThinking(false);
-            console.error("Chat Error:", err);
+            try { console.error("Chat Error:", err instanceof Error ? err.message : String(err)); } catch (_) {}
         } finally { setIsSending(false); }
     };
 
@@ -693,7 +693,7 @@ export default function MockInterview() {
             setMessages([{ role: 'interviewer', content: fullMsg, timestamp: new Date().toLocaleTimeString() }]);
             speak(fullMsg, nextRound);
         } catch (err) {
-            console.error("Transition Error:", err);
+            try { console.error("Transition Error:", err instanceof Error ? err.message : String(err)); } catch (_) {}
             // Fallback
             setRoundIndex(nextRound);
             roundQuestionIndexRef.current[nextRound] = 0;
@@ -805,7 +805,6 @@ export default function MockInterview() {
             }
         } catch (err) { 
             setIsThinking(false);
-            console.error(err); 
         } finally { setIsSending(false); }
     };
 
@@ -1841,3 +1840,4 @@ export default function MockInterview() {
         </div>
     );
 }
+

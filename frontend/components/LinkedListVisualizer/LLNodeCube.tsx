@@ -39,3 +39,4 @@ export function LLNodeCube({ node, targetX, isHead, isTail }: LLNodeCubeProps) {
     </group>
   );
 }
+

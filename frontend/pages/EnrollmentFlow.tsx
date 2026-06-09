@@ -61,7 +61,7 @@ const EnrollmentFlow: React.FC = () => {
                 const data = await res.json();
                 setCourses(Array.isArray(data) ? data : []);
             } catch (error) {
-                console.error('Failed to fetch courses:', error);
+                try { console.error('Failed to fetch courses:', error instanceof Error ? error.message : String(error)); } catch (_) {}
             }
         };
         if (courses.length === 0) fetchCourses();
@@ -126,7 +126,7 @@ const EnrollmentFlow: React.FC = () => {
                 setStep(4);
                 return;
             } catch (err) {
-                console.error('Free enrollment error:', err);
+                try { console.error('Free enrollment error:', err instanceof Error ? err.message : String(err)); } catch (_) {}
                 setPaymentError('Could not process enrollment. Please try again.');
                 setIsProcessing(false);
                 return;
@@ -225,7 +225,7 @@ const EnrollmentFlow: React.FC = () => {
                                 status: 'abandoned',
                                 error_description: 'User dismissed the payment checkout popup.'
                             })
-                        }).catch(err => console.error('[Analytics] Failed to log abandoned checkout:', err));
+                        }).catch(err => { try { console.error('[Analytics] Failed to log abandoned checkout:', err instanceof Error ? err.message : String(err)); } catch (_) {} });
                     }
                 }
             };
@@ -245,12 +245,12 @@ const EnrollmentFlow: React.FC = () => {
                         status: 'failed',
                         error_description: errorDesc
                     })
-                }).catch(err => console.error('[Analytics] Failed to log failed checkout:', err));
+                }).catch(err => { try { console.error('[Analytics] Failed to log failed checkout:', err instanceof Error ? err.message : String(err)); } catch (_) {} });
             });
             rzp.open();
 
         } catch (error) {
-            console.error('Payment Error', error);
+            try { console.error('Payment Error', error instanceof Error ? error.message : String(error)); } catch (_) {}
             setPaymentError('Could not initiate payment. Please check your internet connection and try again.');
             setIsProcessing(false);
         }
@@ -730,3 +730,4 @@ const EnrollmentFlow: React.FC = () => {
 };
 
 export default EnrollmentFlow;
+

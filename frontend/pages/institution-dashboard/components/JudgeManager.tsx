@@ -269,3 +269,4 @@ const JudgeManager: React.FC<JudgeManagerProps> = ({ onSelect, selectedId }) => 
 };
 
 export default JudgeManager;
+

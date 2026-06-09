@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 type Props = {
   duration?: number;
@@ -21,10 +22,10 @@ const WORDS = [
 const SplashScreen: React.FC<Props> = ({
   duration = 7500,
   onFinish,
-  logoSrc = '/images/studlyf.png',
-  secondaryLogoSrc = '/images/studlyf_secondary.png',
+  logoSrc = '/images-optimized/studlyf.webp',
+  secondaryLogoSrc = '/images-optimized/studlyf_secondary.webp',
   founderName = 'Eshwar',
-  founderImageSrc = '/images/Eshwar.jpg',
+  founderImageSrc = '/images-optimized/Eshwar.webp',
 }) => {
   const [visibleWords, setVisibleWords] = useState<string[]>([]);
   const [exiting, setExiting] = useState(false);
@@ -184,3 +185,4 @@ const SplashScreen: React.FC<Props> = ({
 };
 
 export default SplashScreen;
+

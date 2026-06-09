@@ -243,3 +243,4 @@ const ResultsPage: React.FC = () => {
 };
 
 export default ResultsPage;
+

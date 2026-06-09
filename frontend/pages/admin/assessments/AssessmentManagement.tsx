@@ -43,7 +43,7 @@ const AssessmentManagement: React.FC = () => {
                 headers: { 'X-Admin-Email': user.email }
             });
             if (res.ok) setSubmissions(await res.json());
-        } catch (err) { console.error(err); }
+        } catch (err) { }
     };
 
     const fetchHistory = async () => {
@@ -53,7 +53,7 @@ const AssessmentManagement: React.FC = () => {
                 headers: { 'X-Admin-Email': user.email }
             });
             if (res.ok) setHistory(await res.json());
-        } catch (err) { console.error(err); }
+        } catch (err) { }
     };
 
     const fetchCertTemplates = async () => {
@@ -63,7 +63,7 @@ const AssessmentManagement: React.FC = () => {
                 headers: { 'X-Admin-Email': user.email }
             });
             if (res.ok) setCertTemplates(await res.json());
-        } catch (err) { console.error(err); }
+        } catch (err) { }
     };
 
     const saveNewTemplate = async () => {
@@ -80,7 +80,7 @@ const AssessmentManagement: React.FC = () => {
                 fetchCertTemplates();
                 alert('Template saved!');
             }
-        } catch (err) { console.error(err); } finally { setSavingTemplate(false); }
+        } catch (err) { } finally { setSavingTemplate(false); }
     };
 
     const deleteTemplate = async (templateId: string) => {
@@ -91,7 +91,7 @@ const AssessmentManagement: React.FC = () => {
                 headers: { 'X-Admin-Email': user.email }
             });
             fetchCertTemplates();
-        } catch (err) { console.error(err); }
+        } catch (err) { }
     };
 
     const handleManualCertUpload = async (file: File, userId: string, moduleId: string, courseId: string) => {
@@ -140,7 +140,7 @@ const AssessmentManagement: React.FC = () => {
                 alert(`Assessment ${status} successfully!`);
                 fetchSubmissions();
             }
-        } catch (err) { console.error(err); }
+        } catch (err) { }
     };
 
     const [selectedTemplatePerId, setSelectedTemplatePerId] = useState<Record<string, string>>({});
@@ -154,7 +154,7 @@ const AssessmentManagement: React.FC = () => {
                 headers: { 'X-Admin-Email': user.email }
             });
             if (res.ok) setAdminStats(await res.json());
-        } catch (err) { console.error(err); }
+        } catch (err) { }
     };
 
     useEffect(() => {
@@ -178,7 +178,7 @@ const AssessmentManagement: React.FC = () => {
                 }));
                 setAssessments(formatted);
             } catch (error) {
-                console.error("Error fetching quizzes:", error);
+                try { console.error("Error fetching quizzes:", error instanceof Error ? error.message : String(error)); } catch (_) {}
             } finally {
                 setLoading(false);
             }
@@ -595,3 +595,4 @@ const AssessmentManagement: React.FC = () => {
 };
 
 export default AssessmentManagement;
+

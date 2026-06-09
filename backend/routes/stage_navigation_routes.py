@@ -12,6 +12,7 @@ from services.stage_service import (
 import asyncio
 from services.team_service import (
     create_team,
+    create_solo_team,
     generate_invite_code,
     join_team_with_code,
     leave_team,
@@ -160,6 +161,71 @@ async def create_new_team(
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     return result
+
+@router.post("/teams/create-solo")
+async def create_solo_team_endpoint(
+    data: dict = Body(...),
+    user: dict = Depends(get_auth_user)
+):
+    """Create a solo team for individual participation."""
+    result = await create_solo_team(
+        event_id=data.get("event_id"),
+        user_id=user["user_id"]
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+@router.post("/teams/submit-solo")
+async def submit_solo_team_for_review(
+    data: dict = Body(...),
+    user: dict = Depends(get_auth_user)
+):
+    """Submit a solo team for admin review: finalize team + link registration."""
+    event_id = data.get("event_id")
+    if not event_id:
+        raise HTTPException(status_code=400, detail="Missing event_id")
+
+    from db import teams_col, registrations_col, participants_col
+    from datetime import datetime, timezone
+
+    team = await teams_col.find_one({
+        "event_id": str(event_id),
+        "team_leader_id": str(user["user_id"]),
+        "is_solo": True
+    })
+    if not team:
+        raise HTTPException(status_code=404, detail="Solo team not found. Create one first.")
+
+    if team.get("status") == "finalized":
+        return {"status": "success", "message": "Team already submitted for review"}
+
+    await teams_col.update_one(
+        {"_id": team["_id"]},
+        {"$set": {"status": "finalized", "updated_at": datetime.now(timezone.utc)}}
+    )
+
+    team_id_str = str(team["_id"])
+    team_name = team.get("team_name", "Solo Entry")
+
+    await registrations_col.update_one(
+        {"event_id": str(event_id), "user_id": str(user["user_id"])},
+        {"$set": {
+            "team_id": team_id_str,
+            "team_name": team_name,
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+
+    await participants_col.update_one(
+        {"event_id": str(event_id), "user_id": str(user["user_id"])},
+        {"$set": {
+            "team_id": team_id_str,
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+
+    return {"status": "success", "message": "Solo team submitted for admin review!"}
 
 @router.post("/teams/{team_id}/invite")
 async def generate_team_invite(

@@ -36,6 +36,25 @@ const AuthContext = createContext<AuthContextType>({
     updateUser: () => {}
 });
 
+const USER_ROLES: readonly UserRole[] = [
+    'super_admin',
+    'admin',
+    'mentor',
+    'hiring_partner',
+    'student',
+    'institution',
+    'judge'
+];
+
+const validateRole = (role: unknown): UserRole | null => {
+    if (typeof role === 'string' && USER_ROLES.includes(role as UserRole)) {
+        return role as UserRole;
+    }
+
+    console.warn(`[AuthContext] Received invalid role (${typeof role}).`);
+    return null;
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [role, setRole] = useState<UserRole | null>(null);
@@ -68,18 +87,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     userData.uid = userData.user_id;
                 }
                 setUser(userData);
-                setRole(userData.role);
+                setRole(validateRole(userData.role));
             } else if (response.status === 401 || response.status === 403) {
                 localStorage.removeItem('auth_token');
                 setUser(null);
                 setRole(null);
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             clearTimeout(timeoutId);
-            if (error.name === 'AbortError') {
+            if (error instanceof DOMException && error.name === 'AbortError') {
                 console.warn("[AuthContext] Auth check timed out. Proceeding as guest.");
             } else {
-                console.error("[AuthContext] Auth check failed:", error);
+                console.error(`[AuthContext] Auth check failed (${typeof error}).`);
             }
             // Proceed as guest to avoid blocking the UI
         } finally {
@@ -97,7 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             userData.uid = userData.user_id;
         }
         setUser(userData);
-        setRole(userData.role);
+        setRole(validateRole(userData.role));
     };
 
     const logout = () => {

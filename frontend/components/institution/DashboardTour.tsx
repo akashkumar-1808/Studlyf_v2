@@ -126,3 +126,4 @@ const DashboardTour: React.FC<DashboardTourProps> = ({ isOpen, onClose }) => {
 };
 
 export default DashboardTour;
+

@@ -166,7 +166,7 @@ const MyProfile: React.FC = () => {
           }));
         }
       } catch (err) {
-        console.error('Profile load error:', err);
+        try { console.error('Profile load error:', err instanceof Error ? err.message : String(err)); } catch (_) {}
         const names = user.full_name?.split(' ') || [];
         setFormData(prev => ({
           ...prev,
@@ -3502,3 +3502,4 @@ const publicProfileUrl = user?.user_id && typeof window !== 'undefined'
 };
 
 export default MyProfile;
+

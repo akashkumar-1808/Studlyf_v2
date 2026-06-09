@@ -31,7 +31,7 @@ const Cart: React.FC = () => {
         const data = await res.json();
         setCartItems(data.items || []);
       } catch (err) {
-        console.error('Error fetching cart:', err);
+        try { console.error('Error fetching cart:', err instanceof Error ? err.message : String(err)); } catch (_) {}
       } finally {
         setLoading(false);
       }
@@ -48,7 +48,7 @@ const Cart: React.FC = () => {
       });
       setCartItems(items => items.filter(item => item.course_id !== courseId));
     } catch (err) {
-      console.error('Error removing item:', err);
+      try { console.error('Error removing item:', err instanceof Error ? err.message : String(err)); } catch (_) {}
     } finally {
       setRemoving(null);
     }
@@ -68,7 +68,7 @@ const Cart: React.FC = () => {
         navigate('/learn/checkout', { state: { enrolledCourses: data.enrolled_courses } });
       }
     } catch (err) {
-      console.error('Error during checkout:', err);
+      try { console.error('Error during checkout:', err instanceof Error ? err.message : String(err)); } catch (_) {}
     } finally {
       setCheckoutLoading(false);
     }
@@ -233,3 +233,4 @@ const Cart: React.FC = () => {
 };
 
 export default Cart;
+

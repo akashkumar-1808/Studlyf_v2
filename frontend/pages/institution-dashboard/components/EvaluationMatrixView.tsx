@@ -39,7 +39,7 @@ const EvaluationMatrixView: React.FC<EvaluationMatrixViewProps> = ({ eventId, cr
                 if (subRes.ok) setSubmissions(await subRes.json());
                 if (scoreRes.ok) setScores(await scoreRes.json());
             } catch (error) {
-                console.error("Failed to fetch matrix data", error);
+                try { console.error("Failed to fetch matrix data", error instanceof Error ? error.message : String(error)); } catch (_) {}
             } finally {
                 setLoading(false);
             }
@@ -86,7 +86,7 @@ const EvaluationMatrixView: React.FC<EvaluationMatrixViewProps> = ({ eventId, cr
             link.setAttribute('download', `Evaluation_Matrix_${eventId}.csv`);
             link.click();
         } catch (error) {
-            console.error("Export failed", error);
+            try { console.error("Export failed", error instanceof Error ? error.message : String(error)); } catch (_) {}
         } finally {
             setExporting(false);
         }
@@ -228,3 +228,4 @@ const EvaluationMatrixView: React.FC<EvaluationMatrixViewProps> = ({ eventId, cr
 };
 
 export default EvaluationMatrixView;
+

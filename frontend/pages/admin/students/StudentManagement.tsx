@@ -50,7 +50,7 @@ const StudentManagement: React.FC = () => {
             }));
             setStudents(formatted);
         } catch (error) {
-            console.error("Error fetching students:", error);
+            try { console.error("Error fetching students:", error instanceof Error ? error.message : String(error)); } catch (_) {}
         } finally {
             setLoading(false);
         }
@@ -104,7 +104,7 @@ const StudentManagement: React.FC = () => {
                 const err = await res.json();
                 alert(`Error: ${err.detail || 'Failed to register'}`);
             }
-        } catch (err) { console.error(err); } finally { setRegistering(false); }
+        } catch (err) { } finally { setRegistering(false); }
     };
 
     const toggleRestriction = async (studentId: string, currentStatus: boolean) => {
@@ -116,7 +116,7 @@ const StudentManagement: React.FC = () => {
                 body: JSON.stringify({ student_id: studentId, restricted: !currentStatus })
             });
             if (res.ok) fetchStudents();
-        } catch (err) { console.error(err); }
+        } catch (err) { }
     };
 
     return (
@@ -331,3 +331,4 @@ const StudentManagement: React.FC = () => {
 };
 
 export default StudentManagement;
+

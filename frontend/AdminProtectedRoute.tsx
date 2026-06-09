@@ -31,7 +31,7 @@ const AdminProtectedRoute: React.FC<AdminRouteProps> = ({
 
     if (role && !allowedRoles.includes(role)) {
         // Not authorized for admin area
-        console.warn(`Unauthorized access attempt by ${role}`);
+        console.warn(`Unauthorized access attempt by ${typeof role === 'string' ? role : JSON.stringify(role)}`);
         return <Navigate to="/dashboard" replace />;
     }
 
@@ -39,3 +39,4 @@ const AdminProtectedRoute: React.FC<AdminRouteProps> = ({
 };
 
 export default AdminProtectedRoute;
+

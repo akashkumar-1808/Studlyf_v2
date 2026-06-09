@@ -131,3 +131,4 @@ const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, isApplie
 };
 
 export default OpportunityCard;
+

@@ -71,3 +71,4 @@ export const ResourcesTab: React.FC<ResourcesTabProps> = ({ resources }) => {
     </div>
   );
 };
+

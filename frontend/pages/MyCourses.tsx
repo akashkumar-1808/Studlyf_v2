@@ -79,7 +79,7 @@ const MyCourses: React.FC = () => {
         setEnrolledCourses(enrolled);
         setAvailableCourses(available);
       } catch (err) {
-        console.error('Error fetching courses:', err);
+        try { console.error('Error fetching courses:', err instanceof Error ? err.message : String(err)); } catch (_) {}
       } finally {
         setLoading(false);
       }
@@ -270,7 +270,7 @@ const MyCourses: React.FC = () => {
                                     method: 'DELETE'
                                   }).then(() => {
                                     setEnrolledCourses(enrolledCourses.filter(c => c._id !== course._id));
-                                  }).catch(err => console.error('Unenroll failed:', err));
+                                  }).catch(err => { try { console.error('Unenroll failed:', err instanceof Error ? err.message : String(err)); } catch (_) {} });
                                 }
                               }}
                               className="w-full py-3 bg-red-50 text-red-600 font-black text-[10px] uppercase tracking-[0.2em] rounded-lg hover:bg-red-100 active:scale-[0.98] transition-all border border-red-200"
@@ -392,3 +392,4 @@ const MyCourses: React.FC = () => {
 };
 
 export default MyCourses;
+

@@ -21,7 +21,7 @@ const SPOTLIGHT_DATA: SpotlightItem[] = [
         id: "event-1",
         title: "Hyderabad’s First Claude Community Campus Experience",
         description: "Partner with us to bring real-world AI workflows, Claude workshops, and campus innovation to your institution. 2-Day immersive experience featuring Claude AI workshops, guided innovation, hands-on building, expert mentorship, certificates, and community exposure.",
-        image: "/images/ad1.jpg",
+        image: "/images-optimized/ad1.webp",
         type: "Campus Workshop",
         cta: "JOIN US",
         date: "Free Participation",
@@ -33,7 +33,7 @@ const SPOTLIGHT_DATA: SpotlightItem[] = [
         id: "event-2",
         title: "STUDLYF × Hackprix Community Partnership",
         description: "Connecting student builders, creators, and innovators with one of the most exciting hackathon ecosystems. Join an ecosystem of hackathons, collaborative projects, networking opportunities, and student innovation communities.",
-        image: "/images/ad2.jpg",
+        image: "/images-optimized/ad2.webp",
         type: "Community Partner",
         cta: "JOIN US",
         date: "Builder Network",
@@ -45,7 +45,7 @@ const SPOTLIGHT_DATA: SpotlightItem[] = [
         id: "event-3",
         title: "Building the Future of Student Innovation",
         description: "From hackathons to partnerships, mentorship and product launches — STUDLYF continues building a thriving ecosystem for learners and builders. A growing movement powered by mentors, institutions, builders, startups, and student communities across campuses.",
-        image: "/images/ad3.jpg",
+        image: "/images-optimized/ad3.webp",
         type: "25+ Institutions",
         cta: "JOIN US",
         date: "4K+ Community",
@@ -58,10 +58,10 @@ const SPOTLIGHT_DATA: SpotlightItem[] = [
         title: "Inside the STUDLYF Community",
         description: "Hackathons, workshops, campus collaborations, and builder communities shaping the next generation of innovators. A glimpse into recent hackathons, student communities, mentorship sessions, collaborations, and real-world innovation experiences.",
         image: [
-            "/images/a1.jpg",
-            "/images/a2.jpg",
-            "/images/a3.jpg",
-            "/images/a4.jpg"
+            "/images-optimized/a1.webp",
+            "/images-optimized/a2.webp",
+            "/images-optimized/a3.webp",
+            "/images-optimized/a4.webp"
         ],
         type: "Campus Innovation",
         cta: "JOIN US",
@@ -153,6 +153,7 @@ export default function AdsCarousel() {
                                                     <img 
                                                         src={imgSrc} 
                                                         alt={`${currentItem.title} ${i + 1}`}
+                                                        loading="lazy"
                                                         className="w-full h-full object-cover object-center transition-transform duration-[10s] ease-out group-hover:scale-110"
                                                     />
                                                 </div>
@@ -162,6 +163,7 @@ export default function AdsCarousel() {
                                         <img 
                                             src={currentItem.image as string} 
                                             alt={currentItem.title}
+                                            loading="lazy"
                                             className="w-full h-full object-cover object-top transition-transform duration-[10s] ease-out group-hover:scale-110"
                                         />
                                     )}
@@ -273,11 +275,11 @@ export default function AdsCarousel() {
                                         {Array.isArray(item.image) ? (
                                             <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-0.5 bg-gray-100">
                                                 {item.image.map((imgSrc, i) => (
-                                                    <img key={i} src={imgSrc} alt="" className="w-full h-full object-cover object-center" />
+                                                    <img key={i} src={imgSrc} alt="" loading="lazy" className="w-full h-full object-cover object-center" />
                                                 ))}
                                             </div>
                                         ) : (
-                                            <img src={item.image as string} alt={item.title} className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-110" />
+                                            <img src={item.image as string} alt={item.title} loading="lazy" className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-110" />
                                         )}
                                         <div className={`absolute inset-0 transition-colors duration-300 ${isActive ? 'bg-transparent' : 'bg-black/30 group-hover:bg-black/10'}`} />
                                     </div>
@@ -311,3 +313,4 @@ export default function AdsCarousel() {
         </section>
     );
 }
+

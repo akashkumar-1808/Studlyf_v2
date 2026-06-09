@@ -144,7 +144,7 @@ const OpportunitiesManagement: React.FC<OpportunitiesManagementProps> = ({ insti
                 setTimeout(() => setShowToast(false), 3000);
             }
         } catch (err) {
-            console.error("Delete error:", err);
+            try { console.error("Delete error:", err instanceof Error ? err.message : String(err)); } catch (_) {}
         } finally {
             setShowConfirm(false);
             setEventToDelete(null);
@@ -219,7 +219,7 @@ const OpportunitiesManagement: React.FC<OpportunitiesManagementProps> = ({ insti
                 
                 setCacheData('institutionOpportunities', mappedEvents);
             } catch (err) {
-                console.error("Dynamic opportunities fetch error:", err);
+                try { console.error("Dynamic opportunities fetch error:", err instanceof Error ? err.message : String(err)); } catch (_) {}
             } finally {
                 setLoading('institutionOpportunities', false);
             }
@@ -246,18 +246,6 @@ const OpportunitiesManagement: React.FC<OpportunitiesManagementProps> = ({ insti
             <div className="space-y-6 animate-in fade-in duration-700 font-sans">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <h1 className="text-xl font-black text-slate-900">Opportunities</h1>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={syncPortalToParticipants}
-                            className="text-[#0A2E5C] px-4 py-2 rounded-full font-bold text-xs border border-slate-200 bg-white hover:bg-slate-50 transition-all"
-                        >
-                            Sync portal → participants
-                        </button>
-                        <button onClick={onCreateEvent} className="bg-[#EBF5FF] hover:bg-[#D6E9FF] text-[#0A2E5C] px-5 py-2 rounded-full font-black text-sm transition-all flex items-center gap-2 border border-[#B8D9FF]">
-                            <Plus size={16} /> Post
-                        </button>
-                    </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -495,3 +483,4 @@ const OpportunitiesManagement: React.FC<OpportunitiesManagementProps> = ({ insti
 };
 
 export default OpportunitiesManagement;
+

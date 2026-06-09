@@ -104,7 +104,7 @@ const EnquiryForm: React.FC = () => {
             setIsVerified(false);
             setTimeout(() => setIsSubmitted(false), 5000);
         } catch (error: any) {
-            console.error('Failed to send email. Status:', error?.status, 'Text:', error?.text, 'Error:', error);
+            try { console.error('Failed to send email. Status:', error?.status, 'Text:', error?.text, 'Error:', error); } catch (_) {}
             alert(`Failed to send inquiry: ${error?.text || 'Unknown error. Check console.'}`);
         } finally {
             setIsSubmitting(false);
@@ -357,3 +357,4 @@ const EnquiryForm: React.FC = () => {
 };
 
 export default EnquiryForm;
+

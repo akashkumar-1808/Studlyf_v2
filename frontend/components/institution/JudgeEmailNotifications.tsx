@@ -60,7 +60,7 @@ const JudgeEmailNotifications: React.FC<JudgeEmailNotificationsProps> = ({ judge
         alert('Failed to send email');
       }
     } catch (error) {
-      console.error('Email send error:', error);
+      try { console.error('Email send error:', error instanceof Error ? error.message : String(error)); } catch (_) {}
       alert('Failed to send email');
     }
   };
@@ -150,3 +150,4 @@ const JudgeEmailNotifications: React.FC<JudgeEmailNotificationsProps> = ({ judge
 };
 
 export default JudgeEmailNotifications;
+

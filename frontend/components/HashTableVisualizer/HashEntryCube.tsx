@@ -39,3 +39,4 @@ export function HashEntryCube({ entry, x, y, z }: HashEntryCubeProps) {
     </group>
   );
 }
+

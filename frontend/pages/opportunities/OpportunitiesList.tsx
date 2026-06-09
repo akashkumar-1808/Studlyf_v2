@@ -136,7 +136,7 @@ const OpportunitiesList: React.FC = () => {
                     setAppliedIds([]);
                 }
             } catch (err) {
-                console.error("Fetch error:", err);
+                try { console.error("Fetch error:", err instanceof Error ? err.message : String(err)); } catch (_) {}
             } finally {
                 setLoading(false);
             }
@@ -574,9 +574,13 @@ const OpportunitiesList: React.FC = () => {
                                                 {opp.type}
                                             </span>
 
-                                            {isRemote && (
-                                                <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-sky-50 text-sky-700 ring-1 ring-sky-200/60 flex items-center gap-1.5">
-                                                    <Globe size={12} /> {isEvent ? 'Online' : 'Remote'}
+                                            <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-sky-50 text-sky-700 ring-1 ring-sky-200/60 flex items-center gap-1.5">
+                                                <Globe size={12} /> {opp.opportunityMode || 'Online'}
+                                            </span>
+
+                                            {opp.applicantCount !== undefined && (
+                                                <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-purple-50 text-purple-700 ring-1 ring-purple-200/60">
+                                                    {opp.applicantCount > 0 ? `+${opp.applicantCount}` : '0'}
                                                 </span>
                                             )}
 
@@ -853,3 +857,4 @@ const AdvancedFilterPanel: React.FC<AdvancedFilterPanelProps> = ({
 };
 
 export default OpportunitiesList;
+

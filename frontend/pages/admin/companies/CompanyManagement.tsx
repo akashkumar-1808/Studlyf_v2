@@ -30,7 +30,7 @@ const CompanyManagement: React.FC = () => {
             const data = await response.json();
             if (Array.isArray(data)) setCompanies(data);
         } catch (error) {
-            console.error('Failed to fetch companies:', error);
+            try { console.error('Failed to fetch companies:', error instanceof Error ? error.message : String(error)); } catch (_) {}
         } finally {
             setLoading(false);
         }
@@ -52,7 +52,7 @@ const CompanyManagement: React.FC = () => {
                 setNewOrg({ name: '', sector: '', openings: 0, placed: 0 });
                 fetchCompanies();
             }
-        } catch (err) { console.error(err); }
+        } catch (err) { }
     };
 
     useEffect(() => {
@@ -293,3 +293,4 @@ const CompanyManagement: React.FC = () => {
 };
 
 export default CompanyManagement;
+

@@ -1,21 +1,25 @@
 from datetime import datetime
 from bson import ObjectId
-from db import scores_col, submissions_col, leaderboard_col, events_col
+from db import scores_col, submissions_col, submission_data_col, leaderboard_col, events_col
 
 class LeaderboardService:
     async def calculate_event_leaderboard(self, event_id: str):
         """
         Dynamically calculates rankings by aggregating judge scores.
-        Handles both individual and team participation.
+        Handles both individual and team participation across submission types.
         """
-        # 1. Get all submissions for the event
+        # 1. Get all submissions for the event from both collections
         submissions = await submissions_col.find({"event_id": event_id}).to_list(None)
-        if not submissions:
+        stage_submissions = await submission_data_col.find({"event_id": event_id}).to_list(None)
+        
+        # Combine submissions (ensure we don't have duplicates if id overlaps)
+        all_submissions = submissions + stage_submissions
+        if not all_submissions:
             return []
 
         rankings_data = []
 
-        for sub in submissions:
+        for sub in all_submissions:
             sub_id = str(sub["_id"])
             
             # 2. Get all scores for this submission
@@ -48,16 +52,20 @@ class LeaderboardService:
                 from db import participants_col
                 p = await participants_col.find_one({"_id": ObjectId(sub["participant_id"])})
                 recipient_name = p.get("full_name", "Participant") if p else "Participant"
+            elif sub.get("user_id"): # Fallback for stage submissions
+                from db import users_col
+                p = await users_col.find_one({"user_id": sub["user_id"]})
+                recipient_name = p.get("full_name", "Participant") if p else "Participant"
 
             rankings_data.append({
                 "event_id": event_id,
                 "team_id": sub.get("team_id"),
-                "participant_id": sub.get("participant_id"),
+                "participant_id": sub.get("participant_id") or sub.get("user_id"),
                 "participation_type": "TEAM" if sub.get("team_id") else "INDIVIDUAL",
                 "team_name": team_name,
                 "recipient_name": recipient_name,
                 "total_score": avg_score,
-                "project_name": sub.get("project_name", "Unnamed Project"),
+                "project_name": sub.get("project_name") or (sub.get("data", {}).get("project_name")) or "Unnamed Project",
                 "last_updated": datetime.utcnow()
             })
 

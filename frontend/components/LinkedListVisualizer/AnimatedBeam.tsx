@@ -24,3 +24,4 @@ export function AnimatedBeam({ fromX, toX, y = 1.5 }: AnimatedBeamProps) {
     </group>
   );
 }
+

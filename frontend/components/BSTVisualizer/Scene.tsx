@@ -33,3 +33,4 @@ export default function Scene({ flatNodes }: SceneProps) {
     </Canvas>
   );
 }
+

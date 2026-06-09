@@ -1,123 +1,85 @@
-"""
-Direct Evaluation Routes - No login required
-Allows judges to evaluate projects directly via email links
-"""
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Depends
 from typing import Optional
 from bson import ObjectId
-from datetime import datetime, timezone, timedelta
-import secrets
-import os
+from datetime import datetime, timezone
+from auth_institution import get_auth_user
 
 router = APIRouter(prefix="/api/evaluation", tags=["Evaluation"])
 
-@router.get("/{token}")
-async def get_evaluation_submission(token: str):
-    """Get submission details for evaluation via token"""
-    from db import submission_data_col, events_col
+@router.get("/{submission_id}")
+async def get_evaluation_submission(submission_id: str, user: dict = Depends(get_auth_user)):
+    """Get submission details for evaluation only if the judge is assigned."""
+    from db import submission_data_col, events_col, scores_col
     
-    print(f"DEBUG: Evaluation API called with token: {token}")
+    judge_id = str(user.get("user_id"))
     
-    # Find submission by evaluation token (robust search: top-level or inside assigned_judges array)
+    # Verify submission exists and judge is assigned
     submission = await submission_data_col.find_one({
-        "$or": [
-            {
-                "evaluation_token": token,
-                "evaluation_token_expires": {"$gt": datetime.now(timezone.utc)}
-            },
-            {
-                "assigned_judges": {
-                    "$elemMatch": {
-                        "evaluation_token": token
-                    }
-                }
-            }
-        ]
+        "_id": ObjectId(submission_id),
+        "assigned_judges.judge_id": judge_id
     })
     
-    print(f"DEBUG: Found submission: {submission is not None}")
-    
     if not submission:
-        print(f"DEBUG: Submission not found for token: {token}")
-        # Let's check if there are any submissions with evaluation tokens
-        all_submissions = await submission_data_col.find({"evaluation_token": {"$exists": True}}).to_list(length=10)
-        print(f"DEBUG: Submissions with evaluation tokens: {len(all_submissions)}")
-        for sub in all_submissions:
-            print(f"DEBUG: Token: {sub.get('evaluation_token')}, Expires: {sub.get('evaluation_token_expires')}")
-        raise HTTPException(status_code=404, detail="Invalid or expired evaluation link")
+        raise HTTPException(status_code=403, detail="You are not authorized to evaluate this submission.")
     
     # Get event details
     event = await events_col.find_one({"_id": ObjectId(submission["event_id"])})
     
-    # Sanitize data for judge privacy (remove student emails/names if they exist in metadata)
+    # Sanitize data
     sanitized_data = submission.get("data", {}).copy()
     sensitive_fields = ['user_email', 'user_name', 'email', 'contact', 'phone']
     for field in sensitive_fields:
         if field in sanitized_data:
             del sanitized_data[field]
             
-    # Find the judge_id associated with this specific token
-    judge_id = submission.get("assigned_judge_id")
-    judge_name = "Assigned Judge"
-    if "assigned_judges" in submission:
-        for j in submission["assigned_judges"]:
-            if j.get("evaluation_token") == token:
-                judge_id = j.get("judge_id")
-                judge_name = j.get("name", judge_name)
-                break
-    
-    # Check if judge has already submitted an evaluation
-    from db import scores_col
+    # Check if judge has already submitted
     existing_evaluation = await scores_col.find_one({
-        "submission_id": str(submission["_id"]),
+        "submission_id": submission_id,
         "judge_id": judge_id
     })
     
-    submission_data = {
-        "_id": str(submission["_id"]),
+    return {
+        "_id": submission_id,
         "event_id": submission.get("event_id"),
         "title": submission.get("project_name", "Untitled Project"),
         "team_name": submission.get("team_name", "Solo Participant"),
-        "submitted_at": submission.get("submitted_at"),
-        "status": submission.get("status"),
         "data": sanitized_data,
         "criteria": event.get("judging_criteria", []) if event else [],
-        "judge_name": judge_name,
         "existing_evaluation": {
             "score": existing_evaluation.get("total_score"),
             "criteria_scores": existing_evaluation.get("criteria_scores", {}),
             "recommendation": existing_evaluation.get("recommendation"),
-            "comments": existing_evaluation.get("comments"),
-            "submitted_at": existing_evaluation.get("evaluated_at")
+            "comments": existing_evaluation.get("comments")
         } if existing_evaluation else None
     }
-    
-    return submission_data
 
-@router.post("/{token}")
-async def submit_evaluation(token: str, evaluation_data: dict = Body(...)):
-    """Submit evaluation for a submission"""
-    from db import submission_data_col, scores_col
+@router.post("/{submission_id}")
+async def submit_evaluation(submission_id: str, evaluation_data: dict = Body(...), user: dict = Depends(get_auth_user)):
+    """Submit evaluation only if judge is assigned to this submission and stage."""
+    from db import submission_data_col, scores_col, events_col
     
-    # Validate token (robust search: top-level or inside assigned_judges array)
+    judge_id = str(user.get("user_id"))
+    
+    # Verify assignment to submission
     submission = await submission_data_col.find_one({
-        "$or": [
-            {
-                "evaluation_token": token,
-                "evaluation_token_expires": {"$gt": datetime.now(timezone.utc)}
-            },
-            {
-                "assigned_judges": {
-                    "$elemMatch": {
-                        "evaluation_token": token
-                    }
-                }
-            }
-        ]
+        "_id": ObjectId(submission_id),
+        "assigned_judges.judge_id": judge_id
     })
     
     if not submission:
-        raise HTTPException(status_code=404, detail="Invalid or expired evaluation link")
+        raise HTTPException(status_code=403, detail="You are not authorized to evaluate this submission.")
+    
+    # Verify assignment to stage (if stage-based restrictions apply)
+    stage_id = submission.get("stage_id")
+    event_id = submission.get("event_id")
+    event = await events_col.find_one({"_id": ObjectId(event_id)})
+    
+    if event and stage_id:
+        stage = next((s for s in event.get("stages", []) if s.get("id") == stage_id), None)
+        if stage and "assigned_judges" in stage:
+            allowed_judges = [j.get("judge_id") for j in stage.get("assigned_judges", [])]
+            if judge_id not in allowed_judges:
+                raise HTTPException(status_code=403, detail="You are not assigned to evaluate this stage.")
     
     # Extract evaluation data
     score = evaluation_data.get("score")
@@ -125,35 +87,26 @@ async def submit_evaluation(token: str, evaluation_data: dict = Body(...)):
     comments = evaluation_data.get("comments", "")
     criteria_scores = evaluation_data.get("criteria_scores", {})
     
-    if not score or score < 0 or score > 100:
+    if not score or not (0 <= score <= 100):
         raise HTTPException(status_code=400, detail="Invalid score. Must be between 0 and 100.")
     
-    # Find the judge_id associated with this specific token
-    judge_id = submission.get("assigned_judge_id")
-    if "assigned_judges" in submission:
-        for j in submission["assigned_judges"]:
-            if j.get("evaluation_token") == token:
-                judge_id = j.get("judge_id")
-                break
-    
-    # Save evaluation to scores collection
+    # Save evaluation
     score_data = {
-        "submission_id": str(submission["_id"]),
-        "team_id": submission.get("team_id"), # Ensure team_id is preserved for dashboard aggregation
+        "submission_id": submission_id,
+        "team_id": submission.get("team_id"),
         "judge_id": judge_id,
-        "event_id": submission["event_id"],
-        "total_score": score, # Renamed to total_score for consistency with dashboard pipelines
+        "event_id": event_id,
+        "stage_id": stage_id,
+        "total_score": score,
         "criteria_scores": criteria_scores,
         "recommendation": recommendation,
         "comments": comments,
         "evaluated_at": datetime.now(timezone.utc),
-        "evaluation_token": token,
         "status": "completed"
     }
     
-    # Use upsert to handle accidental double-submissions with same token
-    result = await scores_col.update_one(
-        {"submission_id": str(submission["_id"]), "judge_id": judge_id},
+    await scores_col.update_one(
+        {"submission_id": submission_id, "judge_id": judge_id},
         {"$set": score_data},
         upsert=True
     )
@@ -161,75 +114,7 @@ async def submit_evaluation(token: str, evaluation_data: dict = Body(...)):
     # Update submission status
     await submission_data_col.update_one(
         {"_id": submission["_id"]},
-        {
-            "$set": {
-                "evaluation_status": "completed",
-                "evaluation_score": score,
-                "evaluation_recommendation": recommendation,
-                "evaluated_at": datetime.now(timezone.utc)
-            }
-        }
+        {"$set": {"evaluation_status": "completed", "evaluation_score": score}}
     )
     
-    # Send email notification to participant (only shortlisted/rejected status, no score)
-    try:
-        participant_email = submission.get("user_email") or submission.get("email") or ""
-        participant_name = submission.get("user_name") or submission.get("team_name") or "Participant"
-        event_title = submission.get("event_name") or submission.get("event_title") or "Event"
-        is_shortlisted = recommendation == "shortlist"
-        status_text = "shortlisted" if is_shortlisted else "not shortlisted"
-        if participant_email:
-            from services.email_service import send_notification_email
-            subj = f"Update on your {event_title} submission"
-            body = f"""Hello {participant_name},
-
-Your submission for {event_title} has been reviewed.
-
-Status: You have been {status_text} for the next stage.
-
-{comments if comments else ''}
-
-Best regards,
-Studlyf Team"""
-            await send_notification_email(participant_email, subj, body)
-    except Exception as e:
-        print(f"[Evaluation] Failed to send notification email: {e}")
-    
-    # Keep evaluation token valid for the full duration (7 days) to allow updates
-    # if the judge needs to revise their evaluation.
-    
-    return {
-        "success": True,
-        "message": "Evaluation submitted successfully",
-        "score_id": str(result.upserted_id) if result.upserted_id else "updated"
-    }
-
-def generate_evaluation_token():
-    """Generate secure evaluation token"""
-    return secrets.token_urlsafe(32)
-
-async def create_evaluation_links(submission_id: str, judge_emails: list):
-    """Create evaluation links for judges"""
-    from db import submission_data_col
-    
-    # Generate unique token for this submission
-    token = generate_evaluation_token()
-    
-    # Set token to expire in 7 days
-    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-    
-    # Update submission with evaluation token
-    await submission_data_col.update_one(
-        {"_id": ObjectId(submission_id)},
-        {
-            "$set": {
-                "evaluation_token": token,
-                "evaluation_token_expires": expires_at,
-                "assigned_judge_emails": judge_emails
-            }
-        }
-    )
-    
-    # Return evaluation URL
-    base_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
-    return f"{base_url}/#/evaluate/{token}"
+    return {"success": True, "message": "Evaluation submitted successfully"}

@@ -188,3 +188,4 @@ const FAQCarousel: React.FC = () => {
 };
 
 export default FAQCarousel;
+

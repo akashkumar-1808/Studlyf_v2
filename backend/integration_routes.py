@@ -615,15 +615,18 @@ async def get_event_participants(event_id: str, user: dict = Depends(get_auth_us
 @router.get("/events/{event_id}/teams")
 async def get_event_teams(event_id: str, user: dict = Depends(get_auth_user)):
     """Retrieves all teams registered for a specific event."""
-    await assert_institution_owns_event(event_id, user)
+    event_doc = await assert_institution_owns_event(event_id, user)
     
-    # Robust event_id variants
-    ev_id_variants = [event_id, str(event_id)]
-    try:
-        if len(str(event_id)) == 24:
-            ev_id_variants.append(ObjectId(event_id))
-    except:
-        pass
+    # Robust event_id variants from the actual event document
+    ev_id_variants = [str(event_doc["_id"]), event_doc["_id"]]
+    if event_doc.get("event_id"):
+        ev_id_variants.append(event_doc["event_id"])
+    if event_doc.get("event_link_id"):
+        ev_id_variants.append(event_doc["event_link_id"])
+    
+    # Also include the requested event_id string itself
+    if event_id not in ev_id_variants:
+        ev_id_variants.append(event_id)
 
     from db import teams_col
     cursor = teams_col.find({"event_id": {"$in": ev_id_variants}})
@@ -636,7 +639,9 @@ async def get_event_teams(event_id: str, user: dict = Depends(get_auth_user)):
         if "members" in team:
             member_user_ids = [str(m.get("user_id")) for m in team["members"] if m.get("user_id")]
             if member_user_ids:
-                from db import users_col
+                from db import users_col, participants_col, submissions_col, submission_data_col
+                
+                # Fetch users
                 users_cursor = users_col.find({"user_id": {"$in": member_user_ids}})
                 user_map = {}
                 async for u in users_cursor:
@@ -645,12 +650,38 @@ async def get_event_teams(event_id: str, user: dict = Depends(get_auth_user)):
                         "email": u.get("email")
                     }
                 
+                # Fetch participants (registration status)
+                participants_cursor = participants_col.find({
+                    "event_id": {"$in": ev_id_variants},
+                    "user_id": {"$in": member_user_ids}
+                })
+                participant_map = {}
+                async for p in participants_cursor:
+                    participant_map[str(p["user_id"])] = p.get("status", "registered")
+
+                # Fetch submissions
+                subs_cursor = submissions_col.find({
+                    "event_id": {"$in": ev_id_variants},
+                    "user_id": {"$in": member_user_ids}
+                })
+                submitted_user_ids = set()
+                async for s in subs_cursor:
+                    submitted_user_ids.add(str(s["user_id"]))
+
+                stage_subs_cursor = submission_data_col.find({
+                    "event_id": {"$in": ev_id_variants},
+                    "user_id": {"$in": member_user_ids}
+                })
+                async for ss in stage_subs_cursor:
+                    submitted_user_ids.add(str(ss["user_id"]))
                 for m in team["members"]:
                     uid = str(m.get("user_id"))
                     if uid in user_map:
                         m["name"] = user_map[uid]["name"]
                         m["email"] = user_map[uid]["email"]
                         m["is_leader"] = (str(team.get("team_leader_id") or team.get("leader_id")) == uid)
+                        m["registration_status"] = participant_map.get(uid, "not_registered")
+                        m["submission_status"] = "submitted" if uid in submitted_user_ids else "no_submission"
                         
         teams.append(team)
         seen_team_names.add(team.get("team_name") or team.get("name"))
@@ -3008,10 +3039,11 @@ async def update_team_status(event_id: str, team_id: str, status_update: dict, u
     except Exception:
         pass  # Team might not exist or update might fail
     
-    # Also notify team members dynamically
+    # Notify team members dynamically via in-app notification only
     try:
         from db import notifications_col
         from datetime import datetime
+        
         team_doc = await teams_col.find_one({"_id": ObjectId(team_id)})
         event_doc = await events_col.find_one({"_id": ObjectId(event_id)})
         if team_doc and event_doc:
@@ -3019,7 +3051,7 @@ async def update_team_status(event_id: str, team_id: str, status_update: dict, u
             for m in members:
                 m_uid = m.get("user_id")
                 if m_uid:
-                    # Schedule in background without awaiting the task object itself
+                    # Schedule in background
                     asyncio.create_task(notifications_col.insert_one({
                         "user_id": str(m_uid),
                         "title": f"Status Update: {event_doc.get('title')}",
@@ -3029,7 +3061,7 @@ async def update_team_status(event_id: str, team_id: str, status_update: dict, u
                         "created_at": datetime.utcnow()
                     }))
     except Exception as e:
-        logger.error(f"Failed to create manual team notification: {e}")
+        logger.error(f"Failed to create manual team in-app notification: {e}")
 
     return {"status": "success", "updated_count": result.modified_count}
 
@@ -6340,3 +6372,50 @@ async def advance_team_status(
         )
         
     return {"status": "success", "message": f"Team status updated to {new_status}"}
+
+@router.post("/events/{event_id}/teams/{team_id}/notify")
+async def notify_team_manually(
+    event_id: str,
+    team_id: str,
+    data: dict = Body(...),
+    user: dict = Depends(get_auth_user)
+):
+    """
+    Admin endpoint: Manually trigger a notification email to all members of a team.
+    """
+    from db import teams_col, events_col, users_col, hackathon_submissions_col
+    from services.email_service import send_notification_email
+    
+    team_doc = await teams_col.find_one({"_id": ObjectId(team_id)})
+    event_doc = await events_col.find_one({"_id": ObjectId(event_id)})
+    
+    if not team_doc:
+        raise HTTPException(status_code=404, detail="Team not found")
+    
+    subject = data.get("subject", f"Update regarding {event_doc.get('title', 'your event')}")
+    message = data.get("message", "An update regarding your team status has been posted.")
+    
+    html_body = f"""
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2>Status Update for Team: {team_doc.get("team_name", "Your Team")}</h2>
+        <p>{message}</p>
+        <hr>
+        <p style="font-size: 12px; color: #888;">Sent by {event_doc.get("title", "Event Admin")}</p>
+    </div>
+    """
+    
+    sent_emails = []
+    for member in team_doc.get("members", []):
+        m_uid = member.get("user_id")
+        email = member.get("email")
+        if not email and m_uid:
+            user_doc = await users_col.find_one({"user_id": str(m_uid)})
+            if user_doc:
+                email = user_doc.get("email")
+                
+        if email:
+            await send_notification_email(email, subject, html_body)
+            sent_emails.append(email)
+            
+    return {"status": "success", "sent_to": sent_emails}
+

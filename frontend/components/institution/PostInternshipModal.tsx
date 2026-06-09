@@ -200,7 +200,7 @@ const PostInternshipModal: React.FC<PostInternshipModalProps> = ({ isOpen, onClo
                 alert(`Failed to save internship: ${errorData.detail || response.statusText || 'Unknown Error'}`);
             }
         } catch (err) {
-            console.error("Internship submit failed", err);
+            try { console.error("Internship submit failed", err instanceof Error ? err.message : String(err)); } catch (_) {}
             alert("Network error: Failed to connect to the server.");
         } finally {
             setLoading(false);
@@ -725,3 +725,4 @@ const PostInternshipModal: React.FC<PostInternshipModalProps> = ({ isOpen, onClo
 };
 
 export default PostInternshipModal;
+

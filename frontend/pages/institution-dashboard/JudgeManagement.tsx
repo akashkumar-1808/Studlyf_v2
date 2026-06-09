@@ -28,7 +28,7 @@ const JudgeManagement: React.FC = () => {
                 setJudges(data || []);
             }
         } catch (error) {
-            console.error('Failed to fetch judges:', error);
+            try { console.error('Failed to fetch judges:', error instanceof Error ? error.message : String(error)); } catch (_) {}
         } finally {
             setLoading(false);
         }
@@ -59,7 +59,7 @@ const JudgeManagement: React.FC = () => {
                 alert(error.detail || 'Failed to invite judge');
             }
         } catch (error) {
-            console.error('Error inviting judge:', error);
+            try { console.error('Error inviting judge:', error instanceof Error ? error.message : String(error)); } catch (_) {}
             alert('Network error while inviting judge');
         } finally {
             setIsInviting(false);
@@ -78,7 +78,7 @@ const JudgeManagement: React.FC = () => {
                 fetchJudges();
             }
         } catch (error) {
-            console.error('Failed to remove judge:', error);
+            try { console.error('Failed to remove judge:', error instanceof Error ? error.message : String(error)); } catch (_) {}
         }
     };
 
@@ -217,3 +217,4 @@ const JudgeManagement: React.FC = () => {
 };
 
 export default JudgeManagement;
+

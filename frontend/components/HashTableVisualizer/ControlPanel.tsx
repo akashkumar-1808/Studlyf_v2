@@ -35,3 +35,4 @@ export default function ControlPanel({ onCreateTable, onInsert, onDelete, onSear
     </div>
   );
 }
+

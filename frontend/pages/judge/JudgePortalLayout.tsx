@@ -25,3 +25,4 @@ const JudgePortalLayout: React.FC = () => {
 };
 
 export default JudgePortalLayout;
+

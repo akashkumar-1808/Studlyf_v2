@@ -256,7 +256,7 @@ const PostOpportunityModal: React.FC<PostOpportunityModalProps> = ({ isOpen, onC
                             }
                         }
                     } catch (err) {
-                        console.error("Failed to fetch institution profile", err);
+                        try { console.error("Failed to fetch institution profile", err instanceof Error ? err.message : String(err)); } catch (_) {}
                     }
                 };
                 fetchProfile();
@@ -366,7 +366,7 @@ const PostOpportunityModal: React.FC<PostOpportunityModalProps> = ({ isOpen, onC
                     }));
                 }
             } catch (err) {
-                console.error("Failed to fetch event details", err);
+                try { console.error("Failed to fetch event details", err instanceof Error ? err.message : String(err)); } catch (_) {}
             }
         };
         fetchEventDetails();
@@ -534,7 +534,7 @@ const PostOpportunityModal: React.FC<PostOpportunityModalProps> = ({ isOpen, onC
                     alert(`Failed to save opportunity: ${errorData.detail || response.statusText || 'Unknown Error'}`);
                 }
             } catch (err) {
-                console.error("Submission failed", err);
+                try { console.error("Submission failed", err instanceof Error ? err.message : String(err)); } catch (_) {}
                 alert("Network error: Failed to connect to the server.");
             } finally {
                 setLoading(false);
@@ -662,7 +662,7 @@ const PostOpportunityModal: React.FC<PostOpportunityModalProps> = ({ isOpen, onC
                 alert(`Failed to save draft: ${errorData.detail || response.statusText || 'Unknown Error'}`);
             }
         } catch (err) {
-            console.error("Save draft failed", err);
+            try { console.error("Save draft failed", err instanceof Error ? err.message : String(err)); } catch (_) {}
             alert("Network error: Failed to connect to the server.");
         } finally {
             setLoading(false);
@@ -2393,3 +2393,4 @@ const PostOpportunityModal: React.FC<PostOpportunityModalProps> = ({ isOpen, onC
 };
 
 export default PostOpportunityModal;
+

@@ -195,3 +195,4 @@ const PurpleNavbar: React.FC = () => {
 };
 
 export default PurpleNavbar;
+

@@ -282,3 +282,4 @@ const CourseCard: React.FC<CardProps> = ({ course, enrolledSeed, onClick }) => {
 };
 
 export default CoursesForEveryAmbition;
+

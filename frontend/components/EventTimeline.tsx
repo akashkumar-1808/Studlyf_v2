@@ -151,3 +151,4 @@ export default function EventTimeline({ stages, className = '', title = 'Event T
     </section>
   );
 }
+

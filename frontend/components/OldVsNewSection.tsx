@@ -310,3 +310,4 @@ const OldVsNewSection: React.FC = () => {
 };
 
 export default OldVsNewSection;
+

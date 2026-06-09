@@ -27,3 +27,4 @@ export function TreeLine({ fromX, fromY, toX, toY }: TreeLineProps) {
     </mesh>
   );
 }
+

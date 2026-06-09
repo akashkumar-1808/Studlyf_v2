@@ -48,3 +48,4 @@ const AuthCard: React.FC<AuthCardProps> = ({
 };
 
 export default AuthCard;
+

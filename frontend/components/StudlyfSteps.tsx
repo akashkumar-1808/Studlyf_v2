@@ -64,7 +64,7 @@ const StudlyfSteps: React.FC = () => {
           {/* Left Side Copy */}
           <div className="max-w-xl">
             <h2 className="text-4xl md:text-5xl font-black text-[#1A1A1A] mb-8 leading-tight flex flex-wrap items-center gap-x-3 lg:gap-x-4">
-              What <img src="/images/studlyf1.jpg" alt="STUDLYF" className="h-10 sm:h-12 md:h-14 w-auto object-contain mix-blend-multiply rounded-md" /> provides you
+              What <img src="/images-optimized/studlyf1.webp" alt="STUDLYF" className="h-10 sm:h-12 md:h-14 w-auto object-contain mix-blend-multiply rounded-md" /> provides you
             </h2>
             <p className="text-gray-600 text-lg mb-8 leading-relaxed font-medium">
               STUDLYF transforms your career journey by bringing all the essential tools, roadmaps, and opportunities into one premium ecosystem. The key is our highly structured approach to student growth: combining actionable guidance with real-world leverage to elevate you seamlessly.
@@ -130,3 +130,4 @@ const StudlyfSteps: React.FC = () => {
 };
 
 export default StudlyfSteps;
+

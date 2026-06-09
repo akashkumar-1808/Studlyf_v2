@@ -31,7 +31,6 @@ const TeamManager: React.FC<TeamManagerProps> = ({ eventId }) => {
                 setTeamData(data.team);
             }
         } catch (err) {
-            console.error(err);
             setError('Failed to load team data');
         } finally {
             setLoading(false);
@@ -81,8 +80,7 @@ const TeamManager: React.FC<TeamManagerProps> = ({ eventId }) => {
                 setError(data.detail || `Failed to create team (${res.status})`);
             }
         } catch (err) {
-            console.error('DEBUG: Team creation error:', err);
-            setError(`Network error: ${err}`);
+            setError('Network error occurred');
         } finally {
             setActionLoading(false);
         }
@@ -293,3 +291,4 @@ const TeamManager: React.FC<TeamManagerProps> = ({ eventId }) => {
 };
 
 export default TeamManager;
+

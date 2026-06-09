@@ -224,7 +224,7 @@ const Courses: React.FC = () => {
           setCourses([]);
         }
       } catch (err) {
-        console.error('💥 Error fetching courses:', err);
+        try { console.error('💥 Error fetching courses:', err instanceof Error ? err.message : String(err)); } catch (_) {}
         setCourses([]);
       } finally {
         setLoading(false);
@@ -391,3 +391,4 @@ const Courses: React.FC = () => {
 };
 
 export default Courses;
+

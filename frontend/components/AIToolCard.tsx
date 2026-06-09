@@ -134,3 +134,4 @@ const AIToolCard: React.FC<{ tool: Tool }> = ({ tool }) => {
 };
 
 export default AIToolCard;
+

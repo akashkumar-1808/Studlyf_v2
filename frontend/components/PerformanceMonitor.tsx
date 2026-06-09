@@ -28,3 +28,4 @@ export const PerformanceMonitor: React.FC = () => {
 
     return null;
 };
+

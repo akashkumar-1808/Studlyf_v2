@@ -290,3 +290,4 @@ const IndustryProjects: React.FC = () => {
 };
 
 export default IndustryProjects;
+

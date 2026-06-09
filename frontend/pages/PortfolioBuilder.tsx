@@ -234,7 +234,6 @@ const PortfolioBuilder: React.FC = () => {
         setStep(4);
       }
     } catch (error) {
-      console.error(error);
       alert('Failed to generate portfolio');
     } finally {
       setIsGenerating(false);
@@ -1428,3 +1427,4 @@ const PortfolioBuilder: React.FC = () => {
 };
 
 export default PortfolioBuilder;
+

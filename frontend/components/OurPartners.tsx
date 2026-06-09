@@ -1,19 +1,19 @@
 import React from 'react';
 
 const partners = [
-    { name: 'Angel One', logo: '/images/angel one.png' },
-    { name: 'AOL', logo: '/images/aol.png' },
-    { name: 'Bajaj', logo: '/images/bajaj.png' },
-    { name: 'IBM', logo: '/images/ibm.png' },
-    { name: 'IIM B', logo: '/images/iim b.png' },
-    { name: 'Infosys', logo: '/images/infosys.png' },
-    { name: 'ISB', logo: '/images/isb.png' },
-    { name: 'Isha', logo: '/images/isha.png' },
-    { name: 'LIC', logo: '/images/lic.png' },
-    { name: 'Optum', logo: '/images/optum.png' },
-    { name: 'Stanford', logo: '/images/stanford.png' },
-    { name: 'TCS', logo: '/images/tcs.png' },
-    { name: 'Wharton', logo: '/images/wharton.png' },
+    { name: 'Angel One', logo: '/images-optimized/angel one.webp' },
+    { name: 'AOL', logo: '/images-optimized/aol.webp' },
+    { name: 'Bajaj', logo: '/images-optimized/bajaj.webp' },
+    { name: 'IBM', logo: '/images-optimized/ibm.webp' },
+    { name: 'IIM B', logo: '/images-optimized/iim b.webp' },
+    { name: 'Infosys', logo: '/images-optimized/infosys.webp' },
+    { name: 'ISB', logo: '/images-optimized/isb.webp' },
+    { name: 'Isha', logo: '/images-optimized/isha.webp' },
+    { name: 'LIC', logo: '/images-optimized/lic.webp' },
+    { name: 'Optum', logo: '/images-optimized/optum.webp' },
+    { name: 'Stanford', logo: '/images-optimized/stanford.webp' },
+    { name: 'TCS', logo: '/images-optimized/tcs.webp' },
+    { name: 'Wharton', logo: '/images-optimized/wharton.webp' },
 ];
 
 const OurPartners: React.FC = () => {
@@ -93,3 +93,4 @@ const OurPartners: React.FC = () => {
 };
 
 export default OurPartners;
+

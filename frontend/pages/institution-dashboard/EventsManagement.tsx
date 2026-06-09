@@ -128,7 +128,7 @@ const EventsManagement: React.FC<EventsManagementProps> = ({ institutionId, onVi
                 alert("Failed to delete listing.");
             }
         } catch (err) {
-            console.error("Delete error:", err);
+            try { console.error("Delete error:", err instanceof Error ? err.message : String(err)); } catch (_) {}
         } finally {
             setShowConfirm(false);
             setEventToDelete(null);
@@ -163,7 +163,7 @@ const EventsManagement: React.FC<EventsManagementProps> = ({ institutionId, onVi
                     registrationStatus: e.registration_status || 'Unknown'
                 })));
             } catch (err) {
-                console.error("Dynamic events fetch error:", err);
+                try { console.error("Dynamic events fetch error:", err instanceof Error ? err.message : String(err)); } catch (_) {}
             } finally {
                 setLoading(false);
             }
@@ -419,3 +419,4 @@ const EventsManagement: React.FC<EventsManagementProps> = ({ institutionId, onVi
 };
 
 export default EventsManagement;
+

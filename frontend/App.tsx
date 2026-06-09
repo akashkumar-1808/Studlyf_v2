@@ -5,6 +5,7 @@ import { HashRouter as Router, Routes, Route, useLocation, Navigate, useNavigate
 
 // Core components
 import Navigation from './components/Navigation';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Lazy-loaded components (code-split)
 const Footer = lazy(() => import('./components/Footer'));
@@ -280,15 +281,16 @@ const App: React.FC = () => {
             </div>
           }
         >
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <PublicRoute>
-                  <Home />
-                </PublicRoute>
-              }
-            />
+          <ErrorBoundary>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <PublicRoute>
+                    <Home />
+                  </PublicRoute>
+                }
+              />
 
             <Route path="/events/join-team" element={<PublicRoute><JoinTeamPage /></PublicRoute>} />
 
@@ -524,6 +526,7 @@ const App: React.FC = () => {
               />
             </Route>
           </Routes>
+        </ErrorBoundary>
         </Suspense>
       </main>
 
@@ -581,3 +584,4 @@ const AppWrapper: React.FC = () => {
 };
 
 export default AppWrapper;
+

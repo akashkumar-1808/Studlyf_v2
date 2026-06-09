@@ -306,3 +306,4 @@ const ParticipantCardPage: React.FC = () => {
 };
 
 export default ParticipantCardPage;
+

@@ -426,22 +426,15 @@ async def get_event_dashboard_data(event_id: str, user: dict = Depends(get_auth_
     """
     Admin/Institution endpoint: Aggregate event dashboard data to reduce network waterfall.
     """
-    from db import participants_col, quizzes_col, teams_col, submissions_col
+    from db import participants_col, quizzes_col, teams_col, submissions_col, submission_data_col, events_col
     import logging
     logger = logging.getLogger("event_routes")
-    
-    # Robust search: try ObjectId first, then string ID
-    search_query = {"$or": []}
+
     try:
-        search_query["$or"].append({"_id": ObjectId(event_id)})
-    except:
-        pass
-    search_query["$or"].append({"_id": event_id})
-    search_query["$or"].append({"event_id": event_id})
-        
-    # Verify event ownership
-    event = await events_col.find_one(search_query)
-    
+        event = await events_col.find_one({"_id": ObjectId(event_id)})
+    except Exception:
+        event = None
+
     if not event:
         logger.error(f"Event not found in dashboard data endpoint: {event_id}")
         raise HTTPException(status_code=404, detail="Event not found")
@@ -457,12 +450,13 @@ async def get_event_dashboard_data(event_id: str, user: dict = Depends(get_auth_
         participants_col.find({"event_id": str(event_id)}).to_list(length=None),
         quizzes_col.find({"event_id": str(event_id)}).to_list(length=None),
         teams_col.find({"event_id": str(event_id)}).to_list(length=None),
-        submissions_col.find({"event_id": str(event_id)}).to_list(length=None)
+        submissions_col.find({"event_id": str(event_id)}).to_list(length=None),
+        submission_data_col.find({"event_id": str(event_id)}).to_list(length=None),
     ]
     
     try:
         results = await asyncio.gather(*tasks)
-        participants, quizzes, teams, submissions = results
+        participants, quizzes, teams, submissions, stage_submissions = results
     except Exception as e:
         logger.error(f"Error gathering dashboard data for {event_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Error gathering data: {str(e)}")
@@ -471,7 +465,8 @@ async def get_event_dashboard_data(event_id: str, user: dict = Depends(get_auth_
         "participants": participants,
         "quizzes": quizzes,
         "teams": teams,
-        "submissions": submissions
+        "submissions": submissions,
+        "stage_submissions": stage_submissions
     }
 
 

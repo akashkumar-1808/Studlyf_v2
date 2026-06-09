@@ -69,6 +69,7 @@ const TeamManager: React.FC<TeamManagerProps> = ({ eventId, opportunity }) => {
     const teamSizeConfigured = minSizeRaw != null && maxSizeRaw != null;
     const minSize = teamSizeConfigured ? Number(minSizeRaw) : null;
     const maxSize = teamSizeConfigured ? Number(maxSizeRaw) : null;
+    const isSoloTeam = (team as any)?.is_solo === true;
 
     const shareableLink = generatedInvite
         ? `${FRONTEND_URL}/#/opportunities/${eventId}?tab=team&invite=${generatedInvite}`
@@ -475,7 +476,7 @@ const TeamManager: React.FC<TeamManagerProps> = ({ eventId, opportunity }) => {
                                         </span>
                                     )}
                                     <div className="bg-white/20 rounded-xl px-3 py-1.5 text-white text-sm font-black">
-                                        {teamSizeConfigured ? `${memberCount}/${maxSize}` : `${memberCount}`}
+                                        {isSoloTeam ? `${memberCount}/1` : teamSizeConfigured ? `${memberCount}/${maxSize}` : `${memberCount}`}
                                     </div>
                                 </div>
                             </div>
@@ -505,7 +506,7 @@ const TeamManager: React.FC<TeamManagerProps> = ({ eventId, opportunity }) => {
                                         </div>
                                     );
                                 })}
-                                {teamSizeConfigured && (team as any).status !== 'finalized' ? Array.from({ length: Math.max(0, (maxSize as number) - memberCount) }).map((_, i) => (
+                                {!isSoloTeam && teamSizeConfigured && (team as any).status !== 'finalized' ? Array.from({ length: Math.max(0, (maxSize as number) - memberCount) }).map((_, i) => (
                                     <div key={`empty-${i}`} className="flex items-center gap-3 p-3 border-2 border-dashed border-slate-200 rounded-xl">
                                         <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
                                             <UserPlus size={14} className="text-slate-300" />
@@ -517,8 +518,8 @@ const TeamManager: React.FC<TeamManagerProps> = ({ eventId, opportunity }) => {
                         </div>
                     </div>
 
-                    {/* Invite section — leader only (only if not finalized) */}
-                    {isLeader && (team as any).status !== 'finalized' && (
+                    {/* Invite section — leader only (only if not finalized, hidden for solo) */}
+                    {isLeader && !isSoloTeam && (team as any).status !== 'finalized' && (
                         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Invite Members</p>
 
@@ -569,11 +570,66 @@ const TeamManager: React.FC<TeamManagerProps> = ({ eventId, opportunity }) => {
                         </div>
                     )}
 
+                    {isLeader && isSoloTeam && (team as any).status === 'active' && (
+                        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-2xl p-6 text-center shadow-sm">
+                            <p className="text-sm font-black text-amber-900 flex items-center justify-center gap-1.5">Solo Team Created</p>
+                            <p className="text-xs text-amber-700 mt-1 font-semibold">Your solo team is ready. Submit it for admin approval to unlock event stages.</p>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    setActionLoading(true);
+                                    setError(null);
+                                    try {
+                                        const res = await fetch(`${API_BASE_URL}/api/v1/stages/teams/submit-solo`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                                            body: JSON.stringify({ event_id: eventId }),
+                                        });
+                                        const data = await res.json();
+                                        if (!res.ok) {
+                                            throw new Error(data.detail || data.error || 'Failed to submit');
+                                        }
+                                        setTeam((prev: any) => prev ? { ...prev, status: 'finalized' } : prev);
+                                        setSuccessMsg('Team submitted for admin review!');
+                                        setTimeout(() => setSuccessMsg(null), 4000);
+                                    } catch (err: any) {
+                                        setError(err.message || 'Something went wrong');
+                                    } finally {
+                                        setActionLoading(false);
+                                    }
+                                }}
+                                disabled={actionLoading}
+                                className="mt-4 px-6 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-sm"
+                            >
+                                {actionLoading ? 'Submitting...' : 'Submit for Approval'}
+                            </button>
+                        </div>
+                    )}
+
                     {isLeader && (team as any).status === 'finalized' && (
                         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center shadow-inner relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
-                            <p className="text-sm font-black text-slate-100 flex items-center justify-center gap-1.5">🔒 Team Finalized & Locked</p>
-                            <p className="text-xs text-slate-400 mt-1 font-semibold">Your team structure has been submitted and locked for the event. You are now ready to make submissions!</p>
+                            {isSoloTeam ? (
+                                <>
+                                    <p className="text-sm font-black text-slate-100 flex items-center justify-center gap-1.5">Submitted for Review</p>
+                                    <p className="text-xs text-slate-400 mt-1 font-semibold">Your solo team has been submitted and is waiting for admin approval. You will be able to submit to stages once approved.</p>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const oppPath = eventId ? `/opportunities/${encodeURIComponent(String(eventId))}` : '';
+                                            if (oppPath) navigate(`${oppPath}?tab=submissions`);
+                                        }}
+                                        className="mt-4 px-6 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-sm"
+                                    >
+                                        Go to Submissions
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-sm font-black text-slate-100 flex items-center justify-center gap-1.5">🔒 Team Finalized & Locked</p>
+                                    <p className="text-xs text-slate-400 mt-1 font-semibold">Your team structure has been submitted and locked for the event. You are now ready to make submissions!</p>
+                                </>
+                            )}
                         </div>
                     )}
 
@@ -595,8 +651,8 @@ const TeamManager: React.FC<TeamManagerProps> = ({ eventId, opportunity }) => {
                         </div>
                     )}
 
-                    {/* Join Requests — leader can approve/reject (only if not finalized) */}
-                    {isLeader && (team as any).status !== 'finalized' && joinRequests.filter(r => r.status === 'PENDING').length > 0 && (
+                    {/* Join Requests — leader can approve/reject (only if not finalized, hidden for solo) */}
+                    {isLeader && !isSoloTeam && (team as any).status !== 'finalized' && joinRequests.filter(r => r.status === 'PENDING').length > 0 && (
                         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Pending Join Requests</p>
                             <div className="space-y-3">
@@ -631,8 +687,8 @@ const TeamManager: React.FC<TeamManagerProps> = ({ eventId, opportunity }) => {
                         </div>
                     )}
 
-                    {/* Finalize Team Button — leader only */}
-                    {isLeader && (team as any).status !== 'finalized' && (
+                    {/* Finalize/Submit Button — leader only (hidden for solo — already finalized) */}
+                    {isLeader && !isSoloTeam && (team as any).status !== 'finalized' && (
                         memberCount >= (minSize || 1) ? (
                             <button
                                 type="button"
@@ -654,8 +710,8 @@ const TeamManager: React.FC<TeamManagerProps> = ({ eventId, opportunity }) => {
                         )
                     )}
 
-                    {/* Leave team — only if not finalized */}
-                    {(team as any).status !== 'finalized' && (
+                    {/* Leave team — only if not finalized (hidden for solo) */}
+                    {!isSoloTeam && (team as any).status !== 'finalized' && (
                         <button
                             type="button"
                             onClick={handleLeaveTeam}
@@ -748,15 +804,30 @@ const TeamManager: React.FC<TeamManagerProps> = ({ eventId, opportunity }) => {
                             </p>
                             <button
                                 type="button"
-                                onClick={() => {
-                                    const oppPath = eventId ? `/opportunities/${encodeURIComponent(String(eventId))}` : '';
-                                    if (oppPath) {
-                                        navigate(`${oppPath}?tab=submissions`);
+                                onClick={async () => {
+                                    setActionLoading(true);
+                                    setError(null);
+                                    try {
+                                        const res = await fetch(`${API_BASE_URL}/api/v1/stages/teams/create-solo`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                                            body: JSON.stringify({ event_id: eventId }),
+                                        });
+                                        const data = await res.json();
+                                        if (!res.ok || data.status === 'error') {
+                                            throw new Error(data.error || data.detail || 'Failed to create solo entry');
+                                        }
+                                        setTeam(data.team);
+                                    } catch (err: any) {
+                                        setError(err.message || 'Something went wrong');
+                                    } finally {
+                                        setActionLoading(false);
                                     }
                                 }}
-                                className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-sm"
+                                disabled={actionLoading}
+                                className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-sm"
                             >
-                                Continue as Solo
+                                {actionLoading ? 'Creating...' : 'Continue as Solo'}
                             </button>
                         </div>
                     )}
@@ -832,3 +903,4 @@ const TeamManager: React.FC<TeamManagerProps> = ({ eventId, opportunity }) => {
 };
 
 export default TeamManager;
+

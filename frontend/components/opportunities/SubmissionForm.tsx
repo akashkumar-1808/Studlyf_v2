@@ -512,3 +512,4 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ eventId, stage, partici
 };
 
 export default SubmissionForm;
+

@@ -34,3 +34,4 @@ export function BSTNodeCube({ node }: BSTNodeCubeProps) {
     </group>
   );
 }
+

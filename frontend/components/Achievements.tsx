@@ -2,25 +2,25 @@ import React from 'react';
 import { motion } from 'framer-motion';
 
 const MNC_LOGOS = [
-    { name: 'Google', path: '/images/google.png', label: 'Google' },
-    { name: 'Amazon', path: '/images/amazon.png', label: 'Amazon' },
-    { name: 'Microsoft', path: '/images/microsoft.png', label: 'Microsoft' },
-    { name: 'Meta', path: '/images/meta.png', label: 'Meta' },
-    { name: 'Apple', path: '/images/apple.png', label: 'Apple' },
-    { name: 'Netflix', path: '/images/netflix.png', label: 'Netflix' },
-    { name: 'NVIDIA', path: '/images/nvidia.png', label: 'NVIDIA' },
-    { name: 'Adobe', path: '/images/adobe.png', label: 'Adobe' },
-    { name: 'Tesla', path: '/images/tesla.png', label: 'Tesla' },
-    { name: 'Intel', path: '/images/intel.png', label: 'Intel' },
-    { name: 'Goldman Sachs', path: '/images/goldman-sachs.png', label: 'Goldman Sachs' },
-    { name: 'J.P. Morgan', path: '/images/jpmorgan.png', label: 'J.P. Morgan' },
-    { name: 'Salesforce', path: '/images/salesforce.png', label: 'Salesforce' },
-    { name: 'Oracle', path: '/images/oracle.png', label: 'Oracle' },
-    { name: 'Accenture', path: '/images/accenture.png', label: 'Accenture' },
-    { name: 'Wipro', path: '/images/wipro.png', label: 'Wipro' },
-    { name: 'TCS', path: '/images/tcs.png', label: 'TCS' },
-    { name: 'Infosys', path: '/images/infosys.png', label: 'Infosys' },
-    { name: 'IBM', path: '/images/ibm.png', label: 'IBM' },
+    { name: 'Google', path: '/images-optimized/google.webp', label: 'Google' },
+    { name: 'Amazon', path: '/images-optimized/amazon.webp', label: 'Amazon' },
+    { name: 'Microsoft', path: '/images-optimized/microsoft.webp', label: 'Microsoft' },
+    { name: 'Meta', path: '/images-optimized/meta.webp', label: 'Meta' },
+    { name: 'Apple', path: '/images-optimized/apple.webp', label: 'Apple' },
+    { name: 'Netflix', path: '/images-optimized/netflix.webp', label: 'Netflix' },
+    { name: 'NVIDIA', path: '/images-optimized/nvidia.webp', label: 'NVIDIA' },
+    { name: 'Adobe', path: '/images-optimized/adobe.webp', label: 'Adobe' },
+    { name: 'Tesla', path: '/images-optimized/tesla.webp', label: 'Tesla' },
+    { name: 'Intel', path: '/images-optimized/intel.webp', label: 'Intel' },
+    { name: 'Goldman Sachs', path: '/images-optimized/goldman-sachs.webp', label: 'Goldman Sachs' },
+    { name: 'J.P. Morgan', path: '/images-optimized/jpmorgan.webp', label: 'J.P. Morgan' },
+    { name: 'Salesforce', path: '/images-optimized/salesforce.webp', label: 'Salesforce' },
+    { name: 'Oracle', path: '/images-optimized/oracle.webp', label: 'Oracle' },
+    { name: 'Accenture', path: '/images-optimized/accenture.webp', label: 'Accenture' },
+    { name: 'Wipro', path: '/images-optimized/wipro.webp', label: 'Wipro' },
+    { name: 'TCS', path: '/images-optimized/tcs.webp', label: 'TCS' },
+    { name: 'Infosys', path: '/images-optimized/infosys.webp', label: 'Infosys' },
+    { name: 'IBM', path: '/images-optimized/ibm.webp', label: 'IBM' },
 ];
 
 const Achievements = () => {
@@ -57,3 +57,4 @@ const Achievements = () => {
 };
 
 export default Achievements;
+

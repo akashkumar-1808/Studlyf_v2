@@ -24,3 +24,4 @@ const SkeletonGrid = () => (
 );
 
 export default SkeletonGrid;
+
