@@ -190,8 +190,35 @@ async def _enrich_judge_assignment_scores(assignments: list, judge_email: str, j
                 "comments": sc.get("feedback") or sc.get("comments") or "",
                 "total_score": sc.get("total_score"),
             }
+
+    # Attach event thresholds so judges can see classification rules
+    event_ids = set()
+    for item in assignments:
+        eid = str(item.get("event_id") or "")
+        if eid:
+            event_ids.add(eid)
+    threshold_map: dict[str, dict] = {}
+    for eid in event_ids:
+        ev = await events_col.find_one({"_id": ObjectId(eid)}, {"evaluation_thresholds": 1, "judging_criteria": 1})
+        if ev:
+            t = ev.get("evaluation_thresholds") or {}
+            criteria = ev.get("judging_criteria") or []
+            max_possible = sum(float(c.get("max_points") or 10) for c in criteria) or 100.0
+            threshold_map[eid] = {"thresholds": t, "max_possible": max_possible}
+
     for item in assignments:
         item["existing_scores"] = score_map.get(str(item.get("_id")))
+        eid = str(item.get("event_id") or "")
+        if eid in threshold_map:
+            item["event_thresholds"] = threshold_map[eid]["thresholds"]
+            item["max_possible"] = threshold_map[eid]["max_possible"]
+        # Use document's own status (set by auto-classify) as classification
+        raw_status = (item.get("status") or "").strip()
+        if not raw_status:
+            item["classification"] = "Pending" if not item.get("existing_scores") else "Evaluated"
+        else:
+            item["classification"] = raw_status
+
     return assignments
 
 
@@ -1482,6 +1509,15 @@ async def get_qualified_bundle(
         if score_list and sid in all_items:
             all_items[sid]["score"] = round(sum(score_list) / len(score_list), 1)
 
+    scores_by_team: dict[str, list[float]] = {}
+    for sc in raw_scores:
+        tid = sc.get("team_id")
+        if tid:
+            scores_by_team.setdefault(str(tid), []).append(_score_sum(sc))
+        uid = sc.get("user_id")
+        if uid:
+            scores_by_team.setdefault(str(uid), []).append(_score_sum(sc))
+
     for sd in raw_sd:
         sid = _normalized_submission_id(sd)
         if not sid:
@@ -1493,15 +1529,14 @@ async def get_qualified_bundle(
         item["notified_at"] = sd.get("notified_at")
         item["domain"] = sd.get("domain") or (sd.get("data") or {}).get("domain")
 
-        rec = str(sd.get("evaluation_recommendation") or sd.get("review_status") or sd.get("status") or "").lower()
-        if "shortlist" in rec:
-            item["status"] = "Shortlisted"
-        elif "reject" in rec:
-            item["status"] = "Rejected"
-        elif "approve" in rec or "accept" in rec:
-            item["status"] = "Approved"
-        else:
-            item["status"] = item.get("status") or "Pending Review"
+        sd_score = float(sd.get("total_score") or sd.get("evaluation_score") or 0)
+        if sd_score > 0:
+            item["score"] = max(float(item.get("score") or 0), sd_score)
+        for alt_id in (sd.get("team_id"), sd.get("user_id"), sd.get("submittedBy")):
+            if alt_id and str(alt_id) in scores_by_team:
+                alt_scores = scores_by_team[str(alt_id)]
+                if alt_scores:
+                    item["score"] = max(float(item.get("score") or 0), round(sum(alt_scores) / len(alt_scores), 1))
 
         if sd.get("assigned_judges"):
             item["assigned_judges"] = sd.get("assigned_judges") or []
@@ -1539,16 +1574,8 @@ async def get_qualified_bundle(
         item["score_percent"] = round((raw_score / max_possible) * 100, 1) if max_possible > 0 else raw_score
 
         st = str(item.get("status") or "").lower()
-        if "shortlist" in st:
-            shortlisted.append(item)
-        elif "approve" in st or "accept" in st:
-            approved.append(item)
-        elif "reject" in st:
-            rejected.append(item)
-        elif "waitlist" in st:
-            waitlisted.append(item)
-        elif item["is_fully_evaluated"] or raw_score > 0:
-            pct = item["score_percent"]
+        pct = item["score_percent"]
+        if raw_score > 0:
             if pct >= shortlist_min:
                 item["status"] = "Shortlisted"
                 shortlisted.append(item)
@@ -1559,7 +1586,16 @@ async def get_qualified_bundle(
                 item["status"] = "Rejected"
                 rejected.append(item)
             else:
+                item["status"] = "Pending Review"
                 pending.append(item)
+        elif "shortlist" in st:
+            shortlisted.append(item)
+        elif "approve" in st or "accept" in st:
+            approved.append(item)
+        elif "reject" in st:
+            rejected.append(item)
+        elif "waitlist" in st:
+            waitlisted.append(item)
         else:
             pending.append(item)
 
@@ -3130,6 +3166,53 @@ async def judge_my_assignments(
 ):
     """Explicit alias for assignment list (authenticated)."""
     return await _list_submissions_for_judge_user(user, event_id, limit=limit, offset=offset)
+
+
+@router.get("/judge/submissions/{submission_id}/file/{field_id}")
+async def judge_download_submission_file(
+    submission_id: str,
+    field_id: str,
+    user: dict = Depends(get_auth_user),
+):
+    """Judge download of an assigned submission file (PDF/PPT/etc.)."""
+    from fastapi.responses import Response
+    from services.submission_file_io import load_submission_field_file
+
+    email = (user.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Account email required")
+
+    sub = await submission_data_col.find_one({"_id": ObjectId(submission_id)})
+    source = submission_data_col
+    if not sub:
+        sub = await submissions_col.find_one({"_id": ObjectId(submission_id)})
+        source = submissions_col
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    assigned_emails = {str(a).strip().lower() for a in (sub.get("assigned_judge_emails") or []) if a}
+    judge_match = email in assigned_emails or any(
+        isinstance(aj, dict) and str(aj.get("email") or "").strip().lower() == email
+        for aj in (sub.get("assigned_judges") or [])
+    )
+    if not judge_match:
+        raise HTTPException(status_code=403, detail="You are not assigned to this submission")
+
+    value = (sub.get("data") or {}).get(field_id)
+    if value is None and source == submissions_col:
+        value = sub.get(field_id)
+    if isinstance(value, str) and value.startswith("http"):
+        raise HTTPException(status_code=400, detail="External URL — open link in browser")
+
+    raw, mime, filename = load_submission_field_file(value, field_id)
+    if raw is None:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return Response(
+        content=raw,
+        media_type=mime,
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
 
 
 @router.get("/judge/criteria/{event_id}")

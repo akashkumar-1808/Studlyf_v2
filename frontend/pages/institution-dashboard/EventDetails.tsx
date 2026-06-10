@@ -81,9 +81,12 @@ import FilePreviewPanel from '../../components/FilePreviewPanel';
 import {
     buildPreviewFilename,
     cacheSubmissionFile,
+    fetchSubmissionFileBlob,
     getCachedSubmissionFile,
     getFileTypeBadge,
     mimeToExtension,
+    parseContentDispositionFilename,
+    resolveAssignedJudgeId,
 } from '../../utils/submissionFilePreview';
 import { invalidateEventDetailsCache, readEventDetailsCache, writeEventDetailsCache } from '../../utils/eventDetailsCache';
 
@@ -205,7 +208,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
     const [isJudgeInviteOpen, setIsJudgeInviteOpen] = useState(false);
     const [isInvitingJudge, setIsInvitingJudge] = useState(false);
     const [selectedSubmissions, setSelectedSubmissions] = useState<string[]>([]);
-    const [isBulkMode, setIsBulkMode] = useState(false);
+    const [bulkAssignJudgeId, setBulkAssignJudgeId] = useState('');
     const [refreshCounter, setRefreshCounter] = useState(0);
     const [faqSearch, setFaqSearch] = useState('');
     const [showFaqBulkImport, setShowFaqBulkImport] = useState(false);
@@ -509,12 +512,6 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
         } finally {
             setIssuingCertificates(false);
         }
-    };
-
-    const parseContentDispositionFilename = (header: string | null, fallback: string) => {
-        if (!header) return fallback;
-        const match = header.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i);
-        return match?.[1]?.trim() || fallback;
     };
 
     const openStageSubmissionFile = async (submissionId: string, fieldId: string, filenameHint?: string) => {
@@ -1757,27 +1754,14 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
         }
     };
 
-    const handleOpenJudgeAssignment = async (submissionId: string) => {
-        // Fetch available judges
-        try {
-            console.log('DEBUG: Fetching judges for submission:', submissionId);
-            const res = await fetch(`${API_BASE_URL}/api/judges`, { headers: { ...authHeaders() } });
-            console.log('DEBUG: Judges API response status:', res.status);
-            if (res.ok) {
-                const judges = await res.json();
-                console.log('DEBUG: Judges data received:', judges);
-                setAvailableJudges(judges);
-                setJudgeAssignmentModal({ isOpen: true, submissionId });
-            } else {
-                console.log('DEBUG: Failed to fetch judges, status:', res.status);
-                const errorData = await res.json().catch(() => ({}));
-                console.log('DEBUG: Judges API error:', errorData);
-                alert(`Failed to load judges: ${errorData.detail || 'Unknown error'}`);
-            }
-        } catch (error) {
-            try { console.error('Failed to fetch judges:', error instanceof Error ? error.message : String(error)); } catch (_) {}
-            alert('Failed to load available judges');
+    const handleOpenJudgeAssignment = (submissionId: string) => {
+        if (!institutionJudges.length) {
+            alert('No judges available. Invite a judge first.');
+            return;
         }
+        setAvailableJudges(institutionJudges);
+        setBulkAssignJudgeId('');
+        setJudgeAssignmentModal({ isOpen: true, submissionId });
     };
 
     const copyToClipboard = (text: string) => {
@@ -1828,7 +1812,6 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 
                 setJudgeAssignmentModal({ isOpen: false, submissionId: null });
                 setSelectedSubmissions([]);
-                setIsBulkMode(false);
                 // Refresh submissions
                 setRefreshCounter(prev => prev + 1);
                 fetchBundle();
@@ -1916,14 +1899,16 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                         submission_id: evaluatingSubmission._id,
                         judge_id: user.user_id,
                         scores: evaluationScores,
+                        criteria_scores: evaluationScores,
                         comments: evaluationComment,
                         event_id: eventId,
-                        team_id: evaluatingSubmission.team_id || evaluatingSubmission.teamId || ''
+                        team_id: evaluatingSubmission.team_id || evaluatingSubmission.teamId || evaluatingSubmission.user_id || ''
                     })
                   });
             if (res.ok) {
                 setEvaluatingSubmission(null);
                 setRefreshCounter(prev => prev + 1);
+                fetchBundle();
                 alert("Evaluation submitted!");
             } else {
                 const err = await res.json();
@@ -1936,9 +1921,17 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
     };
 
     const handleBulkAssign = async (judgeId: string, specificIds?: string[]) => {
-        const targetIds = specificIds || selectedSubmissions;
+        const rawIds = specificIds || selectedSubmissions;
+        const allSubs = [
+            ...(hackathonSubmissions || []),
+            ...(submissions || []),
+        ];
+        const targetIds = rawIds.filter((id) => {
+            const sub = allSubs.find((s: any) => String(s._id) === String(id));
+            return sub ? !resolveAssignedJudgeId(sub) : true;
+        });
         if (targetIds.length === 0) {
-            alert("Please select at least one submission");
+            alert(specificIds ? "This submission is already assigned to a judge." : "Please select at least one unassigned submission");
             return;
         }
         try {
@@ -1956,10 +1949,14 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 })
             });
             if (res.ok) {
+                const result = await res.json().catch(() => ({}));
                 setSelectedSubmissions([]);
+                setJudgeAssignmentModal({ isOpen: false, submissionId: null });
+                setBulkAssignJudgeId('');
                 setRefreshCounter(prev => prev + 1);
-                alert(`Judge assigned to ${targetIds.length} submission(s)`);
-                setIsBulkMode(false);
+                fetchBundle();
+                const emailNote = result?.email_sent === false ? '\n\nNote: assignment email could not be sent.' : '';
+                alert(`Judge assigned to ${targetIds.length} submission(s) in one consolidated email.${emailNote}`);
             } else {
                 const err = await res.json();
                 alert(err.detail || "Failed to assign judge");
@@ -2019,7 +2016,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                         ? (stageFileField ? data[stageFileField] : stageUrlField ? data[stageUrlField] : '')
                         : (s.pptLink || s.ppt_link || ''),
                     githubLink: s.githubLink || s.github_link || '',
-                    assignedJudgeId: s.assignedJudgeId || s.assigned_judge_id || (Array.isArray(s.assigned_judges) && s.assigned_judges.length > 0 ? s.assigned_judges[0].judge_id : ''),
+                    assignedJudgeId: resolveAssignedJudgeId(s),
                     totalScore: s.totalScore ?? s.total_score ?? 0,
                     project_title: isStage
                         ? (s.stage_name || s.stage_type || '')
@@ -2033,7 +2030,8 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
         // Dedup by _id or composite key
         const seenKeys = new Set<string>();
         const dedupedSubmissions = allSubmissions.filter(s => {
-            const key = s._id || `${s.team_id || s.teamId}_${s.stage_id || ''}`;
+            const key = s._id
+                || `${s.team_id || s.teamId || s.user_id}_${s.stage_id || s.stage_name || ''}`;
             if (seenKeys.has(key)) return false;
             seenKeys.add(key);
             return true;
@@ -2058,7 +2056,9 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
             const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase()) || lead.toLowerCase().includes(searchQuery.toLowerCase());
             const subDomain = s.domain || s.data?.domain || s.data?.Domain;
             const matchesDomain = domainFilter === 'All Domains' || subDomain === domainFilter;
-            const matchesJudge = judgeFilter === 'All Judges' || s.assignedJudgeId === judgeFilter;
+            const assignedId = resolveAssignedJudgeId(s);
+            const matchesJudge = judgeFilter === 'All Judges'
+                || (judgeFilter === '' ? !assignedId : assignedId === judgeFilter);
             const matchesStage = !selectedSubmissionStageId
                 || s.stage_id === selectedSubmissionStageId
                 || (activeStage?.name && s.stage_name === activeStage.name);
@@ -2365,12 +2365,9 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                             ))}
                         </select>
                     )}
-                    <button 
-                        onClick={() => setIsBulkMode(!isBulkMode)}
-                        className={`px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${isBulkMode ? 'bg-purple-600 text-white shadow-xl shadow-purple-600/20' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-                    >
-                        Bulk Assignment
-                    </button>
+                    <span className="px-4 py-2 bg-purple-50 text-purple-700 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                        Select teams below to assign judges in bulk
+                    </span>
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-6 px-4">
@@ -2402,26 +2399,14 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                             {institutionJudges.map(j => <option key={j._id} value={j._id}>{j.name}</option>)}
                         </select>
                     </div>
-                    <div className="flex items-center gap-4">
-                        {isBulkMode && selectedSubmissions.length > 0 && (
-                            <select 
-                                onChange={(e) => handleBulkAssign(e.target.value)}
-                                className="px-6 py-4 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest outline-none shadow-xl cursor-pointer"
-                            >
-                                <option value="">Assign Judge to ({selectedSubmissions.length})</option>
-                                {(institutionJudges || []).map((j: any) => (
-                                    <option key={j._id} value={j._id}>{j.name}</option>
-                                ))}
-                            </select>
-                        )}
-                    </div>
+                    <div className="flex items-center gap-4" />
                 </div>
 
                 <div className="bg-white rounded-[3rem] border border-slate-100 overflow-hidden shadow-2xl shadow-slate-200/20">
                     <table className="w-full text-left">
                         <thead>
                             <tr className="bg-slate-50/50">
-                                {isBulkMode && <th className="px-10 py-6 w-10"></th>}
+                                <th className="px-10 py-6 w-10"></th>
                                 <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Team Detail</th>
                                 <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Submission</th>
                                 <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Files</th>
@@ -2434,19 +2419,19 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                             {filtered.length > 0 ? (
                                 filtered.map((sub, idx) => (
                                     <tr key={sub._id} className="hover:bg-slate-50/30 transition-colors group">
-                                        {isBulkMode && (
-                                            <td className="px-10 py-8">
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={selectedSubmissions.includes(sub._id)}
-                                                    onChange={(e) => {
-                                                        if (e.target.checked) setSelectedSubmissions([...selectedSubmissions, sub._id]);
-                                                        else setSelectedSubmissions(selectedSubmissions.filter(id => id !== sub._id));
-                                                    }}
-                                                    className="w-5 h-5 rounded border-2 border-slate-200 text-purple-600 focus:ring-purple-500"
-                                                />
-                                            </td>
-                                        )}
+                                        <td className="px-10 py-8">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={selectedSubmissions.includes(sub._id)}
+                                                disabled={!!resolveAssignedJudgeId(sub)}
+                                                title={resolveAssignedJudgeId(sub) ? 'Already assigned to a judge' : 'Select for bulk assignment'}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) setSelectedSubmissions([...selectedSubmissions, sub._id]);
+                                                    else setSelectedSubmissions(selectedSubmissions.filter(id => id !== sub._id));
+                                                }}
+                                                className="w-5 h-5 rounded border-2 border-slate-200 text-purple-600 focus:ring-purple-500 disabled:opacity-30"
+                                            />
+                                        </td>
                                         <td className="px-10 py-8">
                                             <div className="flex flex-col">
                                                 <span className="font-black text-slate-900 text-lg tracking-tight">{sub.teamName || sub.team_name || sub.teamLead || sub.team_lead || sub.user_name || sub.name}</span>
@@ -2541,19 +2526,40 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                             </div>
                                         </td>
                                         <td className="px-10 py-8">
-                                            <div className="flex items-center gap-4">
-                                                <select 
-                                                    value={sub.assignedJudgeId || ""}
-                                                    onChange={(e) => {
-                                                        handleBulkAssign(e.target.value, [sub._id]);
-                                                    }}
-                                                    className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-purple-500"
-                                                >
-                                                    <option value="">No Judge Assigned</option>
-                                                    {(institutionJudges || []).map((j: any) => (
-                                                        <option key={j._id} value={j._id}>{j.name}</option>
-                                                    ))}
-                                                </select>
+                                            <div className="flex flex-col gap-1">
+                                                {(() => {
+                                                    const judgeId = resolveAssignedJudgeId(sub);
+                                                    const judge = institutionJudges.find((j: any) => String(j._id) === String(judgeId));
+                                                    if (judge) {
+                                                        return (
+                                                            <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100">
+                                                                {judge.name}
+                                                            </span>
+                                                        );
+                                                    }
+                                                    if (judgeId) {
+                                                        const fromAssigned = (sub.assigned_judges || []).find((aj: any) => String(aj?.judge_id) === String(judgeId));
+                                                        return (
+                                                            <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100">
+                                                                {fromAssigned?.name || fromAssigned?.email || 'Assigned'}
+                                                            </span>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <select 
+                                                            value=""
+                                                            onChange={(e) => {
+                                                                if (e.target.value) handleBulkAssign(e.target.value, [sub._id]);
+                                                            }}
+                                                            className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-purple-500"
+                                                        >
+                                                            <option value="">No Judge Assigned</option>
+                                                            {(institutionJudges || []).map((j: any) => (
+                                                                <option key={j._id} value={j._id}>{j.name} ({j.assignment_count ?? 0})</option>
+                                                            ))}
+                                                        </select>
+                                                    );
+                                                })()}
                                             </div>
                                         </td>
                                         <td className="px-10 py-8 text-center">
@@ -2567,24 +2573,29 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                                 <button 
                                                     onClick={async () => {
                                                         setEvaluatingSubmission(sub);
+                                                        const initScores: Record<string, number> = {};
+                                                        criteria.forEach((c: any) => { initScores[c.name] = 0; });
                                                         try {
                                                             const scoreRes = await fetch(`${API_BASE_URL}/api/judges/scores/${sub._id}`, { headers: { ...authHeaders() } });
                                                             if (scoreRes.ok) {
                                                                 const scoresData = await scoreRes.json();
-                                                                const myScore = Array.isArray(scoresData) ? scoresData.find((s: any) => s.judge_id === user?.user_id) : null;
+                                                                const allScores = Array.isArray(scoresData) ? scoresData : [];
+                                                                const myScore = allScores.find((s: any) => s.judge_id === user?.user_id)
+                                                                    || allScores[allScores.length - 1];
                                                                 if (myScore) {
-                                                                    setEvaluationScores(myScore.scores || {});
+                                                                    const loaded = myScore.scores || myScore.criteria_scores || {};
+                                                                    setEvaluationScores({ ...initScores, ...loaded });
                                                                     setEvaluationComment(myScore.comments || myScore.feedback || '');
                                                                 } else {
-                                                                    setEvaluationScores({});
+                                                                    setEvaluationScores(initScores);
                                                                     setEvaluationComment('');
                                                                 }
                                                             } else {
-                                                                setEvaluationScores({});
+                                                                setEvaluationScores(initScores);
                                                                 setEvaluationComment('');
                                                             }
                                                         } catch {
-                                                            setEvaluationScores({});
+                                                            setEvaluationScores(initScores);
                                                             setEvaluationComment('');
                                                         }
                                                     }}
@@ -2598,7 +2609,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={isBulkMode ? 7 : 6} className="px-10 py-32 text-center text-slate-300 font-black text-[10px] uppercase tracking-[0.4em]">No submissions match your filters</td>
+                                    <td colSpan={7} className="px-10 py-32 text-center text-slate-300 font-black text-[10px] uppercase tracking-[0.4em]">No submissions match your filters</td>
                                 </tr>
                             )}
                         </tbody>
@@ -3051,7 +3062,16 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                 {(j.name || '?').charAt(0).toUpperCase()}
                             </div>
                         </div>
-                        <h4 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">{j.name}</h4>
+                        <div className="flex items-center gap-3 mb-2">
+                            <h4 className="text-2xl font-black text-slate-900 tracking-tight">{j.name}</h4>
+                            <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                                j.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-700' :
+                                j.status === 'DECLINED' ? 'bg-red-100 text-red-700' :
+                                'bg-amber-100 text-amber-700'
+                            }`}>
+                                {j.status === 'ACCEPTED' ? 'Accepted' : j.status === 'DECLINED' ? 'Declined' : 'Invited'}
+                            </span>
+                        </div>
                         <p className="text-sm font-bold text-purple-600 uppercase tracking-widest mb-2">{j.expertise || j.domain || 'Evaluator'}</p>
                         <p className="text-[10px] font-black text-amber-700 bg-amber-50 inline-block px-3 py-1 rounded-lg mb-8">
                             {j.assignment_count ?? 0} submission{(j.assignment_count ?? 0) !== 1 ? 's' : ''} assigned
@@ -5436,39 +5456,29 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                 </div>
                             ) : null;
                         })()}
-                        <div className="space-y-4 max-h-64 overflow-y-auto">
+                        <div className="space-y-3 max-h-64 overflow-y-auto">
                             {availableJudges.length > 0 ? (
                                 [...availableJudges]
                                     .sort((a: any, b: any) => (a.assignment_count ?? 0) - (b.assignment_count ?? 0))
                                     .map((judge: any) => (
-                                    <div key={judge._id} className="p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
-                                        <div className="flex items-center justify-between">
+                                    <label key={judge._id} className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-colors ${bulkAssignJudgeId === judge._id ? 'border-purple-500 bg-purple-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                                        <div className="flex items-center gap-4">
+                                            <input
+                                                type="radio"
+                                                name="bulk-judge"
+                                                checked={bulkAssignJudgeId === judge._id}
+                                                onChange={() => setBulkAssignJudgeId(judge._id)}
+                                                className="w-4 h-4 text-purple-600"
+                                            />
                                             <div>
                                                 <h4 className="font-semibold text-slate-900">{judge.name || 'Unknown Judge'}</h4>
                                                 <p className="text-sm text-slate-600">{judge.email}</p>
                                                 <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest mt-1">
-                                                    {judge.assignment_count ?? 0} project{(judge.assignment_count ?? 0) !== 1 ? 's' : ''} assigned
+                                                    {judge.assignment_count ?? 0} currently assigned
                                                 </p>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <button 
-                                                    onClick={() => handleAssignJudge(judge._id, judge.email)}
-                                                    className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
-                                                >
-                                                    Assign
-                                                </button>
-                                                {judgeAssignmentModal.submissionId !== 'bulk' && (
-                                                    <button 
-                                                        onClick={() => copyToClipboard(`${window.location.origin}/evaluate/${judgeAssignmentModal.submissionId}`)}
-                                                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
-                                                        title="Copy Evaluation Link"
-                                                    >
-                                                        <Copy size={16} />
-                                                    </button>
-                                                )}
-                                            </div>
                                         </div>
-                                    </div>
+                                    </label>
                                 ))
                             ) : (
                                 <div className="text-center py-8">
@@ -5486,19 +5496,41 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                 </div>
                             )}
                         </div>
-                        <div className="mt-6 flex gap-3">
-                            <button 
-                                onClick={() => setIsJudgeInviteOpen(true)}
-                                className="flex-1 py-3 border border-slate-100 text-[#6C3BFF] rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
-                            >
-                                Add Another
-                            </button>
-                            <button 
-                                onClick={() => setJudgeAssignmentModal({ isOpen: false, submissionId: null })}
-                                className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all"
-                            >
-                                Cancel
-                            </button>
+                        <div className="mt-6 flex flex-col gap-3">
+                            {availableJudges.length > 0 && (
+                                <button
+                                    disabled={!bulkAssignJudgeId}
+                                    onClick={() => {
+                                        const judge = availableJudges.find((j: any) => j._id === bulkAssignJudgeId);
+                                        if (!judge) return;
+                                        if (judgeAssignmentModal.submissionId === 'bulk') {
+                                            handleBulkAssign(bulkAssignJudgeId);
+                                        } else if (judgeAssignmentModal.submissionId) {
+                                            handleAssignJudge(bulkAssignJudgeId, judge.email);
+                                        }
+                                        setBulkAssignJudgeId('');
+                                    }}
+                                    className="w-full py-4 bg-[#6C3BFF] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-purple-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    {judgeAssignmentModal.submissionId === 'bulk'
+                                        ? `Assign ${selectedSubmissions.length} submission${selectedSubmissions.length !== 1 ? 's' : ''} (one email)`
+                                        : 'Confirm Assignment'}
+                                </button>
+                            )}
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={() => setIsJudgeInviteOpen(true)}
+                                    className="flex-1 py-3 border border-slate-100 text-[#6C3BFF] rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
+                                >
+                                    Add Judge
+                                </button>
+                                <button 
+                                    onClick={() => { setJudgeAssignmentModal({ isOpen: false, submissionId: null }); setBulkAssignJudgeId(''); }}
+                                    className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -5774,10 +5806,13 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                                             return (
                                                                 <div key={key} className="py-3 first:pt-0 last:pb-0">
                                                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">{label}</span>
-                                                                    <a href={f.url || '#'} target={f.url ? '_blank' : undefined} rel="noreferrer"
-                                                                        className="flex items-center gap-2 text-xs font-bold text-purple-600 hover:text-purple-800">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => openStageSubmissionFile(String(evaluatingSubmission._id), key, f.filename)}
+                                                                        className="flex items-center gap-2 text-xs font-bold text-purple-600 hover:text-purple-800"
+                                                                    >
                                                                         <FileText size={14} /> {isPdf ? 'View PDF' : isPpt ? 'View PPT' : f.filename || 'View File'}
-                                                                    </a>
+                                                                    </button>
                                                                 </div>
                                                             );
                                                         }

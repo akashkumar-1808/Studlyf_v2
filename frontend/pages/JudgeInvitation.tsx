@@ -6,7 +6,7 @@ import { useAuth } from '../AuthContext';
 const JudgeInvitation: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { user, role } = useAuth();
+    const { user, role, login } = useAuth();
     const [busy, setBusy] = useState(false);
     const [notice, setNotice] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
     const [invitationData, setInvitationData] = useState<any>(null);
@@ -85,8 +85,23 @@ const JudgeInvitation: React.FC = () => {
             });
             const body = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(body?.detail || 'Failed to update invitation');
-            setNotice({ kind: 'ok', text: accept ? 'Invitation accepted! You can now review assigned submissions.' : 'Invitation declined.' });
+            setNotice({ kind: 'ok', text: accept ? 'Invitation accepted!' : 'Invitation declined.' });
             if (accept) {
+                const loginToken = body?.login_token || '';
+                if (loginToken) {
+                    localStorage.setItem('auth_token', loginToken);
+                    localStorage.setItem('pendingJudgeRole', 'true');
+                    localStorage.setItem('wasJudgeInvited', 'true');
+                    const meRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
+                        headers: { 'Authorization': `Bearer ${loginToken}` }
+                    });
+                    if (meRes.ok) {
+                        const meData = await meRes.json();
+                        login(loginToken, meData);
+                    }
+                    setTimeout(() => navigate('/judge-portal', { replace: true }), 1000);
+                    return;
+                }
                 localStorage.setItem('pendingJudgeRole', 'true');
                 localStorage.setItem('wasJudgeInvited', 'true');
                 const judgeEmail = invitationData?.judge_email || '';

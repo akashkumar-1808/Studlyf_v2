@@ -105,14 +105,31 @@ const formatOpportunityDateTime = (raw?: string) => {
     };
 };
 
+const deriveEventStatus = (e: any): string => {
+    const now = Date.now();
+    const start = new Date(e.start_date || e.startDate || e.eventStartDate || '').getTime();
+    const end = new Date(e.end_date || e.endDate || e.eventEndDate || e.registrationDeadline || e.deadline || '').getTime();
+    const rawStatus = (e.status || 'Draft').toLowerCase();
+    if (rawStatus === 'draft') return 'Draft';
+    if (!Number.isNaN(end) && end < now) return 'Completed';
+    if (!Number.isNaN(start) && start > now) return 'Upcoming';
+    if (rawStatus === 'completed') return 'Completed';
+    if (rawStatus === 'upcoming') return 'Upcoming';
+    return 'Live';
+};
+
+const deriveRegistrationStatus = (e: any): 'Open' | 'Close' => {
+    const end = new Date(e.end_date || e.endDate || e.registrationDeadline || e.deadline || '').getTime();
+    if (!Number.isNaN(end) && end < Date.now()) return 'Close';
+    const reg = String(e.registration_status || e.registrationStatus || '').toLowerCase();
+    if (reg === 'close' || reg === 'closed') return 'Close';
+    return 'Open';
+};
+
 const mapSummaryToEvents = (data: any[]) => data
     .filter((e: any) => e.category !== 'Job' && e.category !== 'Internship')
     .map((e: any) => {
-        const rawStatus = (e.status || 'Draft').toLowerCase();
-        let displayStatus = 'Draft';
-        if (rawStatus === 'live' || rawStatus === 'published' || rawStatus === 'active') displayStatus = 'Live';
-        else if (rawStatus === 'completed') displayStatus = 'Completed';
-        else if (rawStatus === 'upcoming') displayStatus = 'Upcoming';
+        const displayStatus = deriveEventStatus(e);
         const updatedAt = e.updated_at || e.updatedAt || e.created_at || e.createdAt;
         let lastSaved = 'Unknown';
         if (updatedAt) {
@@ -120,7 +137,8 @@ const mapSummaryToEvents = (data: any[]) => data
             const mins = Math.floor(diff / 60000);
             const hrs = Math.floor(diff / 3600000);
             const days = Math.floor(diff / 86400000);
-            if (mins < 60) lastSaved = `${mins}m ago`;
+            if (mins < 1) lastSaved = 'Just now';
+            else if (mins < 60) lastSaved = `${mins}m ago`;
             else if (hrs < 24) lastSaved = `${hrs}h ago`;
             else lastSaved = `${days}d ago`;
         }
@@ -135,8 +153,8 @@ const mapSummaryToEvents = (data: any[]) => data
             registrations: String(e.participant_count || 0),
             candidate: '',
             image: e.logo_url || e.image_url || '',
-            visibility: 'Public' as const,
-            registrationStatus: 'Open' as const,
+            visibility: (e.visibility === 'Private' ? 'Private' : 'Public') as 'Public' | 'Private',
+            registrationStatus: deriveRegistrationStatus(e),
             lastSaved,
             category: e.category,
         };
@@ -144,8 +162,17 @@ const mapSummaryToEvents = (data: any[]) => data
 
 const OpportunitiesManagement: React.FC<OpportunitiesManagementProps> = ({ institutionId, onViewEvent, onCreateEvent }) => {
     const { setCacheData } = useDashboardCache();
-    const { events: summaryEvents, loading } = useInstitutionEvents(institutionId);
-    const events = React.useMemo(() => mapSummaryToEvents(summaryEvents), [summaryEvents]);
+    const { events: summaryEvents, loading, refresh } = useInstitutionEvents(institutionId);
+    const [tick, setTick] = useState(0);
+    const events = React.useMemo(() => mapSummaryToEvents(summaryEvents), [summaryEvents, tick]);
+
+    useEffect(() => {
+        const interval = window.setInterval(() => {
+            setTick((t) => t + 1);
+            refresh();
+        }, 60000);
+        return () => window.clearInterval(interval);
+    }, [refresh]);
     const [searchQuery, setSearchQuery] = useState('');
     const [typeTab, setTypeTab] = useState('All');
     const [statusFilter, setStatusFilter] = useState('');

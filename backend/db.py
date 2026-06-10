@@ -143,6 +143,9 @@ class DatabaseManager:
             await self.db.participants.create_index(
                 [("user_id", 1), ("event_id", 1)])
             
+            # ── Quizzes ──
+            await self.db.quizzes.create_index([("event_id", 1)])
+
             # ── Teams ──
             await self.db.teams.create_index([("event_id", 1), ("team_name", 1)], unique=True)
             await self.db.teams.create_index([("event_id", 1)])

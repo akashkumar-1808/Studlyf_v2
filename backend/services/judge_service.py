@@ -126,8 +126,9 @@ async def get_judge_invitation_details(token: str) -> dict:
 
 async def respond_judge_invitation(*, token: str = "", judge_email: str = "", event_id: str = "", accept: bool = True) -> dict:
     """Accept/decline by invitation token (public) or by authenticated judge email."""
-    from db import events_col, users_col
+    from db import events_col
     from notification_helpers import notify_institution
+    from auth_utils import create_access_token
 
     judge = None
     tok = (token or "").strip()
@@ -159,6 +160,7 @@ async def respond_judge_invitation(*, token: str = "", judge_email: str = "", ev
     event_id = judge.get("event_id")
     event_title = "Event"
     inst_id = judge.get("institution_id")
+    login_token_str = ""
     if event_id:
         try:
             event = await events_col.find_one({"_id": ObjectId(str(event_id))})
@@ -190,10 +192,13 @@ async def respond_judge_invitation(*, token: str = "", judge_email: str = "", ev
         except Exception as e:
             print(f"DEBUG: Event judge status sync failed: {e}")
 
-    if accept and judge_email_norm:
-        await users_col.update_one(
-            {"email": judge_email_norm},
-            {"$set": {"role": "judge"}},
+    if accept:
+        # Use the judge's own _id as the identity — no user account created
+        judge_id_str = str(judge["_id"])
+        from datetime import timedelta
+        login_token_str = create_access_token(
+            data={"user_id": judge_id_str, "email": judge_email_norm, "role": "judge"},
+            expires_delta=timedelta(hours=24),
         )
 
     judge_name = judge.get("name") or judge_email_norm or "Judge"
@@ -216,6 +221,7 @@ async def respond_judge_invitation(*, token: str = "", judge_email: str = "", ev
         "accept": accept,
         "judge_email": judge_email_norm,
         "event_id": str(event_id) if event_id else None,
+        "login_token": login_token_str if accept else "",
     }
 
 

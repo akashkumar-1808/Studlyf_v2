@@ -91,7 +91,7 @@ export function useInstitutionEvents(institutionId?: string) {
         }
         fetchedRef.current = institutionId;
         refresh();
-    }, [institutionId, refresh, setLoading]);
+    }, [institutionId, refresh, setLoading, cache]);
 
     return { events: data, loading, refresh };
 }

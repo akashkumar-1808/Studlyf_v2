@@ -431,7 +431,7 @@ async def get_event_dashboard_data(
     Admin/Institution endpoint: Aggregate event dashboard data.
     All queries are scoped dynamically to the resolved event_id variants — no static event lists.
     """
-    from db import participants_col, quizzes_col, teams_col, submissions_col, submission_data_col
+    from db import participants_col, quizzes_col, teams_col, submissions_col, submission_data_col, scores_col
     from routes.registration_flow_routes import resolve_event_id
     from services.submission_format import summarize_submission_data
     import logging
@@ -463,14 +463,7 @@ async def get_event_dashboard_data(
                 val = opp.get(key)
                 if val and str(val) not in event_ids:
                     event_ids.append(str(val))
-    event_id_in: list = list(event_ids)
-    for eid in event_ids:
-        if ObjectId.is_valid(eid):
-            try:
-                event_id_in.append(ObjectId(eid))
-            except Exception:
-                pass
-    event_filter = {"event_id": {"$in": event_id_in}}
+    event_filter = {"event_id": {"$in": [eid for eid in event_ids if eid]}}
     list_cap = limit if limit > 0 else None
 
     async def _load(cursor):
@@ -487,13 +480,21 @@ async def get_event_dashboard_data(
                 {
                     "stage_id": 1,
                     "stage_name": 1,
+                    "stage_type": 1,
                     "user_id": 1,
+                    "user_name": 1,
                     "team_id": 1,
+                    "team_name": 1,
+                    "title": 1,
                     "status": 1,
                     "submitted_at": 1,
                     "last_updated_at": 1,
                     "event_id": 1,
                     "data": 1,
+                    "assigned_judge_id": 1,
+                    "assigned_judges": 1,
+                    "assigned_judge_emails": 1,
+                    "total_score": 1,
                 },
             )),
         )
@@ -508,17 +509,49 @@ async def get_event_dashboard_data(
         logger.error(f"Error gathering dashboard data for {event_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Error gathering data: {str(e)}")
 
+    def _score_sum(sc: dict) -> float:
+        rubric = sc.get("scores") or sc.get("criteria_scores") or {}
+        if isinstance(rubric, dict) and rubric:
+            try:
+                return sum(float(v) for v in rubric.values())
+            except (TypeError, ValueError):
+                pass
+        total = sc.get("total_score")
+        if total is not None:
+            return float(total)
+        score = sc.get("score")
+        return float(score) if score is not None else 0.0
+
     team_lookup = {str(t.get("_id")): t for t in teams if t.get("_id")}
     enriched_stage_submissions = []
     for doc in stage_submissions:
         row = dict(doc)
-        row["_id"] = str(row.get("_id", ""))
+        sid = str(row.get("_id", ""))
+        row["_id"] = sid
         if isinstance(row.get("data"), dict):
             row["data_summary"] = summarize_submission_data(row["data"])
             row["data"] = summarize_submission_data(row["data"])
         tid = str(row.get("team_id") or "")
         if tid and tid in team_lookup:
             row["team_name"] = team_lookup[tid].get("team_name") or team_lookup[tid].get("name")
+        or_sub = [{"submission_id": sid}]
+        try:
+            or_sub.append({"submission_id": ObjectId(sid)})
+        except Exception:
+            pass
+        if tid:
+            or_sub.append({"team_id": tid})
+        totals = []
+        async for sc in scores_col.find({"$or": or_sub}):
+            totals.append(_score_sum(sc))
+        if totals:
+            row["total_score"] = round(sum(totals) / len(totals), 1)
+        elif row.get("total_score") is not None:
+            row["total_score"] = float(row["total_score"])
+        assigned = row.get("assigned_judges") or []
+        if assigned and not row.get("assigned_judge_id"):
+            first = assigned[0] if isinstance(assigned[0], dict) else {}
+            row["assigned_judge_id"] = first.get("judge_id") or ""
         enriched_stage_submissions.append(row)
 
     for collection_rows in (participants, quizzes, teams, submissions):

@@ -171,7 +171,7 @@ const CompanyModules: React.FC = () => {
       }
     };
     load();
-    const interval = window.setInterval(load, 15000);
+    const interval = window.setInterval(load, 5000);
     return () => {
       cancelled = true;
       window.clearInterval(interval);

@@ -1,5 +1,6 @@
 from bson import ObjectId
-from fastapi import APIRouter, HTTPException, Body, Query
+from fastapi import APIRouter, HTTPException, Body, Query, Depends
+from auth_institution import get_auth_user
 from services.judge_service import (
     create_judge,
     get_all_judges,
@@ -14,9 +15,11 @@ router = APIRouter(prefix="/api/judges", tags=["Judges"])
 portal_router = APIRouter(prefix="/api/judge-portal", tags=["Judge Portal"])
 
 @router.post("/")
-async def add_judge(data: dict = Body(...)):
+async def add_judge(data: dict = Body(...), user: dict = Depends(get_auth_user)):
+    inst_id = user.get("institution_id") or user.get("user_id")
     judge_data = {
         **data,
+        "institution_id": inst_id,
         "is_test": data.get("is_test", False),
         "status": data.get("status") or "INVITED",
     }
@@ -35,11 +38,15 @@ async def add_judge(data: dict = Body(...)):
     return result
 
 @router.get("/")
-async def list_judges():
+async def list_judges(user: dict = Depends(get_auth_user)):
     judges = await get_all_judges()
-    # Filter out test judges (only return real judges to institution dashboard)
-    real_judges = [judge for judge in judges if not judge.get("is_test", False)]
-    return real_judges
+    # Filter out test judges and scope to the authenticated user's institution
+    inst_id = user.get("institution_id")
+    filtered = [
+        j for j in judges
+        if not j.get("is_test", False) and (not inst_id or j.get("institution_id") == inst_id)
+    ]
+    return filtered
 
 @router.post("/assign-round-robin")
 async def assign_round_robin_route(

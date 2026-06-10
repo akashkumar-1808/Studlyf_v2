@@ -6699,7 +6699,25 @@ async def resend_verification(data: dict = Body(...)):
 @app.get("/api/auth/me")
 async def get_me(user_payload: dict = Depends(get_current_user)):
     """Returns the current user profile from the token."""
-    user = await users_col.find_one({"user_id": user_payload["user_id"]})
+    uid = user_payload.get("user_id", "")
+    role = user_payload.get("role", "")
+
+    # If the token says judge, look them up in judges_col (no users_col account)
+    if role == "judge":
+        from bson import ObjectId
+        judge = await judges_col.find_one({"_id": ObjectId(uid)})
+        if not judge:
+            raise HTTPException(status_code=404, detail="Judge not found")
+        return {
+            "email": judge.get("email", ""),
+            "full_name": judge.get("name", judge.get("full_name", "")),
+            "role": "judge",
+            "user_id": uid,
+            "institution_id": judge.get("institution_id"),
+        }
+
+    # Regular user lookup
+    user = await users_col.find_one({"user_id": uid})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     # Fallback to learner_profiles.userType if profile_type not set on users_col

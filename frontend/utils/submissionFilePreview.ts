@@ -97,3 +97,48 @@ export function cacheSubmissionFile(cacheKey: string, entry: { url: string; file
     fileBlobCache.set(cacheKey, entry);
     return entry;
 }
+
+/** Resolve assigned judge id from submission payload (handles snake_case + assigned_judges array). */
+export function resolveAssignedJudgeId(sub: any): string {
+    if (!sub) return '';
+    const direct = sub.assignedJudgeId || sub.assigned_judge_id || '';
+    if (direct) return String(direct);
+    const judges = sub.assigned_judges;
+    if (Array.isArray(judges) && judges.length > 0) {
+        const first = judges[0];
+        if (typeof first === 'object' && first?.judge_id) return String(first.judge_id);
+        if (typeof first === 'string') return first;
+    }
+    return '';
+}
+
+export function parseContentDispositionFilename(header: string | null, fallback: string): string {
+    if (!header) return fallback;
+    const match = header.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i);
+    return match?.[1]?.trim() || fallback;
+}
+
+export async function fetchSubmissionFileBlob(
+    url: string,
+    options?: { headers?: Record<string, string>; cacheKey?: string; filenameHint?: string },
+): Promise<{ url: string; filename: string; mime: string } | null> {
+    const cacheKey = options?.cacheKey;
+    if (cacheKey) {
+        const cached = getCachedSubmissionFile(cacheKey);
+        if (cached) return cached;
+    }
+    try {
+        const res = await fetch(url, { headers: options?.headers, cache: 'no-store' });
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        const mime = blob.type || 'application/octet-stream';
+        const fallbackName = buildPreviewFilename(options?.filenameHint || 'Attachment', mime, options?.filenameHint);
+        const filename = parseContentDispositionFilename(res.headers.get('Content-Disposition'), fallbackName);
+        const objectUrl = window.URL.createObjectURL(blob);
+        const entry = { url: objectUrl, filename, mime };
+        if (cacheKey) cacheSubmissionFile(cacheKey, entry);
+        return entry;
+    } catch {
+        return null;
+    }
+}

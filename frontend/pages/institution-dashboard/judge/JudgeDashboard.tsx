@@ -7,6 +7,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_BASE_URL, authHeaders } from '../../../apiConfig';
 import { useAuth } from '../../../AuthContext';
+import FilePreviewPanel from '../../../components/FilePreviewPanel';
+import { fetchSubmissionFileBlob } from '../../../utils/submissionFilePreview';
 
 const JudgeDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -20,6 +22,7 @@ const JudgeDashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('All');
     const [searchQuery, setSearchQuery] = useState('');
+    const [eventThresholds, setEventThresholds] = useState<Record<string, any>>({});
     
     // Invitation & Filtering State
     const [pendingInvites, setPendingInvites] = useState<any[]>([]);
@@ -32,6 +35,22 @@ const JudgeDashboard: React.FC = () => {
     const [scores, setScores] = useState<Record<string, number>>({});
     const [comments, setComments] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [previewAsset, setPreviewAsset] = useState<{ url: string; filename: string; mime?: string; loading?: boolean } | null>(null);
+
+    const openJudgeSubmissionFile = async (submissionId: string, fieldId: string, filenameHint?: string, mimeHint?: string) => {
+        const cacheKey = `judge:${submissionId}:${fieldId}`;
+        setPreviewAsset({ url: '', filename: filenameHint || fieldId, loading: true });
+        const entry = await fetchSubmissionFileBlob(
+            `${API_BASE_URL}/api/v1/institution/judge/submissions/${submissionId}/file/${encodeURIComponent(fieldId)}`,
+            { headers: { ...authHeaders() }, cacheKey, filenameHint: filenameHint || fieldId },
+        );
+        if (!entry) {
+            setPreviewAsset(null);
+            alert('Could not open file.');
+            return;
+        }
+        setPreviewAsset({ ...entry, mime: entry.mime || mimeHint });
+    };
 
     const fetchData = async () => {
         try {
@@ -69,6 +88,15 @@ const JudgeDashboard: React.FC = () => {
                     avgScore,
                     activeEvents: new Set(data.map((a: any) => a.event_id)).size
                 });
+                // Extract unique event thresholds
+                const tmap: Record<string, any> = {};
+                data.forEach((a: any) => {
+                    const eid = a.event_id || '';
+                    if (eid && a.event_thresholds && !tmap[eid]) {
+                        tmap[eid] = a.event_thresholds;
+                    }
+                });
+                setEventThresholds(tmap);
             }
         } catch (error) {
             try { console.error("Failed to fetch assignments", error instanceof Error ? error.message : String(error)); } catch (_) {}
@@ -137,7 +165,7 @@ const JudgeDashboard: React.FC = () => {
                 // Initialize scores if not exists
                 if (!assignment.existing_scores) {
                     const initial: Record<string, number> = {};
-                    data.forEach((c: any) => { initial[c.name] = 5; });
+                    data.forEach((c: any) => { initial[c.name] = 0; });
                     setScores(initial);
                 }
             }
@@ -179,18 +207,28 @@ const JudgeDashboard: React.FC = () => {
         return assignments.filter(a => {
             const matchesStatus = filterStatus === 'All' || 
                 (filterStatus === 'Completed' && a.existing_scores) || 
-                (filterStatus === 'Pending' && !a.existing_scores);
+                (filterStatus === 'Pending' && !a.existing_scores) ||
+                (filterStatus === 'Shortlisted' && (a.classification === 'Shortlisted' || a.classification === 'shortlisted')) ||
+                (filterStatus === 'Waitlisted' && (a.classification === 'Waitlisted' || a.classification === 'waitlisted')) ||
+                (filterStatus === 'Rejected' && (a.classification === 'Rejected' || a.classification === 'rejected'));
             const matchesSearch = a.project_title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
                 a.team_name?.toLowerCase().includes(searchQuery.toLowerCase());
             return matchesStatus && matchesSearch;
         });
     }, [assignments, filterStatus, searchQuery]);
 
+    const shortlistedCount = assignments.filter(a => a.classification === 'Shortlisted' || a.classification === 'shortlisted').length;
+    const waitlistedCount = assignments.filter(a => a.classification === 'Waitlisted' || a.classification === 'waitlisted').length;
+    const rejectedCount = assignments.filter(a => a.classification === 'Rejected' || a.classification === 'rejected').length;
+
     const statCards = [
         { label: 'Pending Assessment', value: stats.pending, icon: <Clock size={20} />, color: 'from-purple-500/20 to-purple-600/10', border: 'border-purple-500/20', text: 'text-purple-600', valueText: 'text-slate-800' },
         { label: 'Evaluations Completed', value: stats.completed, icon: <CheckCircle size={20} />, color: 'from-purple-500/20 to-purple-600/10', border: 'border-purple-500/20', text: 'text-purple-600', valueText: 'text-slate-800' },
+        { label: 'Shortlisted', value: shortlistedCount, icon: <Award size={20} />, color: 'from-emerald-500/20 to-emerald-600/10', border: 'border-emerald-500/20', text: 'text-emerald-600', valueText: 'text-emerald-500' },
+        { label: 'Waitlisted', value: waitlistedCount, icon: <Clock size={20} />, color: 'from-amber-500/20 to-amber-600/10', border: 'border-amber-500/20', text: 'text-amber-600', valueText: 'text-amber-500' },
+        { label: 'Rejected', value: rejectedCount, icon: <XCircle size={20} />, color: 'from-red-500/20 to-red-600/10', border: 'border-red-500/20', text: 'text-red-600', valueText: 'text-red-500' },
         { label: 'Average Score Given', value: stats.avgScore, icon: <TrendingUp size={20} />, color: 'from-purple-500/20 to-purple-600/10', border: 'border-purple-500/20', text: 'text-purple-600', valueText: 'text-slate-800' },
-        { label: 'Active Hackathons', value: stats.activeEvents, icon: <Trophy size={20} />, color: 'from-purple-500/20 to-purple-600/10', border: 'border-purple-500/20', text: 'text-purple-600', valueText: 'text-slate-800' },
+        { label: 'Active Events', value: stats.activeEvents, icon: <Trophy size={20} />, color: 'from-purple-500/20 to-purple-600/10', border: 'border-purple-500/20', text: 'text-purple-600', valueText: 'text-slate-800' },
     ];
 
     if (loading && assignments.length === 0) return (
@@ -207,7 +245,7 @@ const JudgeDashboard: React.FC = () => {
                     <h1 className="text-3xl font-black text-white tracking-tight">Evaluator Command Center</h1>
                     <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-1 flex items-center gap-2">
                         <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                        Network Status: Synchronized • Welcome back, {user?.name || 'Judge'}
+                        Network Status: Synchronized • Welcome back, {user?.full_name || user?.name || 'Judge'}
                     </p>
                 </div>
                 
@@ -247,26 +285,53 @@ const JudgeDashboard: React.FC = () => {
             )}
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4">
                 {statCards.map((s, i) => (
                     <motion.div 
                         key={i}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.1 }}
-                        className={`p-8 bg-gradient-to-br ${s.color} border ${s.border} rounded-[2.5rem] relative overflow-hidden group hover:scale-[1.02] transition-all cursor-default shadow-xl`}
+                        className={`p-5 bg-gradient-to-br ${s.color} border ${s.border} rounded-[2rem] relative overflow-hidden group hover:scale-[1.02] transition-all cursor-default shadow-xl`}
                     >
                         <div className={`absolute top-[-20px] right-[-20px] opacity-10 group-hover:scale-150 transition-transform duration-700 ${s.text}`}>
                             {s.icon}
                         </div>
-                        <div className={`w-12 h-12 bg-gradient-to-br ${s.color} rounded-2xl flex items-center justify-center ${s.text} border ${s.border} mb-6 shadow-inner`}>
+                        <div className={`w-10 h-10 bg-gradient-to-br ${s.color} rounded-2xl flex items-center justify-center ${s.text} border ${s.border} mb-4 shadow-inner`}>
                             {s.icon}
                         </div>
-                        <h3 className={`text-3xl font-black mb-1 tracking-tighter ${s.valueText}`}>{s.value}</h3>
-                        <p className={`text-[10px] font-black uppercase tracking-widest ${s.text}`}>{s.label}</p>
+                        <h3 className={`text-2xl font-black mb-1 tracking-tighter ${s.valueText}`}>{s.value}</h3>
+                        <p className={`text-[8px] font-black uppercase tracking-widest ${s.text}`}>{s.label}</p>
                     </motion.div>
                 ))}
             </div>
+
+            {/* Thresholds Info */}
+            {Object.keys(eventThresholds).length > 0 && (
+                <div className="p-6 bg-white/5 border border-purple-500/20 rounded-[2rem] space-y-3">
+                    <h3 className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
+                        <Target size={14} /> Evaluation Thresholds (Set by Admin)
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {Object.entries(eventThresholds).map(([eid, t]: [string, any]) => (
+                            <React.Fragment key={eid}>
+                                <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-center">
+                                    <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Shortlist</p>
+                                    <p className="text-lg font-black text-white mt-1">{t.shortlist_min || 80}%+</p>
+                                </div>
+                                <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-center">
+                                    <p className="text-[8px] font-black text-amber-400 uppercase tracking-widest">Waitlist</p>
+                                    <p className="text-lg font-black text-white mt-1">{t.waitlist_min || Math.max((t.shortlist_min || 80) * 0.75, (t.shortlist_min || 80) - 15)}%+</p>
+                                </div>
+                                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-center">
+                                    <p className="text-[8px] font-black text-red-400 uppercase tracking-widest">Reject Below</p>
+                                    <p className="text-lg font-black text-white mt-1">&lt; {t.reject_below || t.waitlist_min || Math.max((t.shortlist_min || 80) * 0.75, (t.shortlist_min || 80) - 15)}%</p>
+                                </div>
+                            </React.Fragment>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Assignments List Area */}
             <div className="space-y-6">
@@ -276,8 +341,8 @@ const JudgeDashboard: React.FC = () => {
                             <Zap size={20} className="text-purple-500" />
                             Assigned Projects
                         </h2>
-                        <div className="flex gap-2 p-1 bg-white/5 border border-white/10 rounded-xl">
-                            {['All', 'Pending', 'Completed'].map(t => (
+                        <div className="flex gap-2 p-1 bg-white/5 border border-white/10 rounded-xl flex-wrap">
+                            {['All', 'Pending', 'Completed', 'Shortlisted', 'Waitlisted', 'Rejected'].map(t => (
                                 <button 
                                     key={t}
                                     onClick={() => setFilterStatus(t)}
@@ -336,8 +401,14 @@ const JudgeDashboard: React.FC = () => {
                                                 <Play size={14} />
                                             </a>
                                         )}
-                                        <div className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-[0.2em] border ${sub.existing_scores ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-orange-500/10 text-orange-400 border-orange-500/20'}`}>
-                                            {sub.existing_scores ? 'Evaluated' : 'Awaiting Review'}
+                                        <div className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-[0.2em] border ${
+                                            sub.classification === 'Shortlisted' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                            sub.classification === 'Waitlisted' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                            sub.classification === 'Rejected' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                                            sub.existing_scores ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                                            'bg-orange-500/10 text-orange-400 border-orange-500/20'
+                                        }`}>
+                                            {sub.classification || (sub.existing_scores ? 'Evaluated' : 'Awaiting Review')}
                                         </div>
                                     </div>
                                 </div>
@@ -394,6 +465,15 @@ const JudgeDashboard: React.FC = () => {
                                             <p className="text-purple-400 text-[10px] font-black uppercase tracking-[0.3em] mb-3">Protocol Active</p>
                                             <h2 className="text-3xl font-black text-white tracking-tight">{selectedAssignment.project_title}</h2>
                                             <p className="text-slate-500 text-sm font-bold uppercase tracking-widest mt-1">Unit: {selectedAssignment.team_name}</p>
+                                            <div className={`mt-3 inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] border ${
+                                                selectedAssignment.classification === 'Shortlisted' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                                selectedAssignment.classification === 'Waitlisted' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                                selectedAssignment.classification === 'Rejected' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                                                selectedAssignment.existing_scores ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                                                'bg-orange-500/10 text-orange-400 border-orange-500/20'
+                                            }`}>
+                                                {selectedAssignment.classification || (selectedAssignment.existing_scores ? 'Evaluated' : 'Awaiting Review')}
+                                            </div>
                                         </div>
                                         <button 
                                             onClick={() => setSelectedAssignment(null)}
@@ -426,6 +506,27 @@ const JudgeDashboard: React.FC = () => {
                                                 )}
                                             </div>
                                         </div>
+                                        {/* Dynamic User-Submitted Data */}
+                                        {(() => {
+                                            const subData = selectedAssignment.data || {};
+                                            const textFields = Object.entries(subData).filter(([k, v]) =>
+                                                typeof v === 'string' && !v.startsWith('data:') && !v.startsWith('http://') && !v.startsWith('https://') && !k.startsWith('_')
+                                            );
+                                            if (textFields.length === 0) return null;
+                                            return (
+                                                <div className="p-6 bg-white/5 border border-white/5 rounded-3xl space-y-3">
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Submitted Data</p>
+                                                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                                                        {textFields.map(([key, val]) => (
+                                                            <div key={key} className="text-xs">
+                                                                <span className="font-black text-slate-400 uppercase tracking-wider text-[9px]">{key.replace(/_/g, ' ')}: </span>
+                                                                <span className="text-slate-300 font-medium">{String(val)}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
                                         {/* Deliverable Files */}
                                         {(() => {
                                             const subData = selectedAssignment.data || {};
@@ -446,13 +547,15 @@ const JudgeDashboard: React.FC = () => {
                                                                 const isPdf = (f.mime || '').includes('pdf') || ext === 'PDF';
                                                                 const isPpt = (f.mime || '').includes('presentation') || ext === 'PPT' || ext === 'PPTX';
                                                                 return (
-                                                                    <a key={key} href={f.url || '#'}
-                                                                        target={f.url ? '_blank' : undefined}
-                                                                        rel="noreferrer"
-                                                                        className="flex items-center gap-3 text-xs font-bold text-purple-400 hover:text-purple-300 transition-colors">
+                                                                    <button
+                                                                        key={key}
+                                                                        type="button"
+                                                                        onClick={() => openJudgeSubmissionFile(String(selectedAssignment._id), key, f.filename, f.mime)}
+                                                                        className="flex items-center gap-3 text-xs font-bold text-purple-400 hover:text-purple-300 transition-colors"
+                                                                    >
                                                                         <FileText size={16} />
                                                                         {isPdf ? 'View PDF' : isPpt ? 'View PPT' : f.filename || 'View File'}
-                                                                    </a>
+                                                                    </button>
                                                                 );
                                                             }
                                                             if (typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'))) {
@@ -490,26 +593,45 @@ const JudgeDashboard: React.FC = () => {
                                     </div>
 
                                     {/* Score Visualization */}
-                                    <div className="pt-8 border-t border-white/5 flex items-center justify-between">
-                                        <div className="space-y-1">
-                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Aggregate Assessment</p>
-                                            <p className="text-4xl font-black text-white tracking-tighter">
-                                                {(Object.values(scores).reduce((a,b)=>a+b, 0) / (scoringCriteria.length || 1)).toFixed(1)}
-                                                <span className="text-lg text-slate-700 ml-1">/10</span>
-                                            </p>
+                                    <div className="pt-8 border-t border-white/5 space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Aggregate Assessment</p>
+                                                <p className="text-4xl font-black text-white tracking-tighter">
+                                                    {(Object.values(scores).reduce((a,b)=>a+b, 0) / (scoringCriteria.length || 1)).toFixed(1)}
+                                                    <span className="text-lg text-slate-700 ml-1">/10</span>
+                                                </p>
+                                            </div>
+                                            <div className="w-20 h-20 relative">
+                                                <svg className="w-full h-full transform -rotate-90">
+                                                    <circle cx="40" cy="40" r="36" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-white/5" />
+                                                    <circle 
+                                                        cx="40" cy="40" r="36" stroke="currentColor" strokeWidth="4" fill="transparent" 
+                                                        strokeDasharray={226.2}
+                                                        strokeDashoffset={226.2 - (226.2 * (Object.values(scores).reduce((a,b)=>a+b, 0) / (scoringCriteria.length || 1) / 10))}
+                                                        className="text-purple-500 transition-all duration-500"
+                                                    />
+                                                </svg>
+                                                <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-purple-400">Score</div>
+                                            </div>
                                         </div>
-                                        <div className="w-20 h-20 relative">
-                                            <svg className="w-full h-full transform -rotate-90">
-                                                <circle cx="40" cy="40" r="36" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-white/5" />
-                                                <circle 
-                                                    cx="40" cy="40" r="36" stroke="currentColor" strokeWidth="4" fill="transparent" 
-                                                    strokeDasharray={226.2}
-                                                    strokeDashoffset={226.2 - (226.2 * (Object.values(scores).reduce((a,b)=>a+b, 0) / (scoringCriteria.length || 1) / 10))}
-                                                    className="text-purple-500 transition-all duration-500"
-                                                />
-                                            </svg>
-                                            <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-purple-400">Score</div>
-                                        </div>
+                                        {/* Threshold bars */}
+                                        {selectedAssignment.event_thresholds && (
+                                            <div className="grid grid-cols-3 gap-3">
+                                                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-center">
+                                                    <p className="text-[7px] font-black text-emerald-400 uppercase tracking-widest">Shortlist ≥</p>
+                                                    <p className="text-sm font-black text-white">{selectedAssignment.event_thresholds.shortlist_min || 80}%</p>
+                                                </div>
+                                                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-center">
+                                                    <p className="text-[7px] font-black text-amber-400 uppercase tracking-widest">Waitlist ≥</p>
+                                                    <p className="text-sm font-black text-white">{selectedAssignment.event_thresholds.waitlist_min || Math.max((selectedAssignment.event_thresholds.shortlist_min || 80) * 0.75, (selectedAssignment.event_thresholds.shortlist_min || 80) - 15)}%</p>
+                                                </div>
+                                                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-2xl text-center">
+                                                    <p className="text-[7px] font-black text-red-400 uppercase tracking-widest">Reject &lt;</p>
+                                                    <p className="text-sm font-black text-white">{selectedAssignment.event_thresholds.reject_below || selectedAssignment.event_thresholds.waitlist_min || Math.max((selectedAssignment.event_thresholds.shortlist_min || 80) * 0.75, (selectedAssignment.event_thresholds.shortlist_min || 80) - 15)}%</p>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -528,7 +650,7 @@ const JudgeDashboard: React.FC = () => {
                                                     <span className="px-3 py-1 bg-purple-500/10 text-purple-400 rounded-lg text-[10px] font-black border border-purple-500/20">{scores[criterion.name] || 0}</span>
                                                 </div>
                                                 <input 
-                                                    type="range" min="0" max="10" step="0.5"
+                                                    type="range" min="0" max={criterion.max_points || 10} step="0.5"
                                                     value={scores[criterion.name] || 0}
                                                     onChange={(e) => setScores({ ...scores, [criterion.name]: parseFloat(e.target.value) })}
                                                     className="w-full h-1.5 bg-white/5 rounded-full appearance-none cursor-pointer accent-purple-500"
@@ -558,6 +680,35 @@ const JudgeDashboard: React.FC = () => {
                                         {isSaving ? 'Synchronizing...' : 'Finalize Assessment'}
                                     </button>
                                 </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {previewAsset && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-black/70 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-[#020617] border border-white/10 rounded-[2rem] w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden"
+                        >
+                            <div className="p-6 border-b border-white/10 flex items-center justify-between">
+                                <h3 className="text-lg font-black text-white">{previewAsset.filename}</h3>
+                                <button type="button" onClick={() => setPreviewAsset(null)} className="p-3 bg-white/5 rounded-xl text-slate-400 hover:text-white">
+                                    <XCircle size={20} />
+                                </button>
+                            </div>
+                            <div className="flex-1 p-4">
+                                {previewAsset.loading ? (
+                                    <div className="h-full flex items-center justify-center">
+                                        <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                                    </div>
+                                ) : (
+                                    <FilePreviewPanel url={previewAsset.url} filename={previewAsset.filename} mime={previewAsset.mime} />
+                                )}
                             </div>
                         </motion.div>
                     </div>
