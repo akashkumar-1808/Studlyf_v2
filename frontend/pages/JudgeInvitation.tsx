@@ -45,13 +45,23 @@ const JudgeInvitation: React.FC = () => {
 
     const fetchInvitationDetails = async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/api/judge-portal/invitation-details?token=${token}`);
+            const res = await fetch(`${API_BASE_URL}/api/judge-portal/invitation-details?token=${encodeURIComponent(token)}`);
             if (res.ok) {
                 const data = await res.json();
                 setInvitationData(data);
+            } else {
+                const body = await res.json().catch(() => ({}));
+                const msg = body?.detail || `HTTP ${res.status}`;
+                console.error('Failed to fetch invitation details:', msg);
+                if (res.status === 404) {
+                    setNotice({ kind: 'err', text: 'Invitation not found. The link may have expired or been cancelled.' });
+                } else {
+                    setNotice({ kind: 'err', text: msg });
+                }
             }
         } catch (error) {
             console.error('Failed to fetch invitation details:', error);
+            setNotice({ kind: 'err', text: 'Network error. Please check your connection and try again.' });
         } finally {
             setLoadingInvitation(false);
         }
