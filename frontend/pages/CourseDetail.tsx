@@ -161,6 +161,9 @@ const CourseDetail: React.FC = () => {
           } else {
             setCourseModules(GENERATIVE_AI_CURRICULUM);
           }
+        } catch (modErr) {
+          setCourseModules(GENERATIVE_AI_CURRICULUM);
+        }
 
         if (userId) {
           const stateRes = await fetch(`${API_BASE_URL}/api/user-courses/${userId}`);
