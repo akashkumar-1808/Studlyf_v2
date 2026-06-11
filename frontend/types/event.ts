@@ -4,6 +4,7 @@ export interface IStageField {
     type: 'text' | 'number' | 'url' | 'file' | 'checkbox';
     required: boolean;
     placeholder?: string;
+    key?: string;
 }
 
 export interface IStageConfig {
@@ -42,6 +43,7 @@ export interface IStage {
     roundMode?: 'Online' | 'Offline' | 'Hybrid';
     config?: IStageConfig;
     communication?: IStageCommunication;
+    fields?: IStageField[];
 }
 
 export interface IEvent {
@@ -57,6 +59,25 @@ export interface IEvent {
     min_team_size?: number;
     max_team_size?: number;
     external_registration_link?: string;
+    logo_url?: string;
+    banner_url?: string;
+    evaluation_thresholds?: {
+        shortlist_min?: number;
+        waitlist_min?: number;
+        reject_below?: number;
+    };
+    certificate_template_id?: string;
+    template_id?: string;
+    faqs?: any[];
+    participant_count?: number;
+    custom_questions?: any[];
+    institution_id?: string;
+    updated_at?: string;
+    opportunityMode?: string;
+    skills?: string[];
+    prize_pool?: string;
+    registration_settings?: any;
+    created_at?: string;
 }
 
 export interface ITeamMember {
@@ -68,11 +89,15 @@ export interface ITeamMember {
 
 export interface ITeam {
     _id: string;
+    team_id?: string;
     team_name: string;
     event_id: string;
     leader_id: string;
     members: ITeamMember[];
     invite_code?: string;
+    status?: string;
+    leader_name?: string;
+    team_leader_id?: string;
 }
 
 export interface IParticipant {

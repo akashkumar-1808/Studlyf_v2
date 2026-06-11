@@ -12,6 +12,8 @@ opportunities_col = db["opportunities"]
 opportunity_applications_col = db["opportunity_applications"]
 participants_col = db["participants"]
 
+_process_stats_cache = {}  # event_id -> (timestamp, data)
+
 async def _hydrate_public_process_stats(doc: dict) -> None:
     """Add counts-only process stats for learner view (no PII)."""
     if not doc:
@@ -19,6 +21,16 @@ async def _hydrate_public_process_stats(doc: dict) -> None:
     eid = doc.get("event_link_id")
     if not eid:
         return
+
+    # 30-second TTL Cache
+    now = datetime.utcnow()
+    cached = _process_stats_cache.get(str(eid))
+    if cached:
+        cache_time, cached_data = cached
+        if (now - cache_time).total_seconds() < 30:
+            doc["processStats"] = cached_data
+            return
+
     try:
         # Total registered is the safest, already mirrored via applicantsCount, but we also compute from participants.
         total_registered = await participants_col.count_documents({"event_id": str(eid)})
@@ -38,11 +50,13 @@ async def _hydrate_public_process_stats(doc: dict) -> None:
             by_status[st] = by_status.get(st, 0) + c
             if stage:
                 by_stage[stage] = by_stage.get(stage, 0) + c
-        doc["processStats"] = {
+        stats = {
             "registered": int(total_registered),
             "byStatus": by_status,
             "byStage": by_stage,
         }
+        _process_stats_cache[str(eid)] = (now, stats)
+        doc["processStats"] = stats
     except Exception:
         doc["processStats"] = {"registered": int(doc.get("applicantsCount") or 0), "byStatus": {}, "byStage": {}}
 
@@ -643,33 +657,68 @@ async def apply_for_opportunity(application_data: dict) -> dict:
 async def get_user_applications(user_id: str) -> List[dict]:
     """All portal applications for a learner, with opportunity, host labels, and real-time status."""
     cursor = opportunity_applications_col.find({"user_id": user_id})
-    applications = []
-    async for doc in cursor:
+    applications = await cursor.to_list(length=None)
+    
+    if not applications:
+        return []
+        
+    # Batch-fetch all opportunities
+    opp_ids = []
+    for doc in applications:
         doc["_id"] = str(doc["_id"])
+        oid = doc.get("opportunity_id")
+        if oid and ObjectId.is_valid(oid):
+            opp_ids.append(ObjectId(oid))
+            
+    opp_map = {}
+    if opp_ids:
+        opp_list = await opportunities_col.find({"_id": {"$in": opp_ids}}).to_list(length=None)
+        opp_map = {str(opp["_id"]): opp for opp in opp_list}
+        
+    # Batch-fetch all participants for this user & these events
+    event_ids = []
+    for opp in opp_map.values():
+        eid = opp.get("event_link_id")
+        if eid:
+            event_ids.append(str(eid))
+            
+    part_map = {}
+    if event_ids:
+        part_list = await participants_col.find({"user_id": user_id, "event_id": {"$in": event_ids}}).to_list(length=None)
+        part_map = {str(part["event_id"]): part for part in part_list}
+        
+    # Batch-fetch all institutions
+    inst_keys = set()
+    for opp in opp_map.values():
+        inst_key = opp.get("institution_id") or opp.get("createdBy")
+        if inst_key:
+            inst_keys.add(str(inst_key))
+            
+    inst_map = {}
+    if inst_keys:
+        inst_list = await institutions_col.find({"institution_id": {"$in": list(inst_keys)}}).to_list(length=None)
+        inst_map = {str(inst["institution_id"]): inst for inst in inst_list}
+        
+    for doc in applications:
         oid = str(doc.get("opportunity_id") or "")
-        if oid:
-            try:
-                opp = await opportunities_col.find_one({"_id": ObjectId(oid)})
-            except Exception:
-                opp = None
-            if opp:
-                doc["opportunity_title"] = opp.get("title")
-                doc["opportunity_type"] = opp.get("type")
-                eid = opp.get("event_link_id")
-                if eid:
-                    doc["event_id"] = str(eid)
-                    # Fetch real-time status and stage from participants collection
-                    participant = await participants_col.find_one({"event_id": str(eid), "user_id": user_id})
-                    if participant:
-                        doc["status"] = participant.get("status", doc.get("status"))
-                        doc["current_stage"] = participant.get("current_stage", doc.get("current_stage"))
-                        
-                inst_key = opp.get("institution_id") or opp.get("createdBy")
-                if inst_key:
-                    inst = await institutions_col.find_one({"institution_id": str(inst_key)})
-                    if inst:
-                        doc["institution_name"] = inst.get("name")
-        applications.append(doc)
+        opp = opp_map.get(oid)
+        if opp:
+            doc["opportunity_title"] = opp.get("title")
+            doc["opportunity_type"] = opp.get("type")
+            eid = opp.get("event_link_id")
+            if eid:
+                doc["event_id"] = str(eid)
+                participant = part_map.get(str(eid))
+                if participant:
+                    doc["status"] = participant.get("status", doc.get("status"))
+                    doc["current_stage"] = participant.get("current_stage", doc.get("current_stage"))
+                    
+            inst_key = opp.get("institution_id") or opp.get("createdBy")
+            if inst_key:
+                inst = inst_map.get(str(inst_key))
+                if inst:
+                    doc["institution_name"] = inst.get("name")
+                    
     applications.sort(key=lambda x: str(x.get("applied_at") or x.get("reviewed_at") or ""), reverse=True)
     return applications
 
@@ -698,37 +747,53 @@ async def get_learner_opportunity_overview(user_id: str, limit: int = 8) -> dict
     """
     cap = max(1, min(int(limit), 50))
     apps = await get_user_applications(user_id)
-    # Keep newest first for timeline.
     timeline = apps[: cap]
+
+    if not apps:
+        return {"upcoming": [], "timeline": []}
+
+    # Batch-fetch all opportunities and events
+    opp_ids = []
+    for a in apps:
+        oid = a.get("opportunity_id")
+        if oid and ObjectId.is_valid(oid):
+            opp_ids.append(ObjectId(oid))
+
+    opp_map = {}
+    if opp_ids:
+        opp_list = await opportunities_col.find({"_id": {"$in": opp_ids}}).to_list(length=None)
+        opp_map = {str(opp["_id"]): opp for opp in opp_list}
+
+    event_ids = []
+    for opp in opp_map.values():
+        eid = opp.get("event_link_id")
+        if eid and ObjectId.is_valid(eid):
+            event_ids.append(ObjectId(str(eid)))
+
+    event_map = {}
+    if event_ids:
+        event_list = await events_col.find({"_id": {"$in": event_ids}}).to_list(length=None)
+        event_map = {str(ev["_id"]): ev for ev in event_list}
 
     upcoming = []
     now = datetime.utcnow()
     for a in apps:
         oid = str(a.get("opportunity_id") or "")
-        if not oid:
-            continue
-        try:
-            opp = await opportunities_col.find_one({"_id": ObjectId(oid)})
-        except Exception:
-            opp = None
+        opp = opp_map.get(oid)
         if not opp:
             continue
-        opp["_id"] = str(opp["_id"])
+        # Make a copy so we don't modify the mapped dict in place
+        opp_copy = dict(opp)
+        opp_copy["_id"] = str(opp_copy["_id"])
 
-        eid = opp.get("event_link_id")
-        ev = None
-        if eid:
-            try:
-                ev = await events_col.find_one({"_id": ObjectId(str(eid))})
-            except Exception:
-                ev = None
+        eid = opp_copy.get("event_link_id")
+        ev = event_map.get(str(eid)) if eid else None
         if ev:
-            _apply_event_snapshot_to_opportunity(opp, ev)
+            _apply_event_snapshot_to_opportunity(opp_copy, ev)
 
-        # Find nearest deadline in future: prefer stage deadlines, else registration deadline.
-        next_deadline = _safe_dt(opp.get("deadline"))
+        next_deadline = _safe_dt(opp_copy.get("deadline"))
         next_label = "Registration deadline"
-        stages = opp.get("stages") if isinstance(opp.get("stages"), list) else []
+        stages = opp_copy.get("stages") if isinstance(opp_copy.get("stages"), list) else []
         for s in stages:
             if not isinstance(s, dict):
                 continue
@@ -745,10 +810,10 @@ async def get_learner_opportunity_overview(user_id: str, limit: int = 8) -> dict
         days_left = max(0, int(((next_deadline - now).total_seconds() + 86400 - 1) // 86400))
         upcoming.append(
             {
-                "opportunity_id": opp["_id"],
-                "title": opp.get("title"),
-                "organization": opp.get("organization") or opp.get("institution_profile_name"),
-                "type": opp.get("type"),
+                "opportunity_id": opp_copy["_id"],
+                "title": opp_copy.get("title"),
+                "organization": opp_copy.get("organization") or opp_copy.get("institution_profile_name"),
+                "type": opp_copy.get("type"),
                 "status": a.get("status") or "pending",
                 "next_deadline": next_deadline.isoformat(),
                 "next_label": next_label,

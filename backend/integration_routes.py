@@ -4941,40 +4941,54 @@ async def update_judging_criteria(event_id: str, request: Request, user: dict = 
 
             now = datetime.utcnow()
 
-            def _classify_and_update(coll, query_filter, sub_doc):
+            def _get_target_status(sub_doc):
                 sid = str(sub_doc["_id"])
                 score_list = scores_by_sub.get(sid, [])
                 if not score_list:
-                    return
+                    return None
                 avg_score = sum(score_list) / len(score_list)
                 if avg_score <= 0:
-                    return
+                    return None
                 pct = round((avg_score / max_possible) * 100, 1) if max_possible > 0 else avg_score
 
                 if pct >= shortlist_min:
-                    new_status = "Shortlisted"
+                    return "Shortlisted"
                 elif pct >= waitlist_min:
-                    new_status = "Waitlisted"
+                    return "Waitlisted"
                 elif pct < reject_below:
-                    new_status = "Rejected"
+                    return "Rejected"
                 else:
-                    new_status = "Pending Review"
-
-                if str(sub_doc.get("status") or "") != new_status:
-                    return coll.update_one(
-                        query_filter,
-                        {"$set": {"status": new_status, "auto_classified": True, "classified_at": now}},
-                    )
+                    return "Pending Review"
 
             # Classify submissions_col
             raw_subs = await submissions_col.find({"event_id": {"$in": event_id_in}}).to_list(length=10000)
+            subs_to_update = {"Shortlisted": [], "Waitlisted": [], "Rejected": [], "Pending Review": []}
             for sub in raw_subs:
-                await _classify_and_update(submissions_col, {"_id": sub["_id"]}, sub)
+                new_status = _get_target_status(sub)
+                if new_status and str(sub.get("status") or "") != new_status:
+                    subs_to_update[new_status].append(sub["_id"])
+
+            for status, ids in subs_to_update.items():
+                if ids:
+                    await submissions_col.update_many(
+                        {"_id": {"$in": ids}},
+                        {"$set": {"status": status, "auto_classified": True, "classified_at": now}}
+                    )
 
             # Classify submission_data_col
             raw_sd = await submission_data_col.find({"event_id": {"$in": event_id_in}}).to_list(length=10000)
+            sd_to_update = {"Shortlisted": [], "Waitlisted": [], "Rejected": [], "Pending Review": []}
             for sd in raw_sd:
-                await _classify_and_update(submission_data_col, {"_id": sd["_id"]}, sd)
+                new_status = _get_target_status(sd)
+                if new_status and str(sd.get("status") or "") != new_status:
+                    sd_to_update[new_status].append(sd["_id"])
+
+            for status, ids in sd_to_update.items():
+                if ids:
+                    await submission_data_col.update_many(
+                        {"_id": {"$in": ids}},
+                        {"$set": {"status": status, "auto_classified": True, "classified_at": now}}
+                    )
 
         except Exception as e:
             print(f"[ERROR] Auto-classification failed for event {event_id}: {e}")

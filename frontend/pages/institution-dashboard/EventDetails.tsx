@@ -86,11 +86,11 @@ interface EventDetailsProps {
     onEditEvent?: (eventId: string) => void;
 }
 
-const BUNDLE_TABS = ['shortlisted', 'approved', 'waitlisted', 'pending'] as const;
+const BUNDLE_TABS = ['shortlisted', 'waitlisted', 'rejected', 'pending'] as const;
 const BUNDLE_TAB_LABEL: Record<string, string> = {
     shortlisted: 'Shortlisted',
-    approved: 'Approved',
     waitlisted: 'Waitlisted',
+    rejected: 'Rejected',
     pending: 'Pending',
 };
 
@@ -145,14 +145,24 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
     const [criteria, setCriteria] = useState<any[]>([]);
     const [bundleData, setBundleData] = useState<any>(null);
     const [prizeDistribution, setPrizeDistribution] = useState<any[]>([]);
-    const [threshold, setThreshold] = useState(0);
-    const [debouncedThreshold, setDebouncedThreshold] = useState(0);
+    const [shortlistThreshold, setShortlistThreshold] = useState<number>(80);
+    const [waitlistThreshold, setWaitlistThreshold] = useState<number>(65);
+    const [rejectThreshold, setRejectThreshold] = useState<number>(50);
+    const [savingThresholds, setSavingThresholds] = useState<boolean>(false);
     const [bundleTab, setBundleTab] = useState<string>('shortlisted');
     const [teams, setTeams] = useState<ITeam[]>([]);
     const [selectedTeam, setSelectedTeam] = useState<any | null>(null);
     const [loadingTeamDetails, setLoadingTeamDetails] = useState(false);
     const [submissions, setSubmissions] = useState<ISubmission[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+
+    useEffect(() => {
+        if (event?.evaluation_thresholds) {
+            setShortlistThreshold(Number(event.evaluation_thresholds.shortlist_min ?? 80));
+            setWaitlistThreshold(Number(event.evaluation_thresholds.waitlist_min ?? 65));
+            setRejectThreshold(Number(event.evaluation_thresholds.reject_below ?? 50));
+        }
+    }, [event]);
 
     useEffect(() => {
         if (initialSection) setActiveTab(initialSection);
@@ -444,9 +454,11 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
     const handleIssueCertificates = async () => {
         if (!eventId || !event) return;
 
+        const shortlistedRows = Array.isArray(bundleData?.shortlisted) ? bundleData.shortlisted : [];
         const approvedRows = Array.isArray(bundleData?.approved) ? bundleData.approved : [];
+        const combinedRows = [...shortlistedRows, ...approvedRows];
         const userIds = Array.from(new Set(
-            approvedRows.flatMap((item: any) => {
+            combinedRows.flatMap((item: any) => {
                 if (Array.isArray(item?.member_user_ids) && item.member_user_ids.length > 0) {
                     return item.member_user_ids;
                 }
@@ -458,11 +470,11 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
         ));
 
         if (userIds.length === 0) {
-            alert('No approved recipients were resolved for certificate issuance.');
+            alert('No qualified recipients were resolved for certificate issuance.');
             return;
         }
 
-        if (!confirm(`Issue certificates to ${userIds.length} approved recipient${userIds.length === 1 ? '' : 's'}?`)) return;
+        if (!confirm(`Issue certificates to ${userIds.length} recipient${userIds.length === 1 ? '' : 's'}?`)) return;
 
         setIssuingCertificates(true);
         try {
@@ -823,12 +835,12 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
         return () => { cancelled = true; };
     }, [eventId, activeTab, user]);
 
-    const fetchBundle = async (tVal: number, stageId?: string) => {
+    const fetchBundle = async (stageId?: string) => {
         if (!eventId || activeTab !== 'submissions') return;
         if (bundleLoading) return;
         setBundleLoading(true);
         try {
-            let url = `${API_BASE_URL}/api/v1/institution/events/${eventId}/qualified-bundle?threshold=${tVal}`;
+            let url = `${API_BASE_URL}/api/v1/institution/events/${eventId}/qualified-bundle?threshold=${shortlistThreshold}&waitlist_min=${waitlistThreshold}&reject_below=${rejectThreshold}`;
             if (stageId) url += `&stage_id=${encodeURIComponent(stageId)}`;
             const res = await fetch(url, {
                 headers: { ...authHeaders() }
@@ -952,9 +964,9 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 : submissionSubTab === 'assessments'
                     ? (selectedSubTabQuizStageId || undefined)
                     : undefined;
-            fetchBundle(debouncedThreshold, stageId);
+            fetchBundle(stageId);
         }
-    }, [eventId, activeTab, debouncedThreshold, refreshCounter, submissionSubTab, selectedProjectStageId, selectedSubTabQuizStageId]);
+    }, [eventId, activeTab, refreshCounter, submissionSubTab, selectedProjectStageId, selectedSubTabQuizStageId]);
 
     useEffect(() => {
         if (activeTab !== 'assessments' || !eventId || quizzes.length === 0) return;
@@ -980,6 +992,63 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
             cancelled = true;
         };
     }, [activeTab, eventId, quizzes]);
+
+    const getCurrentBundleItems = () => {
+        if (!bundleData) return [];
+        if (bundleTab === 'shortlisted') {
+            const sList = Array.isArray(bundleData.shortlisted) ? bundleData.shortlisted : [];
+            const aList = Array.isArray(bundleData.approved) ? bundleData.approved : [];
+            const seen = new Set();
+            return [...sList, ...aList].filter(item => {
+                const id = item.team_id || item.user_id || item.submission_id;
+                if (!id) return true;
+                if (seen.has(id)) return false;
+                seen.add(id);
+                return true;
+            });
+        }
+        return Array.isArray(bundleData[bundleTab]) ? bundleData[bundleTab] : [];
+    };
+
+    const handleSaveThresholds = async () => {
+        if (!eventId) return;
+        setSavingThresholds(true);
+        try {
+            const payload = {
+                criteria: criteria,
+                evaluation_thresholds: {
+                    shortlist_min: shortlistThreshold,
+                    waitlist_min: waitlistThreshold,
+                    reject_below: rejectThreshold
+                }
+            };
+            const res = await fetch(`${API_BASE_URL}/api/v1/institution/events/${eventId}/criteria`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                setEvent(prev => prev ? {
+                    ...prev,
+                    evaluation_thresholds: {
+                        shortlist_min: shortlistThreshold,
+                        waitlist_min: waitlistThreshold,
+                        reject_below: rejectThreshold
+                    }
+                } : prev);
+                setShowSaveSuccess(true);
+                setTimeout(() => setShowSaveSuccess(false), 2000);
+                setRefreshCounter(prev => prev + 1);
+            } else {
+                const err = await res.json().catch(() => ({}));
+                alert(`Failed to save thresholds: ${err.detail || 'Unknown error'}`);
+            }
+        } catch (err) {
+            alert('Network error while saving thresholds');
+        } finally {
+            setSavingThresholds(false);
+        }
+    };
 
     const evaluateCodingAttempt = async (quizId: string, participantUserId: string) => {
         const scoreRaw = window.prompt('Manual score (%)');
@@ -1413,7 +1482,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
         const activeStageIndex = sortedStages.findIndex((stage) => getStageStatus(stage) === 'active');
         const selectedStageIndex = activeStageIndex !== -1
             ? activeStageIndex
-            : Math.max(0, sortedStages.findLastIndex ? sortedStages.findLastIndex((stage) => getStageStatus(stage) !== 'upcoming') : (() => {
+            : Math.max(0, (sortedStages as any).findLastIndex ? (sortedStages as any).findLastIndex((stage: any) => getStageStatus(stage) !== 'upcoming') : (() => {
                 for (let i = sortedStages.length - 1; i >= 0; i--) {
                     if (getStageStatus(sortedStages[i]) !== 'upcoming') return i;
                 }
@@ -1448,8 +1517,11 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
         }
         const current = (item?.status || '').toLowerCase();
         const target = newStatus.toLowerCase();
-        if (current === target) {
-            setBundleTab(target === 'accepted' ? 'approved' : target);
+        if (
+            current === target ||
+            (['accepted', 'approved', 'shortlisted'].includes(current) && ['accepted', 'approved', 'shortlisted'].includes(target))
+        ) {
+            setBundleTab('shortlisted');
             return;
         }
         setSubmittingStatus(statusKey);
@@ -1475,6 +1547,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                     }));
                     setShowSaveSuccess(true);
                     setTimeout(() => setShowSaveSuccess(false), 2000);
+                    setRefreshCounter(prev => prev + 1);
                 }
             } catch (err) {
                 try { console.error('Failed to update application status:', err instanceof Error ? err.message : String(err)); } catch (_) { }
@@ -1495,6 +1568,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                     }));
                     setShowSaveSuccess(true);
                     setTimeout(() => setShowSaveSuccess(false), 2000);
+                    setRefreshCounter(prev => prev + 1);
                 }
             } catch (err) {
                 try { console.error('Failed to update stage submission status:', err instanceof Error ? err.message : String(err)); } catch (_) { }
@@ -1516,6 +1590,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                     }));
                     setShowSaveSuccess(true);
                     setTimeout(() => setShowSaveSuccess(false), 2000);
+                    setRefreshCounter(prev => prev + 1);
 
                     if (item) {
                         try {
@@ -1560,6 +1635,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                     }));
                     setShowSaveSuccess(true);
                     setTimeout(() => setShowSaveSuccess(false), 2000);
+                    setRefreshCounter(prev => prev + 1);
                 }
             } catch (err) {
                 try { console.error('Failed to update submission status:', err instanceof Error ? err.message : String(err)); } catch (_) { }
@@ -1659,7 +1735,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                     : submissionSubTab === 'assessments'
                         ? (selectedSubTabQuizStageId || undefined)
                         : undefined;
-                fetchBundle(debouncedThreshold, currentStageId);
+                fetchBundle(currentStageId);
             } else {
                 const error = await res.json();
                 alert(error.detail || 'Failed to assign judge');
@@ -2242,14 +2318,14 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                         <button
                             type="button"
                             onClick={() => setSubmissionSubTab('projects')}
-                            className={`px-8 py-3 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${submissionSubTab === 'projects' ? 'bg-white text-[#6C3BFF] shadow-xl' : 'text-slate-500 hover:text-slate-800'}`}
+                            className={`px-8 py-3 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${false ? 'bg-white text-[#6C3BFF] shadow-xl' : 'text-slate-500 hover:text-slate-800'}`}
                         >
                             Projects & Deliverables
                         </button>
                         <button
                             type="button"
                             onClick={() => setSubmissionSubTab('assessments')}
-                            className={`px-8 py-3 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${submissionSubTab === 'assessments' ? 'bg-white text-[#6C3BFF] shadow-xl' : 'text-slate-500 hover:text-slate-800'}`}
+                            className={`px-8 py-3 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${true ? 'bg-white text-[#6C3BFF] shadow-xl' : 'text-slate-500 hover:text-slate-800'}`}
                         >
                             Quizzes & Assessments
                         </button>
@@ -2452,7 +2528,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                     <button
                         type="button"
                         onClick={() => setSubmissionSubTab('assessments')}
-                        className={`px-8 py-3 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${submissionSubTab === 'assessments' ? 'bg-white text-[#6C3BFF] shadow-xl' : 'text-slate-500 hover:text-slate-800'}`}
+                        className={`px-8 py-3 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${false ? 'bg-white text-[#6C3BFF] shadow-xl' : 'text-slate-500 hover:text-slate-800'}`}
                     >
                         Quizzes & Assessments
                     </button>
@@ -2676,294 +2752,351 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 })()}
 
                 {/* Bundle Categorization Section */}
-                <div className="mt-16 space-y-8">
-                    <div className="flex items-center gap-10 border-b border-slate-100 px-6">
-                        {BUNDLE_TABS.map((tab) => (
-                            <button
-                                key={tab}
-                                onClick={() => setBundleTab(tab)}
-                                className={`text-[10px] font-black uppercase tracking-[0.2em] pb-5 relative transition-all ${bundleTab === tab ? 'text-[#6C3BFF]' : 'text-slate-400 hover:text-slate-600'}`}
-                            >
-                                {BUNDLE_TAB_LABEL[tab]} ({bundleData?.summary?.[tab] || 0})
-                                {bundleTab === tab && (
-                                    <motion.div layoutId="bundleSubTab" className="absolute bottom-0 left-0 right-0 h-1 bg-[#6C3BFF] rounded-full shadow-[0_2px_10px_rgba(108,59,255,0.4)]" />
-                                )}
-                            </button>
-                        ))}
-                        {getCurrentStageInfo().is_final_stage && (bundleData?.approved?.length || 0) > 0 && (
-                            <button
-                                onClick={handleIssueCertificates}
-                                disabled={issuingCertificates}
-                                className="ml-auto mb-5 px-4 py-2 rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-[10px] font-black uppercase tracking-[0.2em]"
-                            >
-                                {issuingCertificates ? 'Issuing Certificates...' : 'Issue Certificates'}
-                            </button>
-                        )}
-                    </div>
+                {(() => {
+                    const rawItems = getCurrentBundleItems();
+                    const filteredBundleItems = rawItems.filter((item: any) => {
+                        if (notifyFilter === 'notified') return !!item.notified_at;
+                        if (notifyFilter === 'unnotified') return !item.notified_at;
+                        return true;
+                    }).filter((item: any) => {
+                        if (!searchQuery.trim()) return true;
+                        return (item.team_name || '').toLowerCase().includes(searchQuery.toLowerCase());
+                    });
 
-                    <div className="flex flex-wrap items-center gap-4 px-6">
-                        <div className="relative">
-                            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                            <input
-                                type="text"
-                                placeholder="Search teams..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-14 pr-8 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 focus:ring-purple-50 transition-all w-72"
-                            />
-                        </div>
-                        <select
-                            value={notifyFilter}
-                            onChange={(e) => setNotifyFilter(e.target.value)}
-                            className="px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 outline-none focus:ring-4 focus:ring-purple-50 transition-all"
-                        >
-                            <option value="all">All</option>
-                            <option value="notified">Notified</option>
-                            <option value="unnotified">Unnotified</option>
-                        </select>
-                    </div>
+                    return (
+                        <div className="mt-16 space-y-8 animate-in fade-in duration-300">
+                            {/* Score Thresholds Configuration Card */}
+                            <div className="mx-4 p-8 bg-gradient-to-r from-slate-900 to-slate-800 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden border border-white/5">
+                                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+                                    <div className="space-y-2">
+                                        <h4 className="text-xl font-black tracking-tight flex items-center gap-2">
+                                            <Settings className="text-[#9875FF] animate-spin-slow" size={22} />
+                                            Score Thresholds & Auto-Classification
+                                        </h4>
+                                        <p className="text-slate-400 font-bold text-xs max-w-xl leading-relaxed">
+                                            Set score boundary percentages. Submissions will automatically be classified into Shortlisted, Waitlisted, or Rejected based on their average judge scores.
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="flex flex-wrap items-end gap-6">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Shortlist Min %</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="number"
+                                                    min={0} max={100}
+                                                    value={shortlistThreshold}
+                                                    onChange={(e) => setShortlistThreshold(Number(e.target.value) || 0)}
+                                                    className="w-28 px-4 py-3 bg-slate-800/80 border border-slate-700/60 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all text-center text-sm"
+                                                />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xs">%</span>
+                                            </div>
+                                        </div>
 
-                    <div className="bg-white rounded-[3rem] border border-slate-100 overflow-hidden shadow-2xl shadow-slate-200/20">
-                        <table className="w-full text-left" style={{ tableLayout: 'fixed' }}>
-                            <thead>
-                                <tr className="bg-slate-50/50">
-                                    {bundleTab === 'shortlisted' && (
-                                        <th className="px-6 py-6 w-14">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedBundleItems.length > 0 && selectedBundleItems.length === (filteredBundleItems || []).length}
-                                                onChange={() => {
-                                                    const items = filteredBundleItems || [];
-                                                    if (selectedBundleItems.length === items.length) {
-                                                        setSelectedBundleItems([]);
-                                                    } else {
-                                                        setSelectedBundleItems(items.map((i: any) => i.team_id || i.submission_id));
-                                                    }
-                                                }}
-                                                className="w-5 h-5 rounded border-2 border-slate-200 text-purple-600 focus:ring-purple-500"
-                                            />
-                                        </th>
-                                    )}
-                                    <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Team Name</th>
-                                    <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Judge Status</th>
-                                    <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Score Aggregate</th>
-                                    <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Recommendation</th>
-                                    <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                                {(() => {
-                                    const rawItems = bundleData?.[bundleTab] || [];
-                                    const filteredBundleItems = rawItems.filter((item: any) => {
-                                        if (notifyFilter === 'notified') return !!item.notified_at;
-                                        if (notifyFilter === 'unnotified') return !item.notified_at;
-                                        return true;
-                                    });
-                                    const searchedItems = searchQuery.trim()
-                                        ? filteredBundleItems.filter((item: any) =>
-                                            (item.team_name || '').toLowerCase().includes(searchQuery.toLowerCase())
-                                        )
-                                        : filteredBundleItems;
-                                    return { filteredBundleItems: searchedItems, rawItems };
-                                })().filteredBundleItems.length > 0 ? (
-                                    (() => {
-                                        const rawItems = bundleData?.[bundleTab] || [];
-                                        const filtered = rawItems.filter((item: any) => {
-                                            if (notifyFilter === 'notified') return !!item.notified_at;
-                                            if (notifyFilter === 'unnotified') return !item.notified_at;
-                                            return true;
-                                        });
-                                        const searched = searchQuery.trim()
-                                            ? filtered.filter((item: any) =>
-                                                (item.team_name || '').toLowerCase().includes(searchQuery.toLowerCase())
-                                            )
-                                            : filtered;
-                                        return searched.map((item: any, idx: number) => (
-                                        <motion.tr
-                                            key={item.team_id || item.user_id || item.submission_id || idx}
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: idx * 0.03 }}
-                                            className="hover:bg-slate-50/30 transition-colors group"
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Waitlist Min %</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="number"
+                                                    min={0} max={100}
+                                                    value={waitlistThreshold}
+                                                    onChange={(e) => setWaitlistThreshold(Number(e.target.value) || 0)}
+                                                    className="w-28 px-4 py-3 bg-slate-800/80 border border-slate-700/60 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all text-center text-sm"
+                                                />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xs">%</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Reject Below %</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="number"
+                                                    min={0} max={100}
+                                                    value={rejectThreshold}
+                                                    onChange={(e) => setRejectThreshold(Number(e.target.value) || 0)}
+                                                    className="w-28 px-4 py-3 bg-slate-800/80 border border-slate-700/60 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all text-center text-sm"
+                                                />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xs">%</span>
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={handleSaveThresholds}
+                                            disabled={savingThresholds}
+                                            className="px-6 py-3.5 bg-gradient-to-r from-[#6C3BFF] to-[#8c5eff] hover:from-[#572ee0] hover:to-[#794be6] text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-purple-900/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 h-[46px]"
                                         >
+                                            {savingThresholds ? (
+                                                <>
+                                                    <Loader2 size={14} className="animate-spin" />
+                                                    Applying...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Save size={14} />
+                                                    Apply
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-purple-500/10 rounded-full blur-[60px] pointer-events-none"></div>
+                            </div>
+
+                            <div className="flex items-center gap-10 border-b border-slate-100 px-6 mt-8">
+                                {BUNDLE_TABS.map((tab) => (
+                                    <button
+                                        key={tab}
+                                        onClick={() => setBundleTab(tab)}
+                                        className={`text-[10px] font-black uppercase tracking-[0.2em] pb-5 relative transition-all ${bundleTab === tab ? 'text-[#6C3BFF]' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        {BUNDLE_TAB_LABEL[tab]} ({tab === 'shortlisted' ? ((bundleData?.summary?.shortlisted || 0) + (bundleData?.summary?.approved || 0)) : (bundleData?.summary?.[tab] || 0)})
+                                        {bundleTab === tab && (
+                                            <motion.div layoutId="bundleSubTab" className="absolute bottom-0 left-0 right-0 h-1 bg-[#6C3BFF] rounded-full shadow-[0_2px_10px_rgba(108,59,255,0.4)]" />
+                                        )}
+                                    </button>
+                                ))}
+                                {getCurrentStageInfo().is_final_stage && ((bundleData?.shortlisted?.length || 0) + (bundleData?.approved?.length || 0)) > 0 && (
+                                    <button
+                                        onClick={handleIssueCertificates}
+                                        disabled={issuingCertificates}
+                                        className="ml-auto mb-5 px-4 py-2 rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-[10px] font-black uppercase tracking-[0.2em]"
+                                    >
+                                        {issuingCertificates ? 'Issuing Certificates...' : 'Issue Certificates'}
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-4 px-6">
+                                <div className="relative">
+                                    <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search teams..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="pl-14 pr-8 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 focus:ring-purple-50 transition-all w-72"
+                                    />
+                                </div>
+                                <select
+                                    value={notifyFilter}
+                                    onChange={(e) => setNotifyFilter(e.target.value)}
+                                    className="px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 outline-none focus:ring-4 focus:ring-purple-50 transition-all"
+                                >
+                                    <option value="all">All</option>
+                                    <option value="notified">Notified</option>
+                                    <option value="unnotified">Unnotified</option>
+                                </select>
+                            </div>
+
+                            <div className="bg-white rounded-[3rem] border border-slate-100 overflow-hidden shadow-2xl shadow-slate-200/20">
+                                <table className="w-full text-left" style={{ tableLayout: 'fixed' }}>
+                                    <thead>
+                                        <tr className="bg-slate-50/50">
                                             {bundleTab === 'shortlisted' && (
-                                                <td className="px-6 py-8">
+                                                <th className="px-6 py-6 w-14">
                                                     <input
                                                         type="checkbox"
-                                                        checked={selectedBundleItems.includes(item.team_id || item.submission_id)}
+                                                        checked={selectedBundleItems.length > 0 && selectedBundleItems.length === (filteredBundleItems || []).length}
                                                         onChange={() => {
-                                                            const id = item.team_id || item.submission_id;
-                                                            setSelectedBundleItems(prev =>
-                                                                prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-                                                            );
+                                                            const items = filteredBundleItems || [];
+                                                            if (selectedBundleItems.length === items.length) {
+                                                                setSelectedBundleItems([]);
+                                                            } else {
+                                                                setSelectedBundleItems(items.map((i: any) => i.team_id || i.submission_id));
+                                                            }
                                                         }}
                                                         className="w-5 h-5 rounded border-2 border-slate-200 text-purple-600 focus:ring-purple-500"
                                                     />
-                                                </td>
+                                                </th>
                                             )}
-                                            <td className="px-10 py-8">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleOpenSubmissionTeam(item)}
-                                                    className="font-black text-slate-900 text-lg tracking-tight text-left hover:text-[#6C3BFF] transition-colors"
+                                            <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Team Name</th>
+                                            <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Judge Status</th>
+                                            <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Score Aggregate</th>
+                                            <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Recommendation</th>
+                                            <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {filteredBundleItems.length > 0 ? (
+                                            filteredBundleItems.map((item: any, idx: number) => (
+                                                <motion.tr
+                                                    key={item.team_id || item.user_id || item.submission_id || idx}
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ delay: idx * 0.03 }}
+                                                    className="hover:bg-slate-50/30 transition-colors group"
                                                 >
-                                                    {item.team_name}
-                                                </button>
-                                                {item.notified_at && (
-                                                    <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 text-[8px] font-black uppercase tracking-wider">Notified</span>
-                                                )}
-                                            </td>
-                                            <td className="px-10 py-8">
-                                                <div className="flex flex-col gap-1.5">
-                                                    {Array.isArray(item.judges) && item.judges.length > 0 ? item.judges.map((j: any, ji: number) => (
-                                                        <div key={ji} className="relative group/judge">
-                                                            <div className="flex items-center gap-2 cursor-pointer" title={j.email || ''}>
-                                                                <span className={`w-2 h-2 rounded-full ${j.verified ? 'bg-emerald-500' : 'bg-amber-400'}`} />
-                                                                <span className="text-[11px] font-bold text-slate-700 group-hover/judge:text-[#6C3BFF] transition-colors">
-                                                                    {j.name || 'Judge'}
-                                                                </span>
-                                                                {j.verified ? (
-                                                                    <span className="text-[9px] font-black text-emerald-600 uppercase tracking-wider">Verified</span>
-                                                                ) : (
-                                                                    <span className="text-[9px] font-black text-amber-600 uppercase tracking-wider">Pending</span>
-                                                                )}
-                                                            </div>
-                                                            {j.email && (
-                                                                <div className="absolute left-0 top-full mt-1 px-2 py-1 bg-slate-800 text-white text-[10px] rounded-lg opacity-0 group-hover/judge:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
-                                                                    {j.email}
+                                                    {bundleTab === 'shortlisted' && (
+                                                        <td className="px-6 py-8">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedBundleItems.includes(item.team_id || item.submission_id)}
+                                                                onChange={() => {
+                                                                    const id = item.team_id || item.submission_id;
+                                                                    setSelectedBundleItems(prev =>
+                                                                        prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+                                                                    );
+                                                                }}
+                                                                className="w-5 h-5 rounded border-2 border-slate-200 text-purple-600 focus:ring-purple-500"
+                                                            />
+                                                        </td>
+                                                    )}
+                                                    <td className="px-10 py-8">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleOpenSubmissionTeam(item)}
+                                                            className="font-black text-slate-900 text-lg tracking-tight text-left hover:text-[#6C3BFF] transition-colors"
+                                                        >
+                                                            {item.team_name}
+                                                        </button>
+                                                        {item.notified_at && (
+                                                            <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 text-[8px] font-black uppercase tracking-wider">Notified</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-10 py-8">
+                                                        <div className="flex flex-col gap-1.5">
+                                                            {Array.isArray(item.judges) && item.judges.length > 0 ? item.judges.map((j: any, ji: number) => (
+                                                                <div key={ji} className="relative group/judge">
+                                                                    <div className="flex items-center gap-2 cursor-pointer" title={j.email || ''}>
+                                                                        <span className={`w-2 h-2 rounded-full ${j.verified ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+                                                                        <span className="text-[11px] font-bold text-slate-700 group-hover/judge:text-[#6C3BFF] transition-colors">
+                                                                            {j.name || 'Judge'}
+                                                                        </span>
+                                                                        {j.verified ? (
+                                                                            <span className="text-[9px] font-black text-emerald-600 uppercase tracking-wider">Verified</span>
+                                                                        ) : (
+                                                                            <span className="text-[9px] font-black text-amber-600 uppercase tracking-wider">Pending</span>
+                                                                        )}
+                                                                    </div>
+                                                                    {j.email && (
+                                                                        <div className="absolute left-0 top-full mt-1 px-2 py-1 bg-slate-800 text-white text-[10px] rounded-lg opacity-0 group-hover/judge:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                                                                            {j.email}
+                                                                        </div>
+                                                                    )}
                                                                 </div>
+                                                            )) : (
+                                                                <span className="text-[10px] font-bold text-slate-300 italic">No judges assigned</span>
                                                             )}
                                                         </div>
-                                                    )) : (
-                                                        <span className="text-[10px] font-bold text-slate-300 italic">No judges assigned</span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-10 py-8 text-center">
-                                                <span className={`text-base font-black ${item.score > 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
-                                                    {item.score ? item.score.toFixed(1) : '0.0'}
-                                                </span>
-                                            </td>
-                                            <td className="px-10 py-8 max-w-[200px] text-center">
-                                                {item.recommendation ? (
-                                                    <button
-                                                        onClick={() => setPreviewRecommendation({ title: item.team_name || item.display_name, text: item.recommendation })}
-                                                        className="text-[11px] font-bold text-slate-600 hover:text-purple-600 underline decoration-dashed underline-offset-4 text-left w-full line-clamp-2"
-                                                        title="Click to view full recommendation"
-                                                    >
-                                                        {item.recommendation}
-                                                    </button>
-                                                ) : null}
-                                            </td>
-                                            <td className="px-10 py-8 text-right whitespace-nowrap">
-                                                <div className="flex gap-1.5 justify-end">
-                                                    {(() => {
-                                                        const status = (item.status || '').toLowerCase();
-                                                        if (status === 'approved' || status === 'accepted') {
-                                                            return <div className="px-3 py-2 text-emerald-600 text-[10px] font-black uppercase tracking-widest bg-emerald-50 rounded-xl border border-emerald-100">Approved</div>;
-                                                        }
-                                                        if (status === 'waitlisted') {
-                                                            return <div className="px-3 py-2 text-amber-600 text-[10px] font-black uppercase tracking-widest bg-amber-50 rounded-xl border border-amber-100">Waitlisted</div>;
-                                                        }
-                                                        if (status === 'rejected') {
-                                                            return <div className="px-3 py-2 text-rose-600 text-[10px] font-black uppercase tracking-widest bg-rose-50 rounded-xl border border-rose-100">Rejected</div>;
-                                                        }
-                                                        return (
-                                                            <>
-                                                                <button
-                                                                    disabled={submittingStatus !== null}
-                                                                    onClick={() => {
-                                                                        handleUpdateStatus(item.team_id || item.submission_id, 'Shortlisted', item);
-                                                                        setBundleTab('shortlisted');
-                                                                    }}
-                                                                    className="px-2.5 py-2 text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-sm text-[10px] font-bold whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
-                                                                >
-                                                                    Shortlist
-                                                                </button>
-                                                                <button
-                                                                    disabled={submittingStatus !== null}
-                                                                    onClick={() => {
-                                                                        handleUpdateStatus(item.team_id || item.submission_id, 'Waitlisted', item);
-                                                                        setBundleTab('waitlisted');
-                                                                    }}
-                                                                    className="px-2.5 py-2 text-amber-600 bg-amber-50 hover:bg-amber-600 hover:text-white rounded-xl transition-all shadow-sm text-[10px] font-bold whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
-                                                                >
-                                                                    Waitlist
-                                                                </button>
-                                                                <button
-                                                                    disabled={submittingStatus !== null}
-                                                                    onClick={() => {
-                                                                        handleUpdateStatus(item.team_id || item.submission_id, 'Accepted', item);
-                                                                        setBundleTab('approved');
-                                                                    }}
-                                                                    className="px-2.5 py-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white rounded-xl transition-all shadow-sm text-[10px] font-bold whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
-                                                                >
-                                                                    Approve
-                                                                </button>
-                                                                <button
-                                                                    disabled={submittingStatus !== null}
-                                                                    onClick={() => {
-                                                                        handleUpdateStatus(item.team_id || item.submission_id, 'Rejected', item);
-                                                                        setBundleTab('rejected');
-                                                                    }}
-                                                                    className="px-2.5 py-2 text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white rounded-xl transition-all shadow-sm text-[10px] font-bold whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
-                                                                >
-                                                                    Reject
-                                                                </button>
-                                                            </>
-                                                        );
-                                                    })()}
-                                                </div>
-                                            </td>
-                                        </motion.tr>
-                                        ));
-                                    })()
-                                ) : (
-                                    <tr>
-                                        <td colSpan={bundleTab === 'shortlisted' ? 6 : 5} className="px-10 py-24 text-center">
-                                            <div className="flex flex-col items-center opacity-20">
-                                                <Filter size={64} className="mb-6" />
-                                                <p className="text-slate-400 font-black text-sm uppercase tracking-widest">No {BUNDLE_TAB_LABEL[bundleTab]?.toLowerCase() || ''} teams</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                    {bundleTab === 'shortlisted' && selectedBundleItems.length > 0 && (
-                        <div className="flex items-center justify-between px-4 py-4 bg-purple-50 border border-purple-100 rounded-2xl mt-4">
-                            <span className="text-xs font-bold text-purple-700">{selectedBundleItems.length} team(s) selected</span>
-                            <button
-                                onClick={() => {
-                                    const currentBundle = bundleData?.[bundleTab] || [];
-                                    const selectedItems = currentBundle.filter((i: any) => selectedBundleItems.includes(i.team_id || i.submission_id));
-                                    const stageInfo = getCurrentStageInfo();
-                                    const nextStageName = stageInfo.next_stage_name;
-                                    if (!nextStageName) {
-                                        alert('No next stage available for this event. Define stages first.');
-                                        return;
-                                    }
-                                    setBulkNotifyNextStage(nextStageName);
-                                    setBulkNotifySubject(`Congratulations! You've been shortlisted for ${event?.title || ''}`);
-                                    setBulkNotifyMessage(DEFAULT_SHORTLIST_MESSAGE.replace(/{next_stage}/g, nextStageName));
-                                    setBulkNotifySelectedTemplate('default');
-                                    setBulkNotifyMinScore('');
-                                    setSelectedBundleForEmail(selectedItems);
-                                    fetch(`${API_BASE_URL}/api/v1/institution/events/${eventId}/email-templates`, {
-                                        headers: { ...authHeaders() }
-                                    }).then(r => r.ok && r.json()).then(d => {
-                                        if (d) setBulkNotifyTemplates(d.filter((t: any) => ['stage_advancement', 'announcement'].includes(t.type)));
-                                    }).catch(() => {});
-                                    setIsBulkNotifyModalOpen(true);
-                                }}
-                                className="px-6 py-3 bg-purple-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-purple-700 transition-all shadow-lg shadow-purple-900/20"
-                            >
-                                Send Email to Selected
-                            </button>
+                                                    </td>
+                                                    <td className="px-10 py-8 text-center">
+                                                        <span className={`text-base font-black ${item.score > 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                                            {item.score ? item.score.toFixed(1) : '0.0'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-10 py-8 max-w-[200px] text-center">
+                                                        {item.recommendation ? (
+                                                            <button
+                                                                onClick={() => setPreviewRecommendation({ title: item.team_name || item.display_name, text: item.recommendation })}
+                                                                className="text-[11px] font-bold text-slate-600 hover:text-purple-600 underline decoration-dashed underline-offset-4 text-left w-full line-clamp-2"
+                                                                title="Click to view full recommendation"
+                                                            >
+                                                                {item.recommendation}
+                                                            </button>
+                                                        ) : null}
+                                                    </td>
+                                                    <td className="px-10 py-8 text-right whitespace-nowrap">
+                                                        <div className="flex gap-1.5 justify-end">
+                                                            {(() => {
+                                                                const status = (item.status || '').toLowerCase();
+                                                                if (status === 'shortlisted' || status === 'approved' || status === 'accepted') {
+                                                                    return <div className="px-3 py-2 text-blue-600 text-[10px] font-black uppercase tracking-widest bg-blue-50 rounded-xl border border-blue-100">Shortlisted</div>;
+                                                                }
+                                                                if (status === 'waitlisted') {
+                                                                    return <div className="px-3 py-2 text-amber-600 text-[10px] font-black uppercase tracking-widest bg-amber-50 rounded-xl border border-amber-100">Waitlisted</div>;
+                                                                }
+                                                                if (status === 'rejected') {
+                                                                    return <div className="px-3 py-2 text-rose-600 text-[10px] font-black uppercase tracking-widest bg-rose-50 rounded-xl border border-rose-100">Rejected</div>;
+                                                                }
+                                                                return (
+                                                                    <>
+                                                                        <button
+                                                                            disabled={submittingStatus !== null}
+                                                                            onClick={() => {
+                                                                                handleUpdateStatus(item.team_id || item.submission_id, 'Shortlisted', item);
+                                                                                setBundleTab('shortlisted');
+                                                                            }}
+                                                                            className="px-2.5 py-2 text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-sm text-[10px] font-bold whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                        >
+                                                                            Shortlist
+                                                                        </button>
+                                                                        <button
+                                                                            disabled={submittingStatus !== null}
+                                                                            onClick={() => {
+                                                                                handleUpdateStatus(item.team_id || item.submission_id, 'Waitlisted', item);
+                                                                                setBundleTab('waitlisted');
+                                                                            }}
+                                                                            className="px-2.5 py-2 text-amber-600 bg-amber-50 hover:bg-amber-600 hover:text-white rounded-xl transition-all shadow-sm text-[10px] font-bold whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                        >
+                                                                            Waitlist
+                                                                        </button>
+                                                                        <button
+                                                                            disabled={submittingStatus !== null}
+                                                                            onClick={() => {
+                                                                                handleUpdateStatus(item.team_id || item.submission_id, 'Rejected', item);
+                                                                                setBundleTab('rejected');
+                                                                            }}
+                                                                            className="px-2.5 py-2 text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white rounded-xl transition-all shadow-sm text-[10px] font-bold whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                        >
+                                                                            Reject
+                                                                        </button>
+                                                                    </>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    </td>
+                                                </motion.tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan={bundleTab === 'shortlisted' ? 6 : 5} className="px-10 py-24 text-center">
+                                                    <div className="flex flex-col items-center opacity-20">
+                                                        <Filter size={64} className="mb-6" />
+                                                        <p className="text-slate-400 font-black text-sm uppercase tracking-widest">No {BUNDLE_TAB_LABEL[bundleTab]?.toLowerCase() || ''} teams</p>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {bundleTab === 'shortlisted' && selectedBundleItems.length > 0 && (
+                                <div className="flex items-center justify-between px-4 py-4 bg-purple-50 border border-purple-100 rounded-2xl mt-4">
+                                    <span className="text-xs font-bold text-purple-700">{selectedBundleItems.length} team(s) selected</span>
+                                    <button
+                                        onClick={() => {
+                                            const currentBundle = getCurrentBundleItems();
+                                            const selectedItems = currentBundle.filter((i: any) => selectedBundleItems.includes(i.team_id || i.submission_id));
+                                            const stageInfo = getCurrentStageInfo();
+                                            const nextStageName = stageInfo.next_stage_name;
+                                            if (!nextStageName) {
+                                                alert('No next stage available for this event. Define stages first.');
+                                                return;
+                                            }
+                                            setBulkNotifyNextStage(nextStageName);
+                                            setBulkNotifySubject(`Congratulations! You've been shortlisted for ${event?.title || ''}`);
+                                            setBulkNotifyMessage(DEFAULT_SHORTLIST_MESSAGE.replace(/{next_stage}/g, nextStageName));
+                                            setBulkNotifySelectedTemplate('default');
+                                            setBulkNotifyMinScore('');
+                                            setSelectedBundleForEmail(selectedItems);
+                                            fetch(`${API_BASE_URL}/api/v1/institution/events/${eventId}/email-templates`, {
+                                                headers: { ...authHeaders() }
+                                            }).then(r => r.ok && r.json()).then(d => {
+                                                if (d) setBulkNotifyTemplates(d.filter((t: any) => ['stage_advancement', 'announcement'].includes(t.type)));
+                                            }).catch(() => {});
+                                            setIsBulkNotifyModalOpen(true);
+                                        }}
+                                        className="px-6 py-3 bg-purple-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-purple-700 transition-all shadow-lg shadow-purple-900/20"
+                                    >
+                                        Send Email to Selected
+                                    </button>
+                                </div>
+                            )}
                         </div>
-                    )}
-                </div>
+                    );
+                })()}
             </div>
         );
     };
@@ -5809,7 +5942,8 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                                 );
                                                 return (
                                                     <div className="divide-y divide-slate-100">
-                                                        {fieldEntries.map(([key, value]) => {
+                                                        {fieldEntries.map(([key, val]) => {
+                                                            const value = val as string;
                                                             const label = fieldConfigs[key]?.label || key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
                                                             if (value.startsWith('data:')) {
                                                                 const mime = value.split(';')[0].split(':')[1] || '';
@@ -5817,7 +5951,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                                                 return (
                                                                     <div key={key} className="py-3 first:pt-0 last:pb-0">
                                                                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">{label}</span>
-                                                                        <button onClick={() => setPreviewAsset({ url: value, filename: 'Asset' + ext })}
+                                                                        <button onClick={() => setPreviewAsset({ url: value, filename: 'Asset' + ext, type: mime })}
                                                                             className="flex items-center gap-2 text-xs font-bold text-purple-600 hover:text-purple-800">
                                                                             <FileText size={14} /> View {mime.includes('pdf') ? 'PDF' : mime.includes('presentation') ? 'PPT' : 'File'}
                                                                         </button>

@@ -129,21 +129,34 @@ const CertificatesPage: React.FC<CertificatesPageProps> = ({ institutionId }) =>
         (async () => {
             try {
                 setLoadingPreview(true);
-                const res = await fetch(`${API_BASE_URL}/api/judging/leaderboard/${selectedEventId}`);
-                if (!res.ok) {
-                    setLeaderboard([]);
-                    return;
+                // Try dynamic unified rankings first
+                let res = await fetch(`${API_BASE_URL}/api/v1/institution/leaderboard/${selectedEventId}`);
+                let data = [];
+                if (res.ok) {
+                    data = await res.json();
                 }
 
-                const data = await res.json();
-                const mapped = (Array.isArray(data) ? data : []).map((entry: any) => ({
-                    rank: Number(entry.rank || 0),
-                    team_name: entry.teamName || entry.team_name || entry.student_name || '',
-                    student_name: entry.student_name || entry.recipient_name || '',
-                    project_title: entry.projectTitle || entry.project_title || '',
-                    total_score: Number(entry.totalScore ?? entry.total_score ?? 0),
-                }));
-                setLeaderboard(mapped);
+                // Fallback to legacy judging leaderboard if unified is empty or failed
+                if (!res.ok || !Array.isArray(data) || data.length === 0) {
+                    const fallbackRes = await fetch(`${API_BASE_URL}/api/judging/leaderboard/${selectedEventId}`);
+                    if (fallbackRes.ok) {
+                        res = fallbackRes;
+                        data = await fallbackRes.json();
+                    }
+                }
+
+                if (res.ok) {
+                    const mapped = (Array.isArray(data) ? data : []).map((entry: any) => ({
+                        rank: Number(entry.rank || 0),
+                        team_name: entry.teamName || entry.team_name || entry.student_name || '',
+                        student_name: entry.student_name || entry.recipient_name || '',
+                        project_title: entry.projectTitle || entry.project_title || entry.project_name || '',
+                        total_score: Number(entry.totalScore ?? entry.total_score ?? 0),
+                    }));
+                    setLeaderboard(mapped);
+                } else {
+                    setLeaderboard([]);
+                }
             } catch (error) {
                 setLeaderboard([]);
             } finally {

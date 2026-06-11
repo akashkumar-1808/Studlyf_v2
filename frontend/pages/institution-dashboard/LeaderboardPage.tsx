@@ -23,32 +23,85 @@ const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ eventId, refreshCount
     const [rankings, setRankings] = useState<LeaderboardEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
+    const [templates, setTemplates] = useState<{ template_id: string; name: string; description?: string }[]>([]);
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+
+    useEffect(() => {
+        const fetchTemplates = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/v1/institution/cert-templates`, {
+                    headers: { ...authHeaders() }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const mapped = (Array.isArray(data) ? data : []).map((t: any) => ({
+                        template_id: String(t.template_id || t.id || ''),
+                        name: t.name || t.template_name || 'Certificate Template',
+                        description: t.description || '',
+                    })).filter(t => t.template_id);
+                    setTemplates(mapped);
+                }
+            } catch (error) {
+                console.error("Error fetching templates:", error);
+            }
+        };
+        fetchTemplates();
+    }, []);
 
     useEffect(() => {
         const fetchRankings = async () => {
             if (!eventId) return;
             try {
-                // Primary: hackathon submissions leaderboard (scores live in hackathon_submissions)
-                let res = await fetch(`${API_BASE_URL}/api/hackathons/events/${eventId}/leaderboard?include_all=true`, {
+                // First, try to refresh/recalculate unified leaderboard standings
+                try {
+                    await fetch(`${API_BASE_URL}/api/v1/institution/leaderboard/${eventId}/refresh`, {
+                        method: 'POST',
+                        headers: { ...authHeaders() }
+                    });
+                } catch (e) {
+                    console.warn("Leaderboard refresh error:", e);
+                }
+
+                // Primary: unified institution leaderboard (supports both standard and stage submissions)
+                let res = await fetch(`${API_BASE_URL}/api/v1/institution/leaderboard/${eventId}`, {
                     headers: { ...authHeaders() }
                 });
 
-                // Fallback: legacy judging leaderboard (submissions_col)
-                if (!res.ok) {
-                    res = await fetch(`${API_BASE_URL}/api/judging/leaderboard/${eventId}`, {
+                let data = [];
+                if (res.ok) {
+                    data = await res.json();
+                }
+
+                // Fallback 1: hackathon submissions leaderboard
+                if (!res.ok || !Array.isArray(data) || data.length === 0) {
+                    const fallbackRes1 = await fetch(`${API_BASE_URL}/api/hackathons/events/${eventId}/leaderboard?include_all=true`, {
                         headers: { ...authHeaders() }
                     });
+                    if (fallbackRes1.ok) {
+                        res = fallbackRes1;
+                        data = await fallbackRes1.json();
+                    }
+                }
+
+                // Fallback 2: legacy judging leaderboard (submissions_col)
+                if (!res.ok || !Array.isArray(data) || data.length === 0) {
+                    const fallbackRes2 = await fetch(`${API_BASE_URL}/api/judging/leaderboard/${eventId}`, {
+                        headers: { ...authHeaders() }
+                    });
+                    if (fallbackRes2.ok) {
+                        res = fallbackRes2;
+                        data = await fallbackRes2.json();
+                    }
                 }
 
                 if (res.ok) {
-                    const data = await res.json();
                     const mapped = (Array.isArray(data) ? data : []).map((d: any) => ({
                         rank: d.rank,
                         team_name: d.teamName || d.team_name || d.student_name || '',
-                        project_title: d.projectTitle || d.project_title || d.teamLead || d.student_name || '',
+                        project_title: d.projectTitle || d.project_title || d.project_name || d.teamLead || d.student_name || '',
                         total_score: Number(d.totalScore ?? d.total_score ?? 0),
                         college: d.college || d.institution || d.institution_name,
-                        criteria_scores: d.rubricScores || d.rubric_scores || {}
+                        criteria_scores: d.rubricScores || d.rubric_scores || d.criteria_scores || {}
                     }));
                     setRankings(mapped);
                 } else {
@@ -85,25 +138,53 @@ const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ eventId, refreshCount
                             <p className="text-gray-500 mt-1">Dynamic rankings powered by institutional scoring.</p>
                         </div>
                         <div className="flex gap-2">
-                            <button 
-                                onClick={async () => {
-                                    if (window.confirm("Issue certificates to the Top 3 winners?")) {
-                                        const res = await fetch(`${API_BASE_URL}/api/judging/issue-certificates`, {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json', ...authHeaders() },
-                                            body: JSON.stringify({
-                                                event_id: eventId,
-                                                winners: rankings.slice(0, 3)
-                                            })
-                                        });
-                                        if (res.ok) alert("Certificates issued successfully!");
-                                    }
-                                }}
-                                className="flex items-center gap-2 px-6 py-3 bg-[#6C3BFF] text-white rounded-xl font-bold shadow-xl shadow-purple-900/20 hover:scale-[1.02] transition-all"
-                            >
-                                <Award size={18} />
-                                Issue Winner Certificates
-                            </button>
+                            <div className="flex items-center gap-2 bg-white px-3 py-1.5 border border-gray-200 rounded-xl shadow-sm">
+                                <select
+                                    value={selectedTemplateId}
+                                    onChange={(e) => setSelectedTemplateId(e.target.value)}
+                                    className="bg-transparent border-0 text-sm font-bold text-gray-700 outline-none cursor-pointer"
+                                >
+                                    <option value="">Select Certificate Template...</option>
+                                    {templates.map((t) => (
+                                        <option key={t.template_id} value={t.template_id}>
+                                            {t.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                <button 
+                                    onClick={async () => {
+                                        if (!selectedTemplateId) {
+                                            alert("Please select a certificate template first.");
+                                            return;
+                                        }
+                                        if (window.confirm("Issue certificates to the Top 3 winners using the selected template?")) {
+                                            try {
+                                                const res = await fetch(`${API_BASE_URL}/api/v1/institution/events/${eventId}/certificates/issue-ranked`, {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                                                    body: JSON.stringify({
+                                                        template_id: selectedTemplateId,
+                                                        limit: 3,
+                                                        send_email: true
+                                                    })
+                                                });
+                                                if (res.ok) {
+                                                    alert("Winner certificates issued successfully!");
+                                                } else {
+                                                    const errData = await res.json().catch(() => ({}));
+                                                    alert(`Failed to issue certificates: ${errData.detail || errData.message || 'Unknown error'}`);
+                                                }
+                                            } catch (error) {
+                                                alert("Error: Failed to reach the certificate service.");
+                                            }
+                                        }
+                                    }}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-[#6C3BFF] text-white rounded-lg font-bold shadow-lg shadow-purple-950/20 hover:scale-[1.02] transition-all"
+                                >
+                                    <Award size={18} />
+                                    Issue Winner Certificates
+                                </button>
+                            </div>
                             <button 
                                 onClick={() => window.open(`${API_BASE_URL}/api/v1/institution/leaderboard/${eventId}/export-pdf`, '_blank')}
                                 className="flex items-center gap-2 px-6 py-3 bg-[#0f172a] text-white rounded-xl font-bold shadow-sm hover:scale-[1.02] transition-all"
@@ -117,57 +198,6 @@ const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ eventId, refreshCount
                             </button>
                         </div>
                     </div>
-
-                    {/* Podium (Top 3) */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-                        {rankings.length >= 2 && (
-                            <div className="mt-8 order-2 md:order-1">
-                                <div className="bg-white p-8 rounded-3xl border border-gray-200 text-center relative shadow-sm hover:shadow-xl transition-all group">
-                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center border-4 border-white shadow-md">
-                                        <Medal className="text-slate-400" size={24} />
-                                    </div>
-                                    <p className="text-sm font-bold text-gray-400 mt-4 uppercase">2nd Place</p>
-                                    <h3 className="text-xl font-black text-gray-900 mt-1">{rankings[1].team_name}</h3>
-                                    {rankings[1].college && <p className="text-xs text-gray-500 mb-6">{rankings[1].college}</p>}
-                                    <div className="text-3xl font-black text-blue-600">{rankings[1].total_score}</div>
-                                </div>
-                            </div>
-                        )}
-
-                        {rankings.length >= 1 && (
-                            <div className="order-1 md:order-2">
-                                <div className="bg-white p-10 rounded-[2.5rem] border-4 border-yellow-400/30 text-center relative shadow-2xl shadow-yellow-100 transform scale-105">
-                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 bg-yellow-400 rounded-full flex items-center justify-center border-8 border-white shadow-xl">
-                                        <Trophy className="text-white" size={36} />
-                                    </div>
-                                    <div className="mt-8">
-                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-[10px] font-black uppercase mb-4">
-                                            <Star size={10} fill="currentColor" /> Champion <Star size={10} fill="currentColor" />
-                                        </div>
-                                        <h3 className="text-2xl font-black text-gray-900">{rankings[0].team_name}</h3>
-                                        {rankings[0].college && <p className="text-xs text-gray-500 mb-6">{rankings[0].college}</p>}
-                                        <div className="text-5xl font-black text-blue-600 mb-2">{rankings[0].total_score}</div>
-                                        <div className="text-[10px] font-bold text-green-600 uppercase tracking-tighter">Validated Performance</div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {rankings.length >= 3 && (
-                            <div className="mt-12 order-3">
-                                <div className="bg-white p-8 rounded-3xl border border-gray-200 text-center relative shadow-sm hover:shadow-xl transition-all">
-                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center border-4 border-white shadow-md">
-                                        <Medal className="text-orange-300" size={24} />
-                                    </div>
-                                    <p className="text-sm font-bold text-gray-400 mt-4 uppercase">3rd Place</p>
-                                    <h3 className="text-xl font-black text-gray-900 mt-1">{rankings[2].team_name}</h3>
-                                    {rankings[2].college && <p className="text-xs text-gray-500 mb-6">{rankings[2].college}</p>}
-                                    <div className="text-3xl font-black text-blue-600">{rankings[2].total_score}</div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
                     {/* Overall Standings Table */}
                     <div className="bg-white rounded-[3rem] border border-gray-200 shadow-xl shadow-slate-200/50 overflow-hidden">
                         <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">

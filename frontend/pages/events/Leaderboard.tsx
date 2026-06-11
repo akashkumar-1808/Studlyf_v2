@@ -25,18 +25,33 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ eventId }) => {
     const fetchLeaderboard = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`${API_BASE_URL}/api/judging/leaderboard/${eventId}`, {
+            let res = await fetch(`${API_BASE_URL}/api/judging/leaderboard/${eventId}`, {
                 headers: { ...authHeaders() }
             });
+            let data = [];
             if (res.ok) {
-                const data = await res.json();
-                const mapped = data.map((d: any) => ({
+                data = await res.json();
+            }
+
+            // Fallback to unified integrated leaderboard if empty or failed
+            if (!res.ok || !Array.isArray(data) || data.length === 0) {
+                const fallbackRes = await fetch(`${API_BASE_URL}/api/v1/institution/leaderboard/${eventId}`, {
+                    headers: { ...authHeaders() }
+                });
+                if (fallbackRes.ok) {
+                    res = fallbackRes;
+                    data = await fallbackRes.json();
+                }
+            }
+
+            if (res.ok) {
+                const mapped = (Array.isArray(data) ? data : []).map((d: any) => ({
                     rank: d.rank,
-                    team_id: d.student_id,
-                    team_name: d.team_name,
-                    project_title: d.student_name || 'Individual',
-                    score: d.total_score,
-                    evaluations_count: 1, // Placeholder
+                    team_id: d.student_id || d.team_id || d.participant_id || '',
+                    team_name: d.team_name || d.teamName || d.student_name || '',
+                    project_title: d.project_title || d.project_name || d.projectTitle || d.student_name || 'Individual',
+                    score: Number(d.total_score ?? d.totalScore ?? d.score ?? 0),
+                    evaluations_count: d.judge_count || 1,
                     status: 'Evaluated'
                 }));
                 setEntries(mapped);
@@ -111,83 +126,6 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ eventId }) => {
                 </div>
             </div>
 
-            {/* Top 3 Spotlight */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
-                {/* 2nd Place */}
-                {entries.length > 1 && (
-                    <motion.div 
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="order-2 md:order-1 p-8 bg-white/5 border border-white/5 rounded-[2.5rem] text-center space-y-4 relative group"
-                    >
-                        <div className="absolute top-[-12px] left-1/2 -translate-x-1/2 px-4 py-1 bg-slate-500 text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg">Silver Medal</div>
-                        <div className="w-20 h-20 bg-slate-500/20 rounded-full flex items-center justify-center mx-auto border-2 border-slate-500/50">
-                            <Medal size={32} className="text-slate-300" />
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-black text-white">{entries[1].team_name}</h3>
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">{entries[1].project_title}</p>
-                        </div>
-                        <div className="text-3xl font-black text-slate-300">{entries[1].score}<span className="text-sm font-bold text-slate-500 ml-1">pts</span></div>
-                    </motion.div>
-                )}
-
-                {/* 1st Place */}
-                {entries.length > 0 && (
-                    <motion.div 
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="order-1 md:order-2 p-10 bg-gradient-to-br from-yellow-500/10 to-amber-500/5 border border-yellow-500/30 rounded-[3rem] text-center space-y-6 relative shadow-2xl shadow-yellow-500/10"
-                    >
-                        <div className="absolute top-[-16px] left-1/2 -translate-x-1/2 px-6 py-2 bg-yellow-500 text-slate-900 text-xs font-black uppercase tracking-[0.2em] rounded-full shadow-xl">Grand Champion</div>
-                        <motion.div 
-                            animate={{ rotateY: 360 }}
-                            transition={{ repeat: Infinity, duration: 4, ease: "linear" }}
-                            className="w-28 h-28 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto border-4 border-yellow-500/50 shadow-inner"
-                        >
-                            <Crown size={48} className="text-yellow-400 fill-yellow-400" />
-                        </motion.div>
-                        <div>
-                            <h3 className="text-3xl font-black text-white tracking-tighter">{entries[0].team_name}</h3>
-                            <p className="text-xs font-black text-yellow-500/80 uppercase tracking-widest mt-2">{entries[0].project_title}</p>
-                        </div>
-                        <div className="text-5xl font-black text-yellow-400 tracking-tighter">
-                            {entries[0].score}
-                            <span className="text-lg font-bold text-yellow-500/50 ml-1 uppercase">Points</span>
-                        </div>
-                        <div className="pt-4 flex justify-center gap-6 border-t border-yellow-500/10">
-                            <div className="text-center">
-                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Judges</p>
-                                <p className="text-sm font-bold text-white">{entries[0].evaluations_count}</p>
-                            </div>
-                            <div className="text-center">
-                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Efficiency</p>
-                                <p className="text-sm font-bold text-white">98%</p>
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-
-                {/* 3rd Place */}
-                {entries.length > 2 && (
-                    <motion.div 
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="order-3 p-8 bg-white/5 border border-white/5 rounded-[2.5rem] text-center space-y-4 relative"
-                    >
-                        <div className="absolute top-[-12px] left-1/2 -translate-x-1/2 px-4 py-1 bg-orange-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg">Bronze Medal</div>
-                        <div className="w-20 h-20 bg-orange-600/20 rounded-full flex items-center justify-center mx-auto border-2 border-orange-600/50">
-                            <Medal size={32} className="text-orange-400" />
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-black text-white">{entries[2].team_name}</h3>
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">{entries[2].project_title}</p>
-                        </div>
-                        <div className="text-3xl font-black text-orange-400">{entries[2].score}<span className="text-sm font-bold text-slate-500 ml-1">pts</span></div>
-                    </motion.div>
-                )}
-            </div>
-
             {/* Remaining Rankings */}
             <div className="bg-white/5 border border-white/5 rounded-[3rem] overflow-hidden backdrop-blur-xl">
                 <div className="overflow-x-auto">
@@ -202,7 +140,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ eventId }) => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
-                            {entries.slice(3).map((entry, idx) => (
+                            {entries.map((entry, idx) => (
                                 <motion.tr 
                                     key={entry.team_id || idx}
                                     initial={{ opacity: 0 }}
@@ -210,7 +148,20 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ eventId }) => {
                                     className="hover:bg-white/5 transition-colors group"
                                 >
                                     <td className="px-10 py-8">
-                                        <span className="text-lg font-black text-slate-600 group-hover:text-white transition-colors">#{entry.rank}</span>
+                                        {(() => {
+                                            const style = getRankStyle(entry.rank);
+                                            if (entry.rank <= 3) {
+                                                return (
+                                                    <div className="flex items-center gap-2.5">
+                                                        <span className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm text-white shadow-lg ${style.bg} ${style.glow}`}>
+                                                            {entry.rank}
+                                                        </span>
+                                                        {style.icon}
+                                                    </div>
+                                                );
+                                            }
+                                            return <span className="text-lg font-black text-slate-600 group-hover:text-white transition-colors">#{entry.rank}</span>;
+                                        })()}
                                     </td>
                                     <td className="px-10 py-8">
                                         <div className="flex items-center gap-4">
