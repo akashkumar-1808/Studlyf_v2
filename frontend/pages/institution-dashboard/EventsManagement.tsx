@@ -151,17 +151,45 @@ const EventsManagement: React.FC<EventsManagementProps> = ({ institutionId, onVi
                     e.category === 'Job' || e.category === 'Internship'
                 );
 
-                setEvents(filteredData.map((e: any) => ({
-                    id: e._id,
-                    name: e.title,
-                    status: e.status || 'Unknown',
-                    type: e.category || 'Unknown',
-                    startDate: e.start_date ? new Date(e.start_date).toLocaleDateString() : 'N/A',
-                    participants: e.participant_count ?? 0,
-                    image: e.image_url || '',
-                    visibility: e.visibility || 'Unknown',
-                    registrationStatus: e.registration_status || 'Unknown'
-                })));
+                setEvents(filteredData.map((e: any) => {
+                    const fd = e.festivalData || {};
+                    const form = e.formData || {};
+                    const stages = e.stages || [];
+                    const firstStage = stages[0] || {};
+
+                    let startRaw = e.start_date || e.startDate || e.eventStartDate || e.registrationStartDate || fd.startDate || form.startDate || firstStage.start_date || firstStage.startDate;
+
+                    // If stages exist, try to find absolute min start
+                    if (stages.length > 0) {
+                        const allStarts = stages.map((s: any) => s.start_date || s.startDate).filter(Boolean).map((d: any) => new Date(d).getTime());
+                        if (allStarts.length > 0) {
+                            const minStart = new Date(Math.min(...allStarts));
+                            if (!startRaw || minStart < new Date(startRaw)) startRaw = minStart.toISOString();
+                        }
+                    }
+
+                    const formatTableDate = (d: any) => {
+                        if (!d) return 'N/A';
+                        const dateObj = new Date(d);
+                        if (isNaN(dateObj.getTime())) return 'N/A';
+                        
+                        const datePart = dateObj.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+                        const timePart = dateObj.toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                        return `${datePart}\n${timePart} IST`;
+                    };
+
+                    return {
+                        id: e._id,
+                        name: e.title,
+                        status: e.status || 'Unknown',
+                        type: e.category || 'Unknown',
+                        startDate: formatTableDate(startRaw),
+                        participants: e.participant_count ?? 0,
+                        image: e.image_url || '',
+                        visibility: e.visibility || 'Unknown',
+                        registrationStatus: e.registration_status || 'Unknown'
+                    };
+                }));
             } catch (err) {
                 try { console.error("Dynamic events fetch error:", err instanceof Error ? err.message : String(err)); } catch (_) {}
             } finally {
@@ -312,7 +340,11 @@ const EventsManagement: React.FC<EventsManagementProps> = ({ institutionId, onVi
                                             </td>
                                             <td className="px-6 py-8 text-center">
                                                 <div className="space-y-0.5">
-                                                    <p className="text-sm font-black text-slate-700">{event.startDate}</p>
+                                                    {event.startDate.split('\n').map((line, i) => (
+                                                        <p key={i} className={i === 0 ? "text-[13px] font-black text-slate-700" : "text-[10px] font-bold text-slate-400 uppercase tracking-tight"}>
+                                                            {line}
+                                                        </p>
+                                                    ))}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-8 text-center text-sm font-black text-slate-700">{event.participants}</td>

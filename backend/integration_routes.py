@@ -758,6 +758,12 @@ async def get_all_events(institution_id: str, user: dict = Depends(get_auth_user
         if linked:
             portal = await opportunity_applications_col.count_documents({"opportunity_id": str(linked["_id"])})
         event["participant_count"] = booth + portal
+        
+        # Resolve dynamic dates
+        start, end = _resolve_event_dates(event)
+        event["start_date"] = start
+        event["end_date"] = end
+        
         events_list.append(event)
 
     o_cursor = opportunities_col.find({
@@ -774,6 +780,12 @@ async def get_all_events(institution_id: str, user: dict = Depends(get_auth_user
         opp["participant_count"] = await opportunity_applications_col.count_documents({"opportunity_id": opp_id})
         opp["status"] = opp.get("status", "Active").upper()
         opp["category"] = opp.get("type", "Opportunity")
+        
+        # Resolve dynamic dates
+        start, end = _resolve_event_dates(opp)
+        opp["start_date"] = start
+        opp["end_date"] = end
+        
         events_list.append(opp)
 
     def _sort_key(x):
@@ -1319,15 +1331,18 @@ async def get_qualified_bundle(
                 pass
 
     stage_filter = str(stage_id).strip() if stage_id else ""
-    raw_subs = await submissions_col.find({"event_id": {"$in": event_id_in}}).to_list(length=10000)
+    sub_projection = {"_id": 1, "team_id": 1, "user_id": 1, "submittedBy": 1, "total_score": 1, "score": 1, "status": 1, "assigned_judges": 1}
+    raw_subs = await submissions_col.find({"event_id": {"$in": event_id_in}}, sub_projection).to_list(length=5000)
     score_query: dict = {"event_id": {"$in": event_id_in}}
     if stage_filter:
         score_query["stage_id"] = stage_filter
-    raw_scores = await scores_col.find(score_query).to_list(length=10000)
+    score_projection = {"submission_id": 1, "judge_email": 1, "judge_id": 1, "judge": 1, "judge_name": 1, "name": 1, "feedback": 1, "comments": 1, "comment": 1, "remarks": 1, "team_id": 1, "user_id": 1, "scores": 1, "criteria_scores": 1, "total_score": 1, "verified": 1}
+    raw_scores = await scores_col.find(score_query, score_projection).to_list(length=5000)
     sd_query: dict = {"event_id": {"$in": event_id_in}}
     if stage_filter:
         sd_query["stage_id"] = stage_filter
-    raw_sd = await submission_data_col.find(sd_query).to_list(length=10000)
+    sd_projection = {"_id": 1, "team_id": 1, "user_id": 1, "submittedBy": 1, "stage_id": 1, "notified_at": 1, "domain": 1, "data": 1, "total_score": 1, "evaluation_score": 1, "assigned_judges": 1, "feedback": 1, "comments": 1, "comment": 1, "recommendation": 1, "team_name": 1, "teamName": 1, "user_name": 1, "full_name": 1, "email": 1, "user_email": 1}
+    raw_sd = await submission_data_col.find(sd_query, sd_projection).to_list(length=5000)
 
     team_ids = set()
     user_ids = set()

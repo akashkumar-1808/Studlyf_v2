@@ -236,6 +236,8 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
     const [regActionBusy, setRegActionBusy] = useState<string | null>(null);
     const [expandedRegId, setExpandedRegId] = useState<string | null>(null);
     const [notifyingApproved, setNotifyingApproved] = useState(false);
+    const [submittingStatus, setSubmittingStatus] = useState<string | null>(null);
+    const [notifiedItems, setNotifiedItems] = useState<Set<string>>(new Set());
     const [issuingCertificates, setIssuingCertificates] = useState(false);
 
     // Server-driven registration form & eligibility (propagate profile_type prefill/lock)
@@ -603,6 +605,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
     const [evaluationComment, setEvaluationComment] = useState('');
     const [selectedBundleItems, setSelectedBundleItems] = useState<string[]>([]);
     const [selectedBundleForEmail, setSelectedBundleForEmail] = useState<any[]>([]);
+    const [bundleLoading, setBundleLoading] = useState(false);
 
     // Track unsaved changes to lifecycle or criteria
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -821,25 +824,23 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
     }, [eventId, activeTab, user]);
 
     const fetchBundle = async (tVal: number, stageId?: string) => {
-        console.log('[BUNDLE] fetchBundle called', { eventId, activeTab, tVal, stageId });
-        if (!eventId || activeTab !== 'submissions') { console.log('[BUNDLE] Skipped:', { eventId, activeTab }); return; }
+        if (!eventId || activeTab !== 'submissions') return;
+        if (bundleLoading) return;
+        setBundleLoading(true);
         try {
             let url = `${API_BASE_URL}/api/v1/institution/events/${eventId}/qualified-bundle?threshold=${tVal}`;
             if (stageId) url += `&stage_id=${encodeURIComponent(stageId)}`;
-            console.log('[BUNDLE] Fetching:', url);
             const res = await fetch(url, {
                 headers: { ...authHeaders() }
             });
-            console.log('[BUNDLE] Response status:', res.status);
             if (res.ok) {
                 const data = await res.json();
-                console.log('[BUNDLE] Data received:', JSON.stringify(data));
                 setBundleData(data);
-            } else {
-                console.log('[BUNDLE] Response not OK:', res.status, await res.text().catch(() => ''));
             }
         } catch (e) {
             console.error('[BUNDLE] Failed to fetch evaluation bundle:', e);
+        } finally {
+            setBundleLoading(false);
         }
     };
 
@@ -1439,13 +1440,26 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
     };
 
     const handleUpdateStatus = async (teamId: string, newStatus: string, item?: any) => {
+        const statusKey = `${teamId}_${newStatus}`;
+        if (submittingStatus === statusKey) return;
+        if (notifiedItems.has(statusKey)) {
+            alert(`Email already sent for this status. Change the status to send again.`);
+            return;
+        }
+        const current = (item?.status || '').toLowerCase();
+        const target = newStatus.toLowerCase();
+        if (current === target) {
+            setBundleTab(target === 'accepted' ? 'approved' : target);
+            return;
+        }
+        setSubmittingStatus(statusKey);
         const instId = institutionIdProp || event?.institution_id;
         const sourceType = item?.source || item?._sourceType || '';
         const submissionId = item?.submission_id || teamId;
 
         if (teamId.startsWith('portal_app:')) {
             const appId = teamId.replace(/^portal_app:/, '');
-            if (!appId) return;
+            if (!appId) { setSubmittingStatus(null); return; }
             try {
                 const res = await fetch(`${API_BASE_URL}/api/v1/institution/events/${eventId}/portal-applications/${appId}/status`, {
                     method: 'PATCH',
@@ -1506,7 +1520,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                     if (item) {
                         try {
                             const stageInfo = getCurrentStageInfo();
-                            await fetch(`${API_BASE_URL}/api/v1/institution/events/${eventId}/send-status-email`, {
+                            const emailRes = await fetch(`${API_BASE_URL}/api/v1/institution/events/${eventId}/send-status-email`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json', ...authHeaders() },
                                 body: JSON.stringify({
@@ -1517,6 +1531,9 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                     stage_context: stageInfo
                                 })
                             });
+                            if (emailRes.ok) {
+                                setNotifiedItems(prev => new Set(prev).add(`${resolvedTeamId}_${newStatus}`));
+                            }
                         } catch (emailErr) {
                             try { console.error('Failed to send email:', emailErr instanceof Error ? emailErr.message : String(emailErr)); } catch (_) { }
                         }
@@ -1548,6 +1565,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 try { console.error('Failed to update submission status:', err instanceof Error ? err.message : String(err)); } catch (_) { }
             }
         }
+        setSubmittingStatus(null);
     };
 
 
@@ -2531,7 +2549,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                             </th>
                                         ))}
                                         <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Files</th>
-                                        <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Assigned Judge</th>
+                                        <th className="px-2 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Judge</th>
                                         <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Score</th>
                                         <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
                                     </tr>
@@ -2592,20 +2610,16 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                                     <td className="px-10 py-8">
                                                         {renderSubmissionAssetButtons(rowAssets)}
                                                     </td>
-                                                    <td className="px-10 py-8">
-                                                        <div className="flex items-center gap-4">
-                                                            <select
-                                                                value={sub.assignedJudgeId || ""}
-                                                                onChange={(e) => {
-                                                                    handleBulkAssign(e.target.value, [sub._id]);
-                                                                }}
-                                                                className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-purple-500"
-                                                            >
-                                                                <option value="">No Judge Assigned</option>
-                                                                {(institutionJudges || []).map((j: any) => (
-                                                                    <option key={j._id} value={j._id}>{j.name}</option>
-                                                                ))}
-                                                            </select>
+                                                    <td className="px-2 py-8">
+                                                        <div className="flex items-center justify-center">
+                                                            {(() => {
+                                                                const judge = (institutionJudges || []).find((j: any) => String(j._id) === String(sub.assignedJudgeId));
+                                                                return judge ? (
+                                                                    <span className="text-xs font-bold text-slate-700 truncate">{judge.name}</span>
+                                                                ) : (
+                                                                    <span className="text-[10px] font-bold text-slate-300 italic">Unassigned</span>
+                                                                );
+                                                            })()}
                                                         </div>
                                                     </td>
                                                     <td className="px-10 py-8 text-center">
@@ -2857,38 +2871,42 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                                         return (
                                                             <>
                                                                 <button
+                                                                    disabled={submittingStatus !== null}
                                                                     onClick={() => {
                                                                         handleUpdateStatus(item.team_id || item.submission_id, 'Shortlisted', item);
                                                                         setBundleTab('shortlisted');
                                                                     }}
-                                                                    className="px-2.5 py-2 text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-sm text-[10px] font-bold whitespace-nowrap"
+                                                                    className="px-2.5 py-2 text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-sm text-[10px] font-bold whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
                                                                 >
                                                                     Shortlist
                                                                 </button>
                                                                 <button
+                                                                    disabled={submittingStatus !== null}
                                                                     onClick={() => {
                                                                         handleUpdateStatus(item.team_id || item.submission_id, 'Waitlisted', item);
                                                                         setBundleTab('waitlisted');
                                                                     }}
-                                                                    className="px-2.5 py-2 text-amber-600 bg-amber-50 hover:bg-amber-600 hover:text-white rounded-xl transition-all shadow-sm text-[10px] font-bold whitespace-nowrap"
+                                                                    className="px-2.5 py-2 text-amber-600 bg-amber-50 hover:bg-amber-600 hover:text-white rounded-xl transition-all shadow-sm text-[10px] font-bold whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
                                                                 >
                                                                     Waitlist
                                                                 </button>
                                                                 <button
+                                                                    disabled={submittingStatus !== null}
                                                                     onClick={() => {
                                                                         handleUpdateStatus(item.team_id || item.submission_id, 'Accepted', item);
                                                                         setBundleTab('approved');
                                                                     }}
-                                                                    className="px-2.5 py-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white rounded-xl transition-all shadow-sm text-[10px] font-bold whitespace-nowrap"
+                                                                    className="px-2.5 py-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white rounded-xl transition-all shadow-sm text-[10px] font-bold whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
                                                                 >
                                                                     Approve
                                                                 </button>
                                                                 <button
+                                                                    disabled={submittingStatus !== null}
                                                                     onClick={() => {
                                                                         handleUpdateStatus(item.team_id || item.submission_id, 'Rejected', item);
                                                                         setBundleTab('rejected');
                                                                     }}
-                                                                    className="px-2.5 py-2 text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white rounded-xl transition-all shadow-sm text-[10px] font-bold whitespace-nowrap"
+                                                                    className="px-2.5 py-2 text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white rounded-xl transition-all shadow-sm text-[10px] font-bold whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
                                                                 >
                                                                     Reject
                                                                 </button>
@@ -2905,7 +2923,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                         <td colSpan={bundleTab === 'shortlisted' ? 6 : 5} className="px-10 py-24 text-center">
                                             <div className="flex flex-col items-center opacity-20">
                                                 <Filter size={64} className="mb-6" />
-                                                <p className="text-slate-400 font-black text-sm uppercase tracking-widest">No {BUNDLE_TAB_LABEL[bundleTab]?.toLowerCase() || ''} candidates</p>
+                                                <p className="text-slate-400 font-black text-sm uppercase tracking-widest">No {BUNDLE_TAB_LABEL[bundleTab]?.toLowerCase() || ''} teams</p>
                                             </div>
                                         </td>
                                     </tr>

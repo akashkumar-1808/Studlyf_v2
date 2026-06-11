@@ -179,11 +179,11 @@ const OpportunitiesManagement: React.FC<OpportunitiesManagementProps> = ({ insti
                     else if (rawStatus === 'completed') displayStatus = 'Completed';
                     else if (rawStatus === 'upcoming') displayStatus = 'Upcoming';
 
-                    // Dynamic relative time from created_at
-                    const createdAt = e.created_at || e.createdAt;
+                    // Dynamic relative time from updated_at or created_at
+                    const lastUpdateTime = e.updated_at || e.updatedAt || e.created_at || e.createdAt;
                     let lastSaved = 'Unknown';
-                    if (createdAt) {
-                        const diff = Date.now() - new Date(createdAt).getTime();
+                    if (lastUpdateTime) {
+                        const diff = Date.now() - new Date(lastUpdateTime).getTime();
                         const mins = Math.floor(diff / 60000);
                         const hrs = Math.floor(diff / 3600000);
                         const days = Math.floor(diff / 86400000);
@@ -195,8 +195,39 @@ const OpportunitiesManagement: React.FC<OpportunitiesManagementProps> = ({ insti
 
                     const rawCat = (e.category || e.type || '') as string;
                     const typeLabel = /hackathon/i.test(rawCat) ? 'Hackathons' : rawCat;
-                    const startRaw = e.start_date || e.startDate || e.festivalData?.startDate || e.registrationDeadline;
-                    const endRaw = e.end_date || e.endDate || e.festivalData?.endDate;
+                    
+                    // Robust Date Resolution logic matching backend _resolve_event_dates
+                    const fd = e.festivalData || {};
+                    const form = e.formData || {};
+                    const stages = e.stages || [];
+                    const firstStage = stages[0] || {};
+
+                    let startRaw = e.start_date || e.startDate || e.eventStartDate || e.registrationStartDate || fd.startDate || form.startDate || firstStage.start_date || firstStage.startDate;
+                    let endRaw = e.end_date || e.endDate || e.eventEndDate || e.registrationDeadline || e.deadline || fd.endDate || form.endDate || firstStage.end_date || firstStage.endDate || firstStage.deadline;
+
+                    // If stages exist, try to find absolute min/max
+                    if (stages.length > 0) {
+                        const allStarts = stages.map((s: any) => s.start_date || s.startDate).filter(Boolean).map((d: any) => new Date(d).getTime());
+                        if (allStarts.length > 0) {
+                            const minStart = new Date(Math.min(...allStarts));
+                            if (!startRaw || minStart < new Date(startRaw)) startRaw = minStart.toISOString();
+                        }
+                        const allEnds = stages.map((s: any) => s.end_date || s.endDate || s.deadline).filter(Boolean).map((d: any) => new Date(d).getTime());
+                        if (allEnds.length > 0) {
+                            const maxEnd = new Date(Math.max(...allEnds));
+                            if (!endRaw || maxEnd > new Date(endRaw)) endRaw = maxEnd.toISOString();
+                        }
+                    }
+
+                    const formatTableDate = (d: any) => {
+                        if (!d) return 'N/A';
+                        const dateObj = new Date(d);
+                        if (isNaN(dateObj.getTime())) return 'N/A';
+                        
+                        const datePart = dateObj.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+                        const timePart = dateObj.toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                        return `${datePart}\n${timePart} IST`;
+                    };
 
                     return {
                         id: e._id,
@@ -204,8 +235,8 @@ const OpportunitiesManagement: React.FC<OpportunitiesManagementProps> = ({ insti
                         organisation: e.organisation || e.organization || e.organisation_name || '',
                         status: displayStatus,
                         type: typeLabel,
-                        startDate: startRaw ? new Date(startRaw).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : 'N/A',
-                        endDate: endRaw ? new Date(endRaw).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : 'N/A',
+                        startDate: formatTableDate(startRaw),
+                        endDate: formatTableDate(endRaw),
                         participants: e.participant_count || 0,
                         registrations: e.participant_count || 0,
                         candidate: (e.participant_count || 0) > 0 ? `${e.participant_count} registered` : '—',
@@ -377,14 +408,20 @@ const OpportunitiesManagement: React.FC<OpportunitiesManagementProps> = ({ insti
                                             </td>
                                             <td className="px-6 py-8 text-center">
                                                 <div className="space-y-0.5">
-                                                    <p className="text-sm font-black text-slate-700">{event.startDate}</p>
-                                                    <p className="text-[9px] font-bold text-slate-400">12:00 AM IST</p>
+                                                    {event.startDate.split('\n').map((line, i) => (
+                                                        <p key={i} className={i === 0 ? "text-[13px] font-black text-slate-700" : "text-[10px] font-bold text-slate-400 uppercase tracking-tight"}>
+                                                            {line}
+                                                        </p>
+                                                    ))}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-8 text-center">
                                                 <div className="space-y-0.5">
-                                                    <p className="text-sm font-black text-slate-700">{event.endDate}</p>
-                                                    <p className="text-[9px] font-bold text-slate-400">12:00 AM IST</p>
+                                                    {event.endDate.split('\n').map((line, i) => (
+                                                        <p key={i} className={i === 0 ? "text-[13px] font-black text-slate-700" : "text-[10px] font-bold text-slate-400 uppercase tracking-tight"}>
+                                                            {line}
+                                                        </p>
+                                                    ))}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-8 text-center text-sm font-bold text-slate-400">{event.candidate}</td>
