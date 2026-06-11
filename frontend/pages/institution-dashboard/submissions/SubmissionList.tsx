@@ -59,6 +59,28 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ institutionId }) => {
     const [assetPage, setAssetPage] = useState(1);
     const limit = 25;
 
+    const [eventCriteria, setEventCriteria] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchCriteriaForSubmissions = async () => {
+            if (filteredSubmissions.length > 0) {
+                const firstSub = filteredSubmissions[0];
+                if (firstSub.hackathonId) {
+                    try {
+                        const res = await fetch(`${API_BASE_URL}/api/events/${firstSub.hackathonId}`, { headers: authHeaders() });
+                        if (res.ok) {
+                            const data = await res.json();
+                            setEventCriteria(data.judging_criteria || []);
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch criteria', e);
+                    }
+                }
+            }
+        };
+        fetchCriteriaForSubmissions();
+    }, [filteredSubmissions[0]?.hackathonId]);
+
     useEffect(() => {
         const userData = localStorage.getItem('user');
         if (userData) setUser(JSON.parse(userData));
@@ -517,40 +539,7 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ institutionId }) => {
                         </div>
                     </div>
 
-// Inside SubmissionList component, we need to fetch criteria for the selected event to build dynamic headers
-    // For now, let's assume we have a way to know the 'event' or 'hackathonId' to fetch criteria.
-    // The current `filteredSubmissions` contains hackathonId.
-    
-    // Updated header rendering in the `thead`
-    const [eventCriteria, setEventCriteria] = useState<any[]>([]);
 
-    // We need to fetch criteria when the active tab/event changes or similar.
-    // Simplified: Just rendering the columns as requested and mapping data dynamically.
-
-                    // Fetching criteria dynamically
-                        const [eventCriteria, setEventCriteria] = useState<any[]>([]);
-
-                        useEffect(() => {
-                            // Need to fetch criteria for the active event/submissions
-                            const fetchCriteriaForSubmissions = async () => {
-                                // Placeholder logic to identify the event/hackathon based on submissions
-                                if (filteredSubmissions.length > 0) {
-                                    const firstSub = filteredSubmissions[0];
-                                    if (firstSub.hackathonId) {
-                                        try {
-                                            const res = await fetch(`${API_BASE_URL}/api/events/${firstSub.hackathonId}`, { headers: authHeaders() });
-                                            if (res.ok) {
-                                                const data = await res.json();
-                                                setEventCriteria(data.judging_criteria || []);
-                                            }
-                                        } catch (e) {
-                                            console.error('Failed to fetch criteria', e);
-                                        }
-                                    }
-                                }
-                            };
-                            fetchCriteriaForSubmissions();
-                        }, [filteredSubmissions]);
 
                                         <div className="bg-white rounded-[3rem] border border-slate-100 overflow-hidden shadow-2xl shadow-slate-200/20">
                                             <table className="w-full text-left table-fixed border-collapse">

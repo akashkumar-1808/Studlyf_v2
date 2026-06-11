@@ -59,13 +59,20 @@ def _is_admin(role: Optional[str]) -> bool:
 def assert_institution_scope(institution_id: Optional[str], user: dict) -> None:
     """Caller must hold institution role and matching institution_id (or be admin)."""
     if not institution_id:
+        logger.warning("assert_institution_scope failed: institution_id is missing")
         raise HTTPException(status_code=400, detail="institution_id is required")
+
     role = user.get("role") or ""
     if _is_admin(role):
         return
+
     if str(role).lower() != "institution":
+        logger.warning(f"assert_institution_scope failed: user role is '{role}', expected 'institution'")
         raise HTTPException(status_code=403, detail="Institution access required")
-    if str(user.get("institution_id") or "") != str(institution_id):
+
+    user_inst_id = str(user.get("institution_id") or "")
+    if user_inst_id != str(institution_id):
+        logger.warning(f"assert_institution_scope failed: user institution_id '{user_inst_id}' does not match requested '{institution_id}'")
         raise HTTPException(status_code=403, detail="Not authorized for this institution")
 
 
@@ -73,7 +80,7 @@ async def assert_institution_owns_event(event_id: str, user: dict) -> dict:
     """Return event doc if the caller may manage it. Falls back to opportunities_col when the ID is
     a standalone opportunity (not linked to an events_col document)."""
     from bson.errors import InvalidId
-    
+
     # Build a resilient query that works for both ObjectId (24-char hex) and UUID/string IDs
     id_query: list = [{"event_id": event_id}]  # custom string field fallback
     try:
@@ -81,20 +88,30 @@ async def assert_institution_owns_event(event_id: str, user: dict) -> dict:
     except (InvalidId, ValueError):
         pass
     id_query.append({"_id": event_id})  # string _id fallback
-    
+
     ev = await events_col.find_one({"$or": id_query})
     if not ev:
         # Fallback: the ID might belong to a standalone opportunity
         ev = await opportunities_col.find_one({"$or": id_query})
     if not ev:
+        logger.warning(f"assert_institution_owns_event failed: Event/Opportunity '{event_id}' not found")
         raise HTTPException(status_code=404, detail="Event not found")
+
     role = user.get("role") or ""
     if _is_admin(role):
         return ev
+
     if str(role).lower() != "institution":
+        logger.warning(f"assert_institution_owns_event failed: user role is '{role}', expected 'institution'")
         raise HTTPException(status_code=403, detail="Institution access required")
-    if str(user.get("institution_id") or "") != str(ev.get("institution_id") or str(ev.get("createdBy") or "")):
+
+    user_inst_id = str(user.get("institution_id") or "")
+    ev_inst_id = str(ev.get("institution_id") or str(ev.get("createdBy") or ""))
+
+    if user_inst_id != ev_inst_id:
+        logger.warning(f"assert_institution_owns_event failed: user institution_id '{user_inst_id}' does not match event institution_id '{ev_inst_id}'")
         raise HTTPException(status_code=403, detail="Not authorized for this event")
+
     return ev
 
 

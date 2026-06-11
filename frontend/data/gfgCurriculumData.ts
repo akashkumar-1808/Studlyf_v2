@@ -403,7 +403,7 @@ import json
 
 def calculate_hike(salary: float, hike_percent: float) -> str:
     new_salary = salary * (1 + hike_percent / 100)
-    return f"New Salary calculated: ${new_salary:.2f}"
+    return f"New Salary calculated: \${new_salary:.2f}"
 
 def route_tool_call(model_json_output: str) -> str:
     try:
@@ -438,7 +438,7 @@ Prompt engineering is an iterative process. Minor token updates can drastically 
 #### Evaluation Techniques
 - **A/B Prompt Testing:** Running two different prompt template strings on identical test inputs to evaluate output success rates.
 - **Output Assertions:** Writing Python unit tests that verify generated strings contain required sub-words (e.g. valid JSON parsing, schema alignment).
-- **Semver Versioning:** Tagging prompts as versioned code releases (`v1.0.0`, `v1.1.0`) inside source control.
+- **Semver Versioning:** Tagging prompts as versioned code releases (\`v1.0.0\`, \`v1.1.0\`) inside source control.
 
 <div class="my-6 rounded-xl overflow-hidden shadow-lg border border-gray-200">
   <img src="https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=800&q=80" alt="A/B testing dashboard graphic" style="width: 100%; height: auto; display: block;" />
@@ -830,7 +830,7 @@ def estimate_monthly_cost(users: int, queries_per_day: int, avg_prompt_tokens: i
     total = input_cost + output_cost
     return round(total, 2)
 
-print(f"Estimated Monthly cost for 1,000 active users: ${estimate_monthly_cost(1000, 5, 800, 300)}")
+print(f"Estimated Monthly cost for 1,000 active users: \${estimate_monthly_cost(1000, 5, 800, 300)}")
 \`\`\`
 
 #### Helpful Reference Links

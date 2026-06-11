@@ -3578,7 +3578,7 @@ async def update_submission_status(submission_id: str, status_update: dict, user
         assert_institution_scope(str(sub.get("institution_id") or ""), user)
     
     # Validate status value
-    valid_statuses = ["Pending", "Under Review", "Evaluated", "Shortlisted", "Accepted", "Rejected", "Assigned"]
+    valid_statuses = ["Pending", "Under Review", "Evaluated", "Shortlisted", "Waitlisted", "Accepted", "Rejected", "Assigned"]
     new_status = status_update.get("status", "")
     if new_status and new_status not in valid_statuses:
         raise HTTPException(status_code=400, detail=f"Invalid status '{new_status}'. Must be one of: {', '.join(valid_statuses)}")
@@ -3612,7 +3612,7 @@ async def update_submission_data_status(event_id: str, submission_id: str, statu
     if not doc:
         raise HTTPException(status_code=404, detail="Submission data not found")
 
-    valid_statuses = ["Pending", "Under Review", "Evaluated", "Shortlisted", "Accepted", "Rejected", "Assigned"]
+    valid_statuses = ["Pending", "Under Review", "Evaluated", "Shortlisted", "Waitlisted", "Accepted", "Rejected", "Assigned"]
     new_status = str(status_update.get("status", "")).strip()
     if new_status and new_status not in valid_statuses:
         raise HTTPException(status_code=400, detail=f"Invalid status '{new_status}'. Must be one of: {', '.join(valid_statuses)}")
