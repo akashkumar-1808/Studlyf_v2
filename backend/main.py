@@ -32,6 +32,18 @@ app = FastAPI()
 os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Load standard .env first
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(root_dir, '.env'))
+
+# Load environment-specific file
+env_type = os.getenv("ENVIRONMENT", "development").lower()
+if env_type == "production":
+    load_dotenv(os.path.join(root_dir, '.env.production'), override=True)
+else:
+    load_dotenv(os.path.join(root_dir, '.env.development'), override=True)
+
+# Fallback to local .env in backend/ if run from there
 load_dotenv()
 
 # ── Sentry Error Tracking ──
@@ -85,13 +97,15 @@ logger = logging.getLogger("main_service")
 
 # Configure CORS - Restricted to specific domains for security
 # Load allowed origins from environment or use defaults
-frontend_url = os.getenv("FRONTEND_URL", "https://studlyf-v2.vercel.app")
-backend_url = os.getenv("RENDER_EXTERNAL_URL", "")
+frontend_url = os.getenv("FRONTEND_URL", "https://studlyf.com")
+backend_url = os.getenv("RENDER_EXTERNAL_URL", "https://studlyf-v2.onrender.com")
 additional_origins = [origin.strip() for origin in os.getenv("ADDITIONAL_CORS_ORIGINS", "").split(",") if origin.strip()]
 
 origins = list(set([
     frontend_url,
-    backend_url
+    backend_url,
+    "https://studlyf.com",
+    "https://www.studlyf.com"
 ] + additional_origins))
 
 # Add localhost origins for development
@@ -117,7 +131,10 @@ origins = [origin for origin in origins if origin]
 # Remove duplicates
 origins = list(set(origins))
 
-origin_regex = r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+):(3000|3001|3002|3003|5173|4173|8000)$|^https://[a-zA-Z0-9-]+\.vercel\.app$"
+if os.getenv("ENVIRONMENT", "development").lower() == "development":
+    origin_regex = r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+):(3000|3001|3002|3003|5173|4173|8000)$|^https://[a-zA-Z0-9-]+\.vercel\.app$"
+else:
+    origin_regex = r"^https?://([a-zA-Z0-9-]+\.)?studlyf\.com$"
 
 app.add_middleware(
     CORSMiddleware,
@@ -7699,6 +7716,7 @@ async def enroll_course(req: EnrollRequest, current_user: dict = Depends(get_cur
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    is_dev = os.getenv("ENVIRONMENT", "development").lower() == "development"
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=is_dev)
 
 

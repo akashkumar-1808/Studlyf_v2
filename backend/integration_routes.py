@@ -423,7 +423,7 @@ Good luck in the next round!"""
         "stage_name": stage_name,
         "participant_name": "Alex Mercer",
         "deadline": "2026-05-29",
-        "event_link": "http://localhost:3000/dashboard/learner",
+        "event_link": f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/dashboard/learner",
     }
     
     from services.email_template_service import render_stage_custom_email

@@ -7,8 +7,13 @@ from html import escape
 from dotenv import load_dotenv
 
 # Load env from root - Force override to ensure .env updates are picked up without restart
-root_env = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
-load_dotenv(root_env, override=True)
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+load_dotenv(os.path.join(root_dir, '.env'), override=True)
+env_type = os.getenv("ENVIRONMENT", "development").lower()
+if env_type == "production":
+    load_dotenv(os.path.join(root_dir, '.env.production'), override=True)
+else:
+    load_dotenv(os.path.join(root_dir, '.env.development'), override=True)
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -42,8 +47,13 @@ async def send_notification_email(to_email: str, subject: str, body_html: str):
         logger.warning(f"[EMAIL DEBUG] SMART_EMAIL_PROVIDER='{provider}' ignored; SMTP-only mode enforced")
     
     # Reload env inside the function to ensure we always have the absolute latest values from the file
-    root_env = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
-    load_dotenv(root_env, override=True)
+    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+    load_dotenv(os.path.join(root_dir, '.env'), override=True)
+    env_type = os.getenv("ENVIRONMENT", "development").lower()
+    if env_type == "production":
+        load_dotenv(os.path.join(root_dir, '.env.production'), override=True)
+    else:
+        load_dotenv(os.path.join(root_dir, '.env.development'), override=True)
 
     smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
     smtp_port = int(os.getenv("SMTP_PORT", 465))
