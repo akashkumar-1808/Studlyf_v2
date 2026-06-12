@@ -85,22 +85,6 @@ const MOCK_COURSES: Course[] = [
     price: 799,
     rating: 4.6,
     total_reviews: 945,
-  },
-  {
-    _id: 'ai-automation-mastery',
-    title: 'AI Automation Mastery',
-    description: 'Learn to build powerful AI-driven automation workflows and autonomous agents.',
-    role_tag: 'AI Automation',
-    difficulty: 'Advanced',
-    skills: ['AI Automation', 'LangChain', 'OpenAI', 'Autonomous Agents', 'Workflow Building'],
-    duration: '10.5 hrs',
-    image: '/images/ai_automation_mastery_thumbnail_1780568107343.png',
-    price: 899,
-    rating: 4.9,
-    total_reviews: 1200,
-    total_hours: 10.5,
-    instructor: 'Adarsh Singh',
-    is_bestseller: true
   }
 ];
 
@@ -167,12 +151,8 @@ const CourseDetail: React.FC = () => {
         setCourse(foundCourse);
 
         try {
-          if (foundCourse._id === 'ai-automation-mastery') {
-            setCourseModules(getCurriculumData('ai-automation-mastery') as any[]);
-          } else {
-            // Force use of the rich curriculum instead of the backend's dummy data
-            setCourseModules(GENERATIVE_AI_CURRICULUM);
-          }
+          // Force use of the rich curriculum instead of the backend's dummy data
+          setCourseModules(GENERATIVE_AI_CURRICULUM);
         } catch (modErr) {
           setCourseModules(GENERATIVE_AI_CURRICULUM);
         }
@@ -250,7 +230,7 @@ const CourseDetail: React.FC = () => {
               </h1>
 
               <p className="text-lg text-gray-300 mb-8 max-w-2xl leading-relaxed">{course.description}</p>
-              <img loading="lazy" src={course._id === 'ai-automation-mastery' ? '/images/ai_automation_mastery_banner_1780568085202.png' : '/images/ai_foundations_1779792498429.png'} alt={course.title} className="my-6 rounded-lg" />
+              <img loading="lazy" src={'/images/ai_foundations_1779792498429.png'} alt={course.title} className="my-6 rounded-lg" />
 
               <div className="flex flex-wrap gap-3 mb-10">
                 {(course.skills || []).map((skill, idx) => (
@@ -581,7 +561,6 @@ const CourseDetail: React.FC = () => {
               { t: 'AI Engineer', s: '₹12L - ₹28L' },
               { t: 'Prompt Engineer', s: '₹10L - ₹24L' },
               { t: 'AI Product Manager', s: '₹18L - ₹40L' },
-              { t: 'AI Automation', s: '₹8L - ₹18L' },
               { t: 'ML Ops Engineer', s: '₹12L - ₹26L' },
               { t: 'AI Research', s: '₹6L - ₹15L' }
             ].map((role, i) => (
