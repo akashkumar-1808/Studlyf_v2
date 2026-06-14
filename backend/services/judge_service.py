@@ -471,11 +471,36 @@ async def assign_judge_to_multiple_submissions(submission_ids: list, judge_id: s
             except Exception as e:
                 print(f"DEBUG: Error finding event {eid}: {str(e)}")
         
+        # Get stage details
+        stage_name = "Evaluation Stage"
+        sid = sub.get("stage_id")
+        if event and sid:
+            for s in event.get("stages", []):
+                if str(s.get("id")) == str(sid):
+                    stage_name = s.get("name", "Evaluation Stage")
+                    break
+        
+        # Extract files
+        files_html = ""
+        sub_data = sub.get("data") or {}
+        for field_id, val in sub_data.items():
+            if isinstance(val, dict) and val.get("url"):
+                fname = val.get("filename") or field_id
+                files_html += f'<li><a href="{val.get("url")}" style="color: #6C3BFF; text-decoration: none;">📎 {fname}</a></li>'
+            elif isinstance(val, str) and (val.startswith("http://") or val.startswith("https://")) and (".pdf" in val.lower() or ".doc" in val.lower() or ".ppt" in val.lower()):
+                 files_html += f'<li><a href="{val}" style="color: #6C3BFF; text-decoration: none;">📎 External File</a></li>'
+
+        if files_html:
+            files_html = f'<ul style="margin: 10px 0; padding-left: 20px; font-size: 12px; color: #64748b;">{files_html}</ul>'
+
         projects_data.append({
-            "title": sub.get("title", "Untitled Project"),
+            "title": sub.get("title") or sub.get("project_title") or "Untitled Project",
             "team_name": sub.get("team_name") or sub.get("user_name") or sub.get("title") or "Team",
             "event_name": event.get("name", "Event") if event else "Event",
-            "evaluation_url": evaluation_url
+            "stage_name": stage_name,
+            "description": sub.get("description") or sub.get("solution_description") or sub_data.get("idea_abstract") or "No description provided",
+            "evaluation_url": evaluation_url,
+            "files_html": files_html
         })
 
     if not projects_data:
@@ -487,14 +512,27 @@ async def assign_judge_to_multiple_submissions(submission_ids: list, judge_id: s
     for p in projects_data:
         project_rows_html += f"""
         <div style="background: white; border: 1px solid #e1e5ff; border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-            <h4 style="margin: 0 0 10px 0; color: #1a1a1a; font-size: 16px;">{p['title']}</h4>
-            <div style="font-size: 13px; color: #666; margin-bottom: 15px;">
-                <span style="background: #f0f2ff; padding: 4px 10px; rounded: 6px; margin-right: 10px;">👥 {p['team_name']}</span>
-                <span style="background: #fdf2f8; padding: 4px 10px; rounded: 6px;">🎯 {p['event_name']}</span>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                <h4 style="margin: 0; color: #1a1a1a; font-size: 16px;">{p['title']}</h4>
+                <span style="background: #f0f2ff; color: #6C3BFF; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase;">{p['stage_name']}</span>
             </div>
-            <a href="{p['evaluation_url']}" style="display: inline-block; background: #6C3BFF; color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 13px;">
-                🚀 Start Evaluation
-            </a>
+            
+            <p style="font-size: 12px; color: #475569; margin: 8px 0; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                {p['description']}
+            </p>
+
+            <div style="font-size: 12px; color: #64748b; margin: 12px 0;">
+                <span style="margin-right: 15px;">👥 <strong>Team:</strong> {p['team_name']}</span>
+                <span>🎯 <strong>Event:</strong> {p['event_name']}</span>
+            </div>
+
+            {p['files_html']}
+            
+            <div style="margin-top: 15px; text-align: right;">
+                <a href="{p['evaluation_url']}" style="display: inline-block; background: #6C3BFF; color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 13px;">
+                    🚀 Start Evaluation
+                </a>
+            </div>
         </div>
         """
 

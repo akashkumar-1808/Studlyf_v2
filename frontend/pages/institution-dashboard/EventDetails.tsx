@@ -202,6 +202,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
     const [availableJudges, setAvailableJudges] = useState<any[]>([]);
     const [isJudgeInviteOpen, setIsJudgeInviteOpen] = useState(false);
     const [isInvitingJudge, setIsInvitingJudge] = useState(false);
+    const [isAssigning, setIsAssigning] = useState(false);
     const [selectedSubmissions, setSelectedSubmissions] = useState<string[]>([]);
     const [isBulkMode, setIsBulkMode] = useState(false);
     const [refreshCounter, setRefreshCounter] = useState(0);
@@ -1711,7 +1712,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
 
     const handleAssignJudge = async (judgeId: string, judgeEmail: string) => {
         const isBulk = selectedSubmissions.length > 0 && judgeAssignmentModal.submissionId === 'bulk';
-
+        setIsAssigning(true);
         try {
             const targetIds = isBulk ? selectedSubmissions : [String(judgeAssignmentModal.submissionId || '')].filter(Boolean);
             const hackathonIdSet = new Set((hackathonSubmissions || []).map((s: any) => String(s?._id || s?.id || s?.submissionId)));
@@ -1765,6 +1766,8 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
         } catch (error) {
             try { console.error('Error assigning judge:', error instanceof Error ? error.message : String(error)); } catch (_) { }
             alert('Network error while assigning judge');
+        } finally {
+            setIsAssigning(false);
         }
     };
 
@@ -1856,6 +1859,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
             alert("Please select at least one submission");
             return;
         }
+        setIsAssigning(true);
         try {
             const hackathonIdSet = new Set((hackathonSubmissions || []).map((s: any) => String(s?._id || s?.id || s?.submissionId)));
             const isHackathon = targetIds.every((id: string) => hackathonIdSet.has(String(id)));
@@ -1882,6 +1886,8 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
         } catch (err) {
             try { console.error("Bulk assign error:", err instanceof Error ? err.message : String(err)); } catch (_) { }
             alert("Network error while assigning judge");
+        } finally {
+            setIsAssigning(false);
         }
     };
 
@@ -5655,9 +5661,10 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                                             <div className="flex gap-2">
                                                 <button
                                                     onClick={() => handleAssignJudge(judge._id, judge.email)}
-                                                    className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+                                                    disabled={isAssigning}
+                                                    className={`px-4 py-2 ${isAssigning ? 'bg-slate-400' : 'bg-purple-600 hover:bg-purple-700'} text-white rounded-lg text-sm font-medium transition-colors`}
                                                 >
-                                                    Assign
+                                                    {isAssigning ? 'Assigning...' : 'Assign'}
                                                 </button>
                                                 {judgeAssignmentModal.submissionId !== 'bulk' && (
                                                     <button
