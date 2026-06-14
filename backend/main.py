@@ -546,8 +546,8 @@ async def serve_admin(user: dict = Depends(get_current_user)):
     html = templates_env.get_template('admin.html').render()
     return HTMLResponse(content=html)
 
-@app.post("/api/v1/auth/promote-to-institution")
-async def promote_to_institution(data: dict):
+@app.post("/api/v1/auth/promote-to-institution", dependencies=[Depends(require_role(['admin', 'super_admin']))])
+async def promote_to_institution(data: dict, user: dict = Depends(get_current_user)):
     """Updates a user's role to institution in MongoDB."""
     user_id = data.get("user_id")
     if not user_id: raise HTTPException(status_code=400, detail="Missing user_id")
@@ -559,8 +559,15 @@ async def promote_to_institution(data: dict):
     return {"status": "success"}
 
 
-@app.post('/api/utils/upload-temp-image')
+@app.post('/api/utils/upload-temp-image', dependencies=[Depends(get_current_user)])
 async def upload_temp_image(request: Request, file: UploadFile = File(...), public_base: Optional[str] = Form(None)):
+    # Basic Validation
+    if file.size > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File too large")
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Only images allowed")
+    
+    # Existing implementation ...
     """Accept a single image upload and store it under /uploads, returning a public URL.
     This is intended for short-lived hosting of generated profile cards for social posting.
     """
@@ -7698,6 +7705,47 @@ async def enroll_course(req: EnrollRequest, current_user: dict = Depends(get_cur
             }))
             
         return {"status": "success", "message": "Enrolled successfully"}
+
+@app.post("/api/proxy")
+async def secure_proxy(request: Request, user: dict = Depends(get_current_user)):
+    """
+    Centralized proxy gateway to hide external service URLs, API keys, and query structures.
+    """
+    body = await request.json()
+    service = body.get("service")
+    data = body.get("data")
+
+    try:
+        if service == 'openai':
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    'https://api.openai.com/v1/chat/completions',
+                    headers={
+                        'Authorization': f'Bearer {os.environ.get("OPENAI_API_KEY")}',
+                        'Content-Type': 'application/json'
+                    },
+                    json=data
+                )
+                return response.json()
+
+        elif service == 'stripe':
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    'https://api.stripe.com/v1/charges',
+                    headers={
+                        'Authorization': f'Bearer {os.environ.get("STRIPE_SECRET_KEY")}',
+                        'Content-Type': 'application/json'
+                    },
+                    json=data
+                )
+                return response.json()
+
+        raise HTTPException(status_code=400, detail="Invalid service requested")
+
+    except Exception as e:
+        # SANITIZED LOGGING: Log internally, generic error to client
+        print(f"[PROXY_ERROR][{service}]: {str(e)}")
+        raise HTTPException(status_code=500, detail="Server transaction failed.")
 
 if __name__ == "__main__":
     import uvicorn
