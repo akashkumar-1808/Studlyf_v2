@@ -4930,10 +4930,15 @@ async def _background_auto_classify(event_id: str, thresholds: dict, criteria_da
             elif pct < reject_below: new_status = "Rejected"
             else: new_status = "Pending Review"
 
-            if str(sub_doc.get("status") or "") != new_status:
+            if str(sub_doc.get("status") or "") != new_status or str(sub_doc.get("recommendation") or "") != new_status:
                 await coll.update_one(
                     query_filter,
-                    {"$set": {"status": new_status, "auto_classified": True, "classified_at": now}}
+                    {"$set": {
+                        "status": new_status, 
+                        "recommendation": new_status,
+                        "auto_classified": True, 
+                        "classified_at": now
+                    }}
                 )
 
         # Classify submissions_col
