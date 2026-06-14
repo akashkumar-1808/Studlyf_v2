@@ -282,9 +282,10 @@ async def admin_view_event_submissions(
                 "participant": participant_info,
                 "submission_data": sub.get("data") or sub.get("submission_data") or {},
                 "status": sub.get("status"),
+                "recommendation": sub.get("recommendation") or sub.get("status"),
                 "submitted_at": sub.get("submitted_at"),
                 "last_updated_at": sub.get("last_updated_at") or sub.get("updated_at"),
-                "evaluation_score": sub.get("evaluation_score"),
+                "score": sub.get("evaluation_score") or sub.get("score") or 0.0,
                 "evaluator_feedback": sub.get("evaluator_feedback"),
             })
         
@@ -441,12 +442,28 @@ async def admin_view_stage_submissions(
                 "files": files,  # Added this field for frontend compatibility
                 "labeled_data": _format_labeled_data(sub.get("data") or {}),
                 "status": sub.get("status"),
+                "recommendation": sub.get("recommendation") or sub.get("status"),
                 "submitted_at": sub.get("submitted_at"),
                 "last_updated_at": sub.get("last_updated_at") or sub.get("updated_at"),
-                "evaluation_score": sub.get("evaluation_score"),
+                "score": sub.get("evaluation_score") or sub.get("score") or 0.0,
                 "feedback": sub.get("evaluator_feedback"),
             })
         
+        # Calculate counts for the dashboard
+        counts = {
+            "Total": len(submissions),
+            "shortlisted": 0,
+            "waitlisted": 0,
+            "rejected": 0,
+            "pending": 0
+        }
+        for s in submissions:
+            status = str(s.get("status") or "").lower()
+            if status in ["shortlisted", "waitlisted", "rejected", "pending"]:
+                counts[status] += 1
+            else:
+                counts["pending"] += 1
+
         return {
             "status": "success",
             "event_id": str(event_id),
@@ -455,6 +472,7 @@ async def admin_view_stage_submissions(
             "stage_name": stage_name,
             "stage_fields": stage_fields,
             "total_submissions": len(submissions),
+            "counts": counts,
             "submissions": submissions
         }
         

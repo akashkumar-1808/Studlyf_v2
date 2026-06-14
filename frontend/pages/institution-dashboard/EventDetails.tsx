@@ -859,10 +859,10 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                         rejected: data.submissions.filter((s: any) => String(s.status).toLowerCase() === 'rejected'),
                         pending: data.submissions.filter((s: any) => String(s.status).toLowerCase() === 'pending'),
                         summary: {
-                            shortlisted: data.counts['Shortlisted'] || 0,
-                            waitlisted: data.counts['Waitlisted'] || 0,
-                            rejected: data.counts['Rejected'] || 0,
-                            pending: data.counts['Pending'] || 0,
+                            shortlisted: data.counts['shortlisted'] || 0,
+                            waitlisted: data.counts['waitlisted'] || 0,
+                            rejected: data.counts['rejected'] || 0,
+                            pending: data.counts['pending'] || 0,
                         }
                     });
                 } else {
@@ -1027,20 +1027,29 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 return true;
             });
         }
-        return Array.isArray(bundleData[bundleTab]) ? bundleData[bundleTab] : [];
+        // Handle pending tab - check lowercase key
+        const tabKey = bundleData[bundleTab] ? bundleTab : bundleTab.toLowerCase();
+        return Array.isArray(bundleData[tabKey]) ? bundleData[tabKey] : [];
     };
 
     const handleSaveThresholds = async () => {
         if (!eventId) return;
         setSavingThresholds(true);
         try {
+            const currentStageId = submissionSubTab === 'projects'
+                ? (selectedProjectStageId || undefined)
+                : submissionSubTab === 'assessments'
+                    ? (selectedSubTabQuizStageId || undefined)
+                    : undefined;
+            
             const payload = {
                 criteria: criteria,
                 evaluation_thresholds: {
                     shortlist_min: shortlistThreshold,
                     waitlist_min: waitlistThreshold,
                     reject_below: rejectThreshold
-                }
+                },
+                stage_id: currentStageId // Added stage_id
             };
             const res = await fetch(`${API_BASE_URL}/api/v1/institution/events/${eventId}/criteria`, {
                 method: 'POST',
@@ -1753,12 +1762,6 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 setIsBulkMode(false);
                 // Refresh submissions
                 setRefreshCounter(prev => prev + 1);
-                const currentStageId = submissionSubTab === 'projects'
-                    ? (selectedProjectStageId || undefined)
-                    : submissionSubTab === 'assessments'
-                        ? (selectedSubTabQuizStageId || undefined)
-                        : undefined;
-                fetchBundle(currentStageId);
             } else {
                 const error = await res.json();
                 alert(error.detail || 'Failed to assign judge');
