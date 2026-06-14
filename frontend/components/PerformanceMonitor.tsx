@@ -5,7 +5,6 @@ export const PerformanceMonitor: React.FC = () => {
     useEffect(() => {
         const observer = new PerformanceObserver((list) => {
             list.getEntries().forEach((entry) => {
-                }ms`);
             });
         });
 
@@ -15,12 +14,6 @@ export const PerformanceMonitor: React.FC = () => {
         window.addEventListener('load', () => {
             const requests = performance.getEntriesByType('resource');
             
-            
-            // Log top 5 largest requests
-            const largest = requests
-                .sort((a, b) => (b as PerformanceResourceTiming).transferSize - (a as PerformanceResourceTiming).transferSize)
-                .slice(0, 5);
-            largest.forEach(r => .transferSize / 1024} KB`));
         });
 
         return () => observer.disconnect();

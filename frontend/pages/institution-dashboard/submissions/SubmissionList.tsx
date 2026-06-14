@@ -148,12 +148,10 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ institutionId }) => {
                             const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
                             if (Array.isArray(parsed)) setEventPackages(parsed);
                         } catch (e) {
-                            
                         }
                     }
                 }
             } catch (e) {
-                
             }
         };
         fetchEventConfig();
