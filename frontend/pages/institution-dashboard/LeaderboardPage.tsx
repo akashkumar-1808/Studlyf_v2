@@ -153,17 +153,21 @@ export default function LiveResultsDashboard() {
   useEffect(() => {
     if (!selectedEvent || !selectedStage) return;
     const fetchBoard = async () => {
-      // Don't set loading to true if we already have data, just let it update in the background
+      if (!selectedEvent || !selectedStage) return;
       if (!leaderboardData) setLoading(true);
+      
+      const url = `${API_BASE_URL}/api/v1/institution/leaderboard/${selectedEvent._id}/integrated?stage_id=${selectedStage.id}&institution_id=${user?.institution_id}`;
+      console.log("DEBUG: Fetching leaderboard with URL:", url);
+      
       try {
-        const res = await fetch(
-          `${API_BASE_URL}/api/v1/institution/leaderboard/${selectedEvent._id}/integrated?stage_id=${selectedStage.id}&institution_id=${user?.institution_id}`,
-          { headers: authHeaders() }
-        );
+        const res = await fetch(url, { headers: authHeaders() });
+        const json = await res.json();
+        console.log("DEBUG: Leaderboard API response:", json);
+        
         if (res.ok) {
-          const json = await res.json();
           setLeaderboardData(json);
-          // Don't reset current page unless it's out of bounds
+        } else {
+          console.error("DEBUG: Leaderboard API error:", json);
         }
       } catch (e) {
         console.error('Error fetching leaderboard:', e);
