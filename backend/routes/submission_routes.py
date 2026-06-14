@@ -282,6 +282,7 @@ async def admin_view_event_submissions(
                 "participant": participant_info,
                 "submission_data": sub.get("data") or sub.get("submission_data") or {},
                 "status": sub.get("status"),
+                "recommendation": sub.get("recommendation") or sub.get("status"),
                 "submitted_at": sub.get("submitted_at"),
                 "last_updated_at": sub.get("last_updated_at") or sub.get("updated_at"),
                 "evaluation_score": sub.get("evaluation_score"),
@@ -441,6 +442,7 @@ async def admin_view_stage_submissions(
                 "files": files,  # Added this field for frontend compatibility
                 "labeled_data": _format_labeled_data(sub.get("data") or {}),
                 "status": sub.get("status"),
+                "recommendation": sub.get("recommendation") or sub.get("status"),
                 "submitted_at": sub.get("submitted_at"),
                 "last_updated_at": sub.get("last_updated_at") or sub.get("updated_at"),
                 "evaluation_score": sub.get("evaluation_score"),
