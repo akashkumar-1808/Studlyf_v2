@@ -2,6 +2,7 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { HashRouter as Router, Routes, Route, useLocation, Navigate, useNavigate } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 
 // Core components
 import Navigation from './components/Navigation';
@@ -154,8 +155,6 @@ const App: React.FC = () => {
   useEffect(() => {
     if (loading) return;
     if (!pathname) return;
-
-    console.log('[AuthDebug] Role:', role, 'Path:', pathname);
 
     // Public evaluation + judge invitation (no role redirect)
     if (pathname.startsWith('/evaluate/') || pathname.startsWith('/judge-invitation')) {
@@ -580,29 +579,30 @@ const AppWrapper: React.FC = () => {
 
   return (
     <HeroUIProvider>
-      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <AuthProvider>
-          <DashboardDataProvider>
-            <ScrollToTop />
-            <Suspense fallback={null}>
-              {showSplash ? (
-                <SplashScreen duration={2000} onFinish={handleSplashFinish} />
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.6 }}
-                >
-                  <App />
-                </motion.div>
-              )}
-            </Suspense>
-          </DashboardDataProvider>
-        </AuthProvider>
-      </Router>
+      <HelmetProvider>
+        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <AuthProvider>
+            <DashboardDataProvider>
+              <ScrollToTop />
+              <Suspense fallback={null}>
+                {showSplash ? (
+                  <SplashScreen duration={2000} onFinish={handleSplashFinish} />
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.6 }}
+                  >
+                    <App />
+                  </motion.div>
+                )}
+              </Suspense>
+            </DashboardDataProvider>
+          </AuthProvider>
+        </Router>
+      </HelmetProvider>
     </HeroUIProvider>
   );
 };
 
 export default AppWrapper;
-

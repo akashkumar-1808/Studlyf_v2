@@ -19,6 +19,7 @@ __pycache__/
 env/
 venv/
 backend/venv/
+backend/.venv/
 .Python
 build/
 develop-eggs/
@@ -98,6 +99,13 @@ script_profile.py
 script_update.py
 PRODUCTION_FIXES.py
 migrate_gridfs_files.py
+*_FIXED.py
+*_FIXED.txt
+audit_script.py
+comprehensive_security_testing.py
+comprehensive_tests.py
+vulnerability_scanner.py
+proxy.py
 
 # Backend Scratch & Diagnostic files
 backend/scratch_*.py

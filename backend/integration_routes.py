@@ -6,8 +6,9 @@ import uuid
 import shutil
 import json
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Request, Form, File, UploadFile, Body, Depends, Query, Response
+from fastapi import APIRouter, HTTPException, Request, Form, File, UploadFile, Body, Depends, Query, Response, BackgroundTasks
 from auth_institution import get_auth_user, get_auth_user_optional, assert_institution_scope, assert_institution_owns_event
+from main import get_current_user, require_role
 from services.email_service import (
     send_notification_email,
     get_certificate_template,
@@ -2225,6 +2226,102 @@ async def fetch_leaderboard(event_id: str):
     for r in rankings: r["_id"] = str(r["_id"])
     return rankings
 
+@router.get("/leaderboard/{event_id}/integrated")
+async def get_integrated_leaderboard(
+    event_id: str,
+    stage_id: Optional[str] = None,
+    institution_id: Optional[str] = None,
+    user: dict = Depends(get_auth_user)
+):
+    """
+    Returns an integrated leaderboard with counts and thresholds.
+    This endpoint is used by the Institution Leaderboard Dashboard.
+    """
+    await assert_institution_owns_event(event_id, user)
+    
+    # 1. Get Event to get thresholds
+    event = await events_col.find_one({"_id": ObjectId(event_id)})
+    if not event:
+        # Try finding by event_id string if ObjectId fails
+        event = await events_col.find_one({"event_id": event_id})
+    
+    thresholds = (event or {}).get("evaluation_thresholds") or {
+        "shortlist_min": 70,
+        "waitlist_min": 50,
+        "reject_below": 50
+    }
+    
+    # 2. Get Leaderboard Data using the service
+    from services.leaderboard_service import leaderboard_service
+    rankings = await leaderboard_service.calculate_event_leaderboard(event_id, stage_id=stage_id)
+    
+    # 3. Calculate Counts based on status and scores
+    counts = {
+        "Total": len(rankings),
+        "Shortlisted": 0,
+        "Waitlisted": 0,
+        "Rejected": 0
+    }
+    
+    shortlist_min = float(thresholds.get("shortlist_min") or 70)
+    waitlist_min = float(thresholds.get("waitlist_min") or 50)
+    reject_below = float(thresholds.get("reject_below") or 50)
+    
+    processed_rankings = []
+    for r in rankings:
+        score = float(r.get("total_score") or 0)
+        # Use status if already set, otherwise classify by score
+        status = r.get("status")
+        
+        if not status:
+            if score >= shortlist_min:
+                status = "Shortlisted"
+            elif score >= waitlist_min:
+                status = "Waitlisted"
+            else:
+                status = "Rejected"
+            r["status"] = status
+            
+        if status == "Shortlisted": counts["Shortlisted"] += 1
+        elif status == "Waitlisted": counts["Waitlisted"] += 1
+        elif status == "Rejected": counts["Rejected"] += 1
+        
+        # Ensure ID is string for frontend
+        if "_id" in r:
+            r["_id"] = str(r["_id"])
+        processed_rankings.append(r)
+        
+    return {
+        "counts": counts,
+        "submissions": processed_rankings,
+        "evaluation_thresholds": thresholds
+    }
+
+@router.post("/events/{event_id}/leaderboard/verify")
+async def verify_leaderboard_results(
+    event_id: str,
+    payload: dict,
+    user: dict = Depends(get_auth_user)
+):
+    """
+    Formally verifies the results for a specific stage.
+    """
+    await assert_institution_owns_event(event_id, user)
+    stage_id = payload.get("stage_id")
+    
+    # In a real implementation, this might set a 'verified' flag on submissions
+    # or create an audit log entry.
+    await db.audit_logs.insert_one({
+        "action": "LEADERBOARD_VERIFIED",
+        "event_id": event_id,
+        "stage_id": stage_id,
+        "institution_id": user.get("institution_id"),
+        "performed_by": user.get("user_id"),
+        "timestamp": datetime.utcnow()
+    })
+    
+    return {"status": "success", "message": "Results verified successfully"}
+
 @router.get("/results/{event_id}")
 async def fetch_event_results(event_id: str):
     """Returns leaderboard enriched with team member details for the results page."""
@@ -3071,8 +3168,8 @@ async def get_all_submissions(institution_id: str, user: dict = Depends(get_auth
         "all": list(all_items.values())
     }
 
-@router.post("/submissions")
-async def create_submission(submission_data: dict):
+@router.post("/create_submission", dependencies=[Depends(get_current_user)])
+async def create_submission(submission_data: dict, user: dict = Depends(get_current_user)):
     """
     Creates a new project submission record.
     Fulfills Nithya's core backend responsibility.
@@ -4793,8 +4890,67 @@ async def remove_event_judge(event_id: str, judge_email: str, user: dict = Depen
     )
     return {"status": "success"}
 
+async def _background_auto_classify(event_id: str, thresholds: dict, criteria_data: list):
+    """Background task to re-classify submissions when thresholds change."""
+    try:
+        shortlist_min = float(thresholds.get("shortlist_min", 80))
+        waitlist_min = float(thresholds.get("waitlist_min", max(shortlist_min * 0.75, shortlist_min - 15)))
+        reject_below = float(thresholds.get("reject_below", waitlist_min))
+        max_possible = sum(float(c.get("max_points") or 10) for c in criteria_data) or 100.0
+
+        event_id_variants = await collect_event_id_variants(event_id)
+        event_id_in: list = list(event_id_variants)
+        for vid in list(event_id_variants):
+            if ObjectId.is_valid(vid):
+                try: event_id_in.append(ObjectId(vid))
+                except: pass
+
+        raw_scores = await scores_col.find({"event_id": {"$in": event_id_in}}).to_list(length=10000)
+
+        # Average scores per submission
+        scores_by_sub: dict[str, list[float]] = {}
+        for sc in raw_scores:
+            sid = str(sc.get("submission_id") or "")
+            if not sid: continue
+            scores_by_sub.setdefault(sid, []).append(_score_sum(sc))
+
+        now = datetime.utcnow()
+
+        async def _classify_and_update(coll, query_filter, sub_doc):
+            sid = str(sub_doc["_id"])
+            score_list = scores_by_sub.get(sid, [])
+            if not score_list: return
+
+            avg_score = sum(score_list) / len(score_list)
+            if avg_score <= 0: return
+            pct = round((avg_score / max_possible) * 100, 1) if max_possible > 0 else avg_score
+
+            if pct >= shortlist_min: new_status = "Shortlisted"
+            elif pct >= waitlist_min: new_status = "Waitlisted"
+            elif pct < reject_below: new_status = "Rejected"
+            else: new_status = "Pending Review"
+
+            if str(sub_doc.get("status") or "") != new_status:
+                await coll.update_one(
+                    query_filter,
+                    {"$set": {"status": new_status, "auto_classified": True, "classified_at": now}}
+                )
+
+        # Classify submissions_col
+        raw_subs = await submissions_col.find({"event_id": {"$in": event_id_in}}).to_list(length=10000)
+        for sub in raw_subs:
+            await _classify_and_update(submissions_col, {"_id": sub["_id"]}, sub)
+
+        # Classify submission_data_col
+        raw_sd = await submission_data_col.find({"event_id": {"$in": event_id_in}}).to_list(length=10000)
+        for sd in raw_sd:
+            await _classify_and_update(submission_data_col, {"_id": sd["_id"]}, sd)
+
+    except Exception as e:
+        print(f"[ERROR] Auto-classification background task failed for event {event_id}: {e}")
+
 @router.post("/events/{event_id}/criteria")
-async def update_judging_criteria(event_id: str, request: Request, user: dict = Depends(get_auth_user)):
+async def update_judging_criteria(event_id: str, request: Request, background_tasks: BackgroundTasks, user: dict = Depends(get_auth_user)):
     """Updates scoring rubrics and optional evaluation thresholds for an event."""
     await assert_institution_owns_event(event_id, user)
     body = await request.json()
@@ -4811,74 +4967,11 @@ async def update_judging_criteria(event_id: str, request: Request, user: dict = 
         update_doc["evaluation_thresholds"] = thresholds
     await events_col.update_one({"_id": ObjectId(event_id)}, {"$set": update_doc})
 
-    # ── Auto-classify submissions based on thresholds ──
+    # ── Auto-classify submissions based on thresholds (BACKGROUND) ──
     if isinstance(thresholds, dict) and criteria_data:
-        try:
-            shortlist_min = float(thresholds.get("shortlist_min", 80))
-            waitlist_min = float(thresholds.get("waitlist_min", max(shortlist_min * 0.75, shortlist_min - 15)))
-            reject_below = float(thresholds.get("reject_below", waitlist_min))
-            max_possible = sum(float(c.get("max_points") or 10) for c in criteria_data) or 100.0
+        background_tasks.add_task(_background_auto_classify, event_id, thresholds, criteria_data)
 
-            event_id_variants = await collect_event_id_variants(event_id)
-            event_id_in: list = list(event_id_variants)
-            for vid in list(event_id_variants):
-                if ObjectId.is_valid(vid):
-                    try:
-                        event_id_in.append(ObjectId(vid))
-                    except Exception:
-                        pass
-
-            raw_scores = await scores_col.find({"event_id": {"$in": event_id_in}}).to_list(length=10000)
-
-            # Average scores per submission
-            scores_by_sub: dict[str, list[float]] = {}
-            for sc in raw_scores:
-                sid = str(sc.get("submission_id") or "")
-                if not sid:
-                    continue
-                scores_by_sub.setdefault(sid, []).append(_score_sum(sc))
-
-            now = datetime.utcnow()
-
-            def _classify_and_update(coll, query_filter, sub_doc):
-                sid = str(sub_doc["_id"])
-                score_list = scores_by_sub.get(sid, [])
-                if not score_list:
-                    return
-                avg_score = sum(score_list) / len(score_list)
-                if avg_score <= 0:
-                    return
-                pct = round((avg_score / max_possible) * 100, 1) if max_possible > 0 else avg_score
-
-                if pct >= shortlist_min:
-                    new_status = "Shortlisted"
-                elif pct >= waitlist_min:
-                    new_status = "Waitlisted"
-                elif pct < reject_below:
-                    new_status = "Rejected"
-                else:
-                    new_status = "Pending Review"
-
-                if str(sub_doc.get("status") or "") != new_status:
-                    return coll.update_one(
-                        query_filter,
-                        {"$set": {"status": new_status, "auto_classified": True, "classified_at": now}},
-                    )
-
-            # Classify submissions_col
-            raw_subs = await submissions_col.find({"event_id": {"$in": event_id_in}}).to_list(length=10000)
-            for sub in raw_subs:
-                await _classify_and_update(submissions_col, {"_id": sub["_id"]}, sub)
-
-            # Classify submission_data_col
-            raw_sd = await submission_data_col.find({"event_id": {"$in": event_id_in}}).to_list(length=10000)
-            for sd in raw_sd:
-                await _classify_and_update(submission_data_col, {"_id": sd["_id"]}, sd)
-
-        except Exception as e:
-            print(f"[ERROR] Auto-classification failed for event {event_id}: {e}")
-
-    return {"status": "success"}
+    return {"status": "success", "message": "Thresholds updated. Re-classification running in background."}
 
 
 @router.get("/events/{event_id}/stage-submissions/{submission_id}/file/{field_id}")
@@ -6381,8 +6474,8 @@ async def export_institution_participants(institution_id: str, user: dict = Depe
         headers={"Content-Disposition": f"attachment; filename=participants_{institution_id}.csv"}
     )
 
-@router.post("/members/bulk")
-async def bulk_onboard_members(data: dict):
+@router.post("/members/bulk", dependencies=[Depends(require_role(['admin', 'super_admin']))])
+async def bulk_onboard_members(data: dict, user: dict = Depends(get_current_user)):
     """
     Professional Bulk Onboarding Engine.
     Handles bulk insertion of Judges or Participants with automated duplicate detection.

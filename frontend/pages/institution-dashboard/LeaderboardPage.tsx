@@ -223,6 +223,25 @@ export default function LiveResultsDashboard() {
     }
   };
 
+  const handleIssueCertificates = async () => {
+    if (!selectedEvent) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/institution/certificates/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ institution_id: user?.institution_id, event_id: selectedEvent._id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        showToast(`Successfully issued ${data.issued_count} certificates!`, 'success');
+      } else {
+        showToast('Failed to issue certificates', 'error');
+      }
+    } catch {
+      showToast('Error issuing certificates', 'error');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f8f9fa] font-sans text-slate-800 p-8">
         {/* Header Options */}
@@ -246,7 +265,10 @@ export default function LiveResultsDashboard() {
             >
               <CheckCircle className="w-4 h-4 mr-2" /> Verify Results
             </button>
-            <button className="flex items-center px-4 py-2 bg-[#4f46e5] text-white rounded-lg hover:bg-[#4338ca] font-medium text-sm transition-colors shadow-sm">
+            <button 
+              onClick={handleIssueCertificates}
+              className="flex items-center px-4 py-2 bg-[#4f46e5] text-white rounded-lg hover:bg-[#4338ca] font-medium text-sm transition-colors shadow-sm"
+            >
               <Award className="w-4 h-4 mr-2" /> Issue Winner Certificates
             </button>
           </div>
