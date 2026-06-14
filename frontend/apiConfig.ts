@@ -48,8 +48,6 @@ export function authHeaders(): Record<string, string> {
     return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
-if (!API_BASE_URL || !FRONTEND_URL) {
-    console.warn('Missing env values. Set FRONTEND_URL and RENDER_EXTERNAL_URL in your env file.');
-}
 
-console.log('App is running in:', import.meta.env.MODE, 'Targeting API:', API_BASE_URL || '(missing env)');
+
+

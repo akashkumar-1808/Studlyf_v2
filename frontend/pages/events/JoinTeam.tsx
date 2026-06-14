@@ -77,7 +77,7 @@ const JoinTeam: React.FC = () => {
                 setJoinError(msg);
             }
         } catch (e) {
-            console.error('Join error', e);
+            console.error('Join error');
             setJoinError('Network error while joining the team.');
         } finally {
             setLoading(false);

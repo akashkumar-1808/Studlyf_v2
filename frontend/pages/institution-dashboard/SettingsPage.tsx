@@ -220,12 +220,12 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ institutionId, onProfileUpd
                             const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
                             if (Array.isArray(parsed)) setEventPackages(parsed);
                         } catch (e) {
-                            console.warn('Failed to parse event_packages', e);
+                            
                         }
                     }
                 }
             } catch (e) {
-                console.debug('No event-config available', e);
+                
             }
         };
         fetchEventConfig();

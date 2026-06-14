@@ -294,7 +294,7 @@ export default function SkillAssessmentHistory() {
 
       setRecords(mapped);
     } catch (e) {
-      console.error("[SkillAssessmentHistory] localStorage read error:", e);
+      console.error("[SkillAssessmentHistory] localStorage read error:");
       setError("Could not load your assessment history.");
     } finally {
       setLoading(false);

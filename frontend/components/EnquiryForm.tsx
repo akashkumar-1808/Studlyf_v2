@@ -63,11 +63,7 @@ const EnquiryForm: React.FC = () => {
         const cleanPublicKey = publicKey?.trim();
 
         if (!cleanServiceId || !cleanTemplateId || !cleanPublicKey) {
-            console.error('Missing EmailJS Configuration! Please check your .env file.', { 
-                serviceId: cleanServiceId, 
-                templateId: cleanTemplateId, 
-                publicKey: cleanPublicKey ? '***' : undefined 
-            });
+            console.error('Missing EmailJS Configuration! Please check your .env file.');
             alert('Email service is not configured properly.');
             setIsSubmitting(false);
             return;
@@ -104,7 +100,7 @@ const EnquiryForm: React.FC = () => {
             setIsVerified(false);
             setTimeout(() => setIsSubmitted(false), 5000);
         } catch (error: any) {
-            try { console.error('Failed to send email. Status:', error?.status, 'Text:', error?.text, 'Error:', error); } catch (_) {}
+            try { console.error('Failed to send email. Status:'); } catch (_) {}
             alert(`Failed to send inquiry: ${error?.text || 'Unknown error. Check console.'}`);
         } finally {
             setIsSubmitting(false);

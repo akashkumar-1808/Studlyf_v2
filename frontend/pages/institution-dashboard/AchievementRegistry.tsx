@@ -100,7 +100,7 @@ export default function AchievementRegistry() {
             }
           }
         }
-      } catch (e) { console.error('Error fetching events:', e); }
+      } catch (e) { console.error('Error fetching events:'); }
     };
     fetchEvents();
   }, [user?.institution_id]);
@@ -124,7 +124,7 @@ export default function AchievementRegistry() {
           });
           if (previewRes.ok) setEligibility(await previewRes.json());
         }
-      } catch (e) { console.error('Error fetching certificate data:', e); }
+      } catch (e) { console.error('Error fetching certificate data:'); }
       finally { setLoading(false); }
     };
     fetchData();

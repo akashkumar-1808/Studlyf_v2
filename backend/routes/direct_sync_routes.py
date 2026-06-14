@@ -13,7 +13,7 @@ async def force_update_all_opportunities(event_id: str):
     from bson import ObjectId
     from pymongo import UpdateOne
     try:
-        print(f"DIRECT SYNC: Force updating all opportunities for event: {event_id}")
+
         
         # Get the event
         event = await events_col.find_one({"_id": ObjectId(event_id)})
@@ -21,7 +21,7 @@ async def force_update_all_opportunities(event_id: str):
             return {"success": False, "message": "Event not found"}
         
         event_stages = event.get("stages", [])
-        print(f"DIRECT SYNC: Event has {len(event_stages)} stages")
+} stages")
         
         # Determine registration deadline
         deadline = event.get("registration_deadline") or event.get("registrationDeadline")
@@ -58,7 +58,7 @@ async def force_update_all_opportunities(event_id: str):
             
         result = await opportunities_col.bulk_write(bulk_operations)
         updated_count = result.modified_count
-        print(f"DIRECT SYNC: Updated {updated_count} opportunities via bulk write")
+
         
         return {
             "success": True,
@@ -68,9 +68,9 @@ async def force_update_all_opportunities(event_id: str):
         }
         
     except Exception as e:
-        print(f"DIRECT SYNC ERROR: {str(e)}")
+}")
         import traceback
-        traceback.print_exc()
+# removed
         return {"success": False, "message": f"Error: {str(e)}"}
 
 @router.get("/check-opportunities")

@@ -300,7 +300,7 @@ async def admin_view_event_submissions(
         raise
     except Exception as e:
         import traceback
-        traceback.print_exc()
+# removed
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -59,7 +59,7 @@ const CertificatesPage: React.FC<{ institutionId: string }> = ({ institutionId }
             if (arr[0].stages?.length > 0) setSelectedStage(arr[0].stages[0]);
           }
         }
-      } catch (e) { console.error('Error fetching events:', e); }
+      } catch (e) { console.error('Error fetching events:'); }
     };
     fetchEvents();
   }, [institutionId]);
@@ -82,7 +82,7 @@ const CertificatesPage: React.FC<{ institutionId: string }> = ({ institutionId }
           });
           if (previewRes.ok) setEligibility(await previewRes.json());
         }
-      } catch (e) { console.error('Error:', e); }
+      } catch (e) { console.error('Error:'); }
       finally { setLoading(false); }
     };
     fetchData();

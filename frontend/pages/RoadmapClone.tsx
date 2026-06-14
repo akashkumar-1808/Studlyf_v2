@@ -51,7 +51,7 @@ const RoadmapClone: React.FC = () => {
         try {
           setCompletedNodes(JSON.parse(saved));
         } catch (e) {
-          console.error('Failed to parse roadmap progress', e);
+          console.error('Failed to parse roadmap progress');
           setCompletedNodes([]);
         }
       } else {

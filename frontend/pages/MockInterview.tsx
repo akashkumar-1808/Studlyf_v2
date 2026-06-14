@@ -854,7 +854,7 @@ export default function MockInterview() {
 
             window.speechSynthesis.speak(utterance);
         } catch (e) {
-            console.error('TTS error', e);
+            console.error('TTS error');
         }
     };
 
@@ -885,7 +885,7 @@ export default function MockInterview() {
         // Attempt to save report to backend asynchronously (no wait)
         if (sessionId && !isDummyMode) {
             fetch(`${API_BASE_URL}/api/interview/report?session_id=${sessionId}`, { timeout: 5000 }).catch(err => {
-                console.warn('Backend report save failed (non-critical):', err);
+                
             });
         }
     };
@@ -1378,7 +1378,7 @@ export default function MockInterview() {
 
                                                     setStep('SETUP');
                                                 } catch (e) {
-                                                    console.error('Key validation error', e);
+                                                    console.error('Key validation error');
                                                     alert('Network error while validating API key. Ensure backend is reachable.');
                                                 } finally { setLoading(false); }
                                         }} 

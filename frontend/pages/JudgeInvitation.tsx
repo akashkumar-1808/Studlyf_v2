@@ -52,7 +52,7 @@ const JudgeInvitation: React.FC = () => {
             } else {
                 const body = await res.json().catch(() => ({}));
                 const msg = body?.detail || `HTTP ${res.status}`;
-                console.error('Failed to fetch invitation details:', msg);
+                console.error('Failed to fetch invitation details:');
                 if (res.status === 404) {
                     setNotice({ kind: 'err', text: 'Invitation not found. The link may have expired or been cancelled.' });
                 } else {
@@ -60,7 +60,7 @@ const JudgeInvitation: React.FC = () => {
                 }
             }
         } catch (error) {
-            console.error('Failed to fetch invitation details:', error);
+            console.error('Failed to fetch invitation details:');
             setNotice({ kind: 'err', text: 'Network error. Please check your connection and try again.' });
         } finally {
             setLoadingInvitation(false);

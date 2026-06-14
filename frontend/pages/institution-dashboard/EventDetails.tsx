@@ -260,9 +260,9 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
     const [profileTypeLockedForPrefill, setProfileTypeLockedForPrefill] = useState(false);
 
     const fetchRegistrations = async () => {
-        console.log('fetchRegistrations called. eventId:', eventId, 'activeTab:', activeTab);
+        
         if (!eventId || activeTab !== 'registrations') {
-            console.log('fetchRegistrations skipped: eventId missing or activeTab is not registrations');
+            
             return;
         }
         setRegLoading(true);
@@ -317,7 +317,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 setTeams(Array.isArray(data) ? data : []);
             }
         } catch (err) {
-            console.error('Failed to fetch teams:', err);
+            console.error('Failed to fetch teams:');
         }
     }, [eventId]);
 
@@ -589,7 +589,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 setInstitutionJudges(filtered);
             }
         } catch (e) {
-            console.error('Failed to fetch judges:', e);
+            console.error('Failed to fetch judges:');
         }
     };
 
@@ -634,7 +634,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
         if (!hasUnsavedChanges || saving) return;
 
         const autoSaveTimer = setTimeout(() => {
-            console.log('AUTO-SAVE: Triggering synchronization...');
+            
             handleSaveEvent();
         }, 3000); // 3 seconds debounce for auto-save
 
@@ -690,7 +690,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                             return res.json();
                         })
                         .catch(err => {
-                            console.error("Critical: Failed to load dashboard data.", err);
+                            console.error("Critical: Failed to load dashboard data.");
                             return null; // Ensure Promise.all doesn't fail completely
                         }),
                     instId
@@ -752,7 +752,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 }
 
             } catch (err) {
-                console.error("Failed to load essential event data:", err);
+                console.error("Failed to load essential event data:");
                 // Optionally set an error state to show in the UI
             } finally {
                 setLoading(false);
@@ -869,7 +869,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 }
             }
         } catch (e) {
-            console.error('[BUNDLE] Failed to fetch evaluation bundle:', e);
+            console.error('[BUNDLE] Failed to fetch evaluation bundle:');
         } finally {
             setBundleLoading(false);
         }
@@ -1183,18 +1183,18 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 setShowSaveSuccess(true);
 
                 // Background sync - update all opportunities without blocking UI
-                console.log('DIRECT SYNC: Triggering background synchronization for event:', eventId);
+                
                 fetch(`${API_BASE_URL}/api/direct-sync/force-update/${eventId}`, {
                     method: 'POST',
                     headers: { ...authHeaders() }
                 }).then(syncRes => {
                     if (syncRes.ok) {
-                        console.log('DIRECT SYNC: Background sync successful');
+                        
                     } else {
                         console.error('DIRECT SYNC: Background sync failed');
                     }
                 }).catch(syncErr => {
-                    console.error('DIRECT SYNC: Background network error:', syncErr);
+                    console.error('DIRECT SYNC: Background network error:');
                 });
             } else {
                 const errorData = await res.json().catch(() => ({}));
@@ -1235,10 +1235,10 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                 alert('Upload failed: ' + (data.detail || 'Unknown error'));
                 return;
             }
-            console.log('[MediaUpload] response OK', { field, url: data.url, data });
+            
             setEvent((prev: any) => {
                 const updated = prev ? { ...prev, [field]: data.url } : prev;
-                console.log('[MediaUpload] updated event state', { field, url: data.url, updated });
+                
                 return updated;
             });
             if (field === 'logo_url') setLogoError(false);
@@ -1681,18 +1681,18 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
     const handleOpenJudgeAssignment = async (submissionId: string) => {
         // Fetch available judges
         try {
-            console.log('DEBUG: Fetching judges for submission:', submissionId);
+            
             const res = await fetch(`${API_BASE_URL}/api/judges`, { headers: { ...authHeaders() } });
-            console.log('DEBUG: Judges API response status:', res.status);
+            
             if (res.ok) {
                 const judges = await res.json();
-                console.log('DEBUG: Judges data received:', judges);
+                
                 setAvailableJudges(judges);
                 setJudgeAssignmentModal({ isOpen: true, submissionId });
             } else {
-                console.log('DEBUG: Failed to fetch judges, status:', res.status);
+                
                 const errorData = await res.json().catch(() => ({}));
-                console.log('DEBUG: Judges API error:', errorData);
+                
                 alert(`Failed to load judges: ${errorData.detail || 'Unknown error'}`);
             }
         } catch (error) {
@@ -2001,7 +2001,7 @@ const EventDetails: React.FC<EventDetailsProps> = ({ eventId, onBack, institutio
                     );
                 }
             } catch (err) {
-                console.error('Failed to fetch team details:', err);
+                console.error('Failed to fetch team details:');
             } finally {
                 setLoadingTeamDetails(false);
             }

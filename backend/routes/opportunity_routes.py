@@ -99,7 +99,7 @@ async def my_overview(user: dict = Depends(get_auth_user), limit: int = 8):
         return await get_learner_opportunity_overview(user["user_id"], limit=limit)
     except Exception as e:
         import traceback
-        traceback.print_exc()
+# removed
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -362,20 +362,20 @@ async def list_event_stage_submissions(event_id: str, user: dict = Depends(get_a
     from bson import ObjectId
     
     try:
-        print(f"DEBUG: Fetching stage submissions for event_id: {event_id}")
+
         
         # Validate event_id format
         try:
             ObjectId(event_id)
         except Exception as ve:
-            print(f"DEBUG: Invalid event_id format: {event_id}")
+
             raise HTTPException(status_code=400, detail=f"Invalid event_id format: {str(ve)}")
         
         cursor = submission_data_col.find({"event_id": str(event_id)})
         items = []
         async for doc in cursor:
             doc["_id"] = str(doc["_id"])
-            print(f"DEBUG: Processing submission document: {doc['_id']}")
+
             
             # Try to attach team name or user name if possible
             if doc.get("team_id"):
@@ -383,7 +383,7 @@ async def list_event_stage_submissions(event_id: str, user: dict = Depends(get_a
                     team = await teams_col.find_one({"_id": ObjectId(doc["team_id"])})
                     if team: doc["team_name"] = team.get("team_name")
                 except Exception as te:
-                    print(f"DEBUG: Error fetching team {doc['team_id']}: {str(te)}")
+}")
             else:
                 user_rec = await users_col.find_one({"user_id": doc["user_id"]})
                 if user_rec: doc["user_name"] = user_rec.get("name")
@@ -431,15 +431,15 @@ async def list_event_stage_submissions(event_id: str, user: dict = Depends(get_a
             }
             items.append(h_doc)
             
-        print(f"DEBUG: Returning {len(items)} total submissions (including hackathon) for event {event_id}")
+} total submissions (including hackathon) for event {event_id}")
         return items
         
     except HTTPException as he:
-        print(f"DEBUG: HTTP Exception in stage submissions: {str(he)}")
+}")
         raise he
     except Exception as e:
-        print(f"DEBUG: Unexpected error in stage submissions: {str(e)}")
-        print(f"DEBUG: Error details - Event ID: {event_id}, Error: {str(e)}")
+}")
+}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch stage submissions: {str(e)}")
 
 @router.post("/events/{event_id}/stages/{stage_id}/upload")

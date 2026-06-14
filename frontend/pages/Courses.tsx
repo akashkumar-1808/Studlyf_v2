@@ -168,11 +168,11 @@ const Courses: React.FC = () => {
   // Fetch courses and user state
   useEffect(() => {
     const fetchData = async () => {
-      console.log('🔵 Starting course fetch from:', `${API_BASE_URL}/api/courses`);
+      
       try {
         setLoading(true);
         // Get all courses - REQUIRED
-        console.log('📡 Fetching courses...');
+        
         const coursesRes = await fetch(`${API_BASE_URL}/api/courses`, {
           method: 'GET',
           headers: {
@@ -180,28 +180,28 @@ const Courses: React.FC = () => {
           },
         });
         
-        console.log('📥 Response status:', coursesRes.status);
+        
         
         if (!coursesRes.ok) {
-          console.error('❌ Courses API error:', coursesRes.status, coursesRes.statusText);
+          console.error('❌ Courses API error:');
           const errText = await coursesRes.text();
-          console.error('Error body:', errText);
+          console.error('Error body:');
           setCourses([]);
           return;
         }
         
         const coursesData = await coursesRes.json();
-        console.log('✅ Courses data received:', coursesData);
-        console.log('📊 Total courses:', coursesData?.length || 0);
+        
+        
         
         const allCourses = coursesData && Array.isArray(coursesData) ? coursesData : [];
 
 
         if (allCourses.length > 0) {
           setCourses(allCourses);
-          console.log('✓ Courses set in state');
+          
         } else {
-          console.warn('⚠️ No courses in response or invalid format');
+          
           setCourses([]);
         }
       } catch (err) {
@@ -209,7 +209,7 @@ const Courses: React.FC = () => {
         setCourses([]);
       } finally {
         setLoading(false);
-        console.log('🏁 Loading finished');
+        
       }
 
       // Get user course states - OPTIONAL (doesn't block course display)
@@ -217,7 +217,7 @@ const Courses: React.FC = () => {
         try {
           const stateRes = await fetch(`${API_BASE_URL}/api/user-courses/${userId}`);
           if (!stateRes.ok) {
-            console.warn('User-courses API error:', stateRes.status);
+            
             return;
           }
           const stateData = await stateRes.json();
@@ -234,9 +234,9 @@ const Courses: React.FC = () => {
           });
 
           setUserStates(states);
-          console.log('User states fetched');
+          
         } catch (err) {
-          console.warn('Error fetching user-courses:', err);
+          
           // Silently fail - don't break course display
         }
       }

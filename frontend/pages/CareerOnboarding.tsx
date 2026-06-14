@@ -1238,14 +1238,14 @@ const CareerOnboarding: React.FC = () => {
                             setPathDetails(explainData);
                         }
                     } catch (explainErr) {
-                        console.error("Explain top role failed:", explainErr);
+                        console.error("Explain top role failed:");
                     } finally {
                         setIsGeneratingIdentity(false);
                     }
                 }
             }
         } catch (err) {
-            console.error("Analysis failed:", err);
+            console.error("Analysis failed:");
             setGeneratedPaths(DEFAULT_PATHS);
             setIdentityStatement("As a motivated professional, I strive to achieve technical excellence and solve critical challenges.");
         } finally {

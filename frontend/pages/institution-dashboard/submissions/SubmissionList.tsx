@@ -73,7 +73,7 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ institutionId }) => {
                             setEventCriteria(data.judging_criteria || []);
                         }
                     } catch (e) {
-                        console.error('Failed to fetch criteria', e);
+                        console.error('Failed to fetch criteria');
                     }
                 }
             }
@@ -148,12 +148,12 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ institutionId }) => {
                             const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
                             if (Array.isArray(parsed)) setEventPackages(parsed);
                         } catch (e) {
-                            console.warn('Failed to parse event_packages', e);
+                            
                         }
                     }
                 }
             } catch (e) {
-                console.debug('No event-config for submissions', e);
+                
             }
         };
         fetchEventConfig();

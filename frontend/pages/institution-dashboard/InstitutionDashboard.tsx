@@ -112,7 +112,7 @@ const InstitutionDashboard: React.FC = () => {
 
     React.useEffect(() => {
         if (user && !hasInstitutionScope(user)) {
-            console.warn('[Dashboard] Institution users should have institution_id set on their profile', user?.user_id);
+            
         }
     }, [user]);
 
@@ -141,7 +141,7 @@ const InstitutionDashboard: React.FC = () => {
     };
 
     const renderContent = () => {
-        console.log("[NAV] Rendering Content for Tab:", activeTab);
+        
         if (!institutionId && role !== 'judge') {
             return (
                 <div className="p-10 max-w-xl mx-auto rounded-3xl border border-amber-200 bg-amber-50 text-amber-950 text-sm font-bold leading-relaxed">

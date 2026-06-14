@@ -74,7 +74,7 @@ const TeamsManagement: React.FC<TeamsManagementProps> = ({ institutionId }) => {
                 setTeams(Array.isArray(data) ? data : []);
             }
         } catch (err) {
-            console.error('Failed to fetch teams:', err);
+            console.error('Failed to fetch teams:');
         } finally {
             if (!opts?.silent) setLoading(false);
         }
@@ -87,7 +87,7 @@ const TeamsManagement: React.FC<TeamsManagementProps> = ({ institutionId }) => {
             setCacheData(eventsCacheKey, freshEvents);
             await fetchTeams({ silent: true });
         } catch (err) {
-            console.error('Failed to refresh teams data:', err);
+            console.error('Failed to refresh teams data:');
         } finally {
             setRefreshing(false);
         }

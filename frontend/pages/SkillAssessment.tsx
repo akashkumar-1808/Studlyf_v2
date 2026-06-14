@@ -197,10 +197,10 @@ const parseAIResponse = (rawResponse: any): any => {
 
     if (rawResponse && typeof rawResponse.score === "number") return rawResponse;
 
-    console.error("[parseAIResponse] Unrecognised shape:", rawResponse);
+    console.error("[parseAIResponse] Unrecognised shape:");
     return fallbackFeedback();
   } catch (e) {
-    console.error("[parseAIResponse] Parse error:", e);
+    console.error("[parseAIResponse] Parse error:");
     return fallbackFeedback();
   }
 };
@@ -338,7 +338,7 @@ const saveToHistory = (report: AssessmentReport): void => {
     existing.unshift(report);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(existing.slice(0, 100)));
   } catch (e) {
-    console.error("[SkillAssessment] localStorage save error:", e);
+    console.error("[SkillAssessment] localStorage save error:");
   }
 };
 
@@ -534,7 +534,7 @@ Respond ONLY with a valid JSON object (no markdown, no backticks):
       const raw = await res.json();
       parsedFeedback = parseAIResponse(raw);
     } catch (e) {
-      console.error("[QuestionScreen] Evaluation failed:", e);
+      console.error("[QuestionScreen] Evaluation failed:");
       parsedFeedback = fallbackFeedback();
     }
 

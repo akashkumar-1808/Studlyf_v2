@@ -57,7 +57,7 @@ const DashboardHome: React.FC = () => {
           setCourses(filteredCourses);
         }
       } catch (error) {
-        console.error('Error fetching courses:', error);
+        console.error('Error fetching courses:');
       }
     };
 
@@ -85,7 +85,7 @@ const DashboardHome: React.FC = () => {
         const t = Array.isArray(o?.timeline) ? o.timeline : [];
         setAppliedIds(t.map((a: any) => a.opportunity_id).filter(Boolean));
       } catch (err) {
-        console.error("Fetch error:", err);
+        console.error("Fetch error:");
       }
     };
     fetchOpps();
@@ -103,7 +103,7 @@ const DashboardHome: React.FC = () => {
           setMyEvents(data);
         }
       } catch (err) {
-        console.error("Error fetching my events:", err);
+        console.error("Error fetching my events:");
       }
     };
     fetchEvents();

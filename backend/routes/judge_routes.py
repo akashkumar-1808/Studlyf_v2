@@ -67,21 +67,21 @@ async def assign_judge(submission_id: str = Body(None), submission_ids: list = B
     from services.judge_service import assign_judge_to_multiple_submissions
     
     try:
-        print(f"DEBUG: Judge assignment request - submission_id: {submission_id}, submission_ids: {submission_ids}, judge_id: {judge_id}")
+
         
         if submission_ids:
             result = await assign_judge_to_multiple_submissions(submission_ids, judge_id)
         else:
             result = await assign_judge_to_multiple_submissions([submission_id], judge_id)
             
-        print(f"DEBUG: Judge assignment completed: {result}")
+
         return result
         
     except HTTPException as he:
-        print(f"DEBUG: HTTP Exception in judge assignment: {str(he)}")
+}")
         raise he
     except Exception as e:
-        print(f"DEBUG: Unexpected error in judge assignment: {str(e)}")
+}")
         raise HTTPException(status_code=500, detail=f"Judge assignment failed: {str(e)}")
 
 @router.post("/score")
@@ -119,19 +119,19 @@ async def delete_judge(judge_id: str):
 
 @portal_router.get("/invitation-details")
 async def portal_invitation_details(token: str = Query(...)):
-    print(f"DEBUG: Received invitation-details request for token: '{token}'")
+
     try:
         result = await get_judge_invitation_details(token)
-        print(f"DEBUG: Successfully found invitation for token: '{token}'")
+
         return result
     except LookupError:
-        print(f"DEBUG: Invitation not found for token: '{token}'")
+
         raise HTTPException(status_code=404, detail="Invitation not found or expired")
     except ValueError as e:
-        print(f"DEBUG: Value error for token: '{token}', error: {str(e)}")
+}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        print(f"DEBUG: Unexpected error for token: '{token}', error: {str(e)}")
+}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

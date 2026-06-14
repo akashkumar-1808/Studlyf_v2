@@ -66,7 +66,7 @@ const EmailTemplatesManager: React.FC<{ eventId: string; institutionId: string }
         }
       }
     } catch (e) {
-      console.error('Failed to fetch templates', e);
+      console.error('Failed to fetch templates');
     }
     setLoading(false);
   }, [baseUrl, headers]);
@@ -158,7 +158,7 @@ const EmailTemplatesManager: React.FC<{ eventId: string; institutionId: string }
         setTimeout(() => setSaveSuccess(null), 3000);
       }
     } catch (e) {
-      console.error('Failed to activate template', e);
+      console.error('Failed to activate template');
     }
   };
 
@@ -174,7 +174,7 @@ const EmailTemplatesManager: React.FC<{ eventId: string; institutionId: string }
         setTimeout(() => setSaveSuccess(null), 3000);
       }
     } catch (e) {
-      console.error('Failed to delete template', e);
+      console.error('Failed to delete template');
     }
   };
 
@@ -192,7 +192,7 @@ const EmailTemplatesManager: React.FC<{ eventId: string; institutionId: string }
         setTimeout(() => setSaveSuccess(null), 3000);
       }
     } catch (e) {
-      console.error('Failed to reset templates', e);
+      console.error('Failed to reset templates');
     }
     setResetting(false);
   };

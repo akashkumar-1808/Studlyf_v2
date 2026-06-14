@@ -247,7 +247,7 @@ const StudOTT: React.FC = () => {
         setContinueWatchingVideos([]);
       }
     } catch (e) {
-      console.error("Failed to parse history", e);
+      console.error("Failed to parse history");
     }
   }, [historyKey]);
 
@@ -364,7 +364,7 @@ const StudOTT: React.FC = () => {
           if (!isMounted) return;
           // If browser blocks unmuted autoplay, fallback to muted
           if (e.name === 'NotAllowedError') {
-            console.warn("Autoplay with audio blocked, trying muted...");
+            
             el.muted = true;
             el.play().catch(() => {
               if (isMounted) handleIntroEnd();
@@ -441,7 +441,7 @@ const StudOTT: React.FC = () => {
         
         setCategories(newCategories);
       } catch (err) {
-        console.error('Failed to parse CSV data', err);
+        console.error('Failed to parse CSV data');
       }
     };
     loadData();

@@ -7,7 +7,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const location = useLocation();
 
     if (user) {
-        console.log("[PublicRoute] User already logged in. Role:", role);
+        
         
         // Allow reset-password page even for authenticated users
         if (location.pathname === '/reset-password') {
@@ -21,10 +21,10 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             return <Navigate to="/dashboard/partner" replace />;
         }
         if (role === 'institution') {
-            console.log("[PublicRoute] Redirecting Institution to dashboard");
+            
             return <Navigate to="/institution-dashboard" replace />;
         }
-        console.log("[PublicRoute] Redirecting Student/Default to dashboard");
+        
         return <Navigate to="/dashboard/learner" replace />;
     }
 

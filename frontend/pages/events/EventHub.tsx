@@ -85,7 +85,7 @@ const EventHub: React.FC = () => {
                 setActiveTab('team');
             }
         } catch (e) {
-            console.error("Auto-join failed", e);
+            console.error("Auto-join failed");
         } finally {
             setWorking(false);
         }

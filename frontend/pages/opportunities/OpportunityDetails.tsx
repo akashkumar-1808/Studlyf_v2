@@ -443,7 +443,7 @@ const OpportunityDetails: React.FC = () => {
                                 }
                             }
                         } catch (e) {
-                            console.error('Failed to fetch raw event for external link', e);
+                            console.error('Failed to fetch raw event for external link');
                         }
                     }
                     setOpportunity(opp);
@@ -461,7 +461,7 @@ const OpportunityDetails: React.FC = () => {
                             setSubmitted(true);
                         }
                     } catch (err) {
-                        console.error("Failed to parse submission status", err);
+                        console.error("Failed to parse submission status");
                     }
                 }
 
@@ -472,7 +472,7 @@ const OpportunityDetails: React.FC = () => {
                     setIsApplied(true);
                 }
             } catch (error) {
-                console.error('Failed to fetch opportunity details', error);
+                console.error('Failed to fetch opportunity details');
             } finally {
                 setLoading(false);
             }
@@ -696,7 +696,7 @@ const OpportunityDetails: React.FC = () => {
                 alert(`Upload failed: ${data.detail || 'Unknown error'}`);
             }
         } catch (err) {
-            console.error("Upload error:", err);
+            console.error("Upload error:");
             alert("Failed to upload file.");
         } finally {
             setUploadingField(null);
@@ -741,7 +741,7 @@ const OpportunityDetails: React.FC = () => {
                 }
             }
         } catch (err) {
-            console.error("Failed to submit review", err);
+            console.error("Failed to submit review");
         } finally {
             setReviewSubmitting(false);
         }
@@ -749,7 +749,7 @@ const OpportunityDetails: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log("Submitting registration...", { useStageRegistration, eventId, regAnswers });
+        
         
         if (!user) {
             navigate('/login');
@@ -762,7 +762,7 @@ const OpportunityDetails: React.FC = () => {
         }
 
         if (useStageRegistration) {
-            console.log("Using stage registration flow");
+            
             // ... (rest of the logic)
 
             const profile_data: Record<string, any> = {};
@@ -837,7 +837,7 @@ const OpportunityDetails: React.FC = () => {
                     alert(`Registration failed: ${data.detail || 'Unknown error'}`);
                 }
             } catch (err) {
-                console.error("Registration error:", err);
+                console.error("Registration error:");
                 alert("An error occurred during registration.");
             } finally {
                 setSubmitting(false);
@@ -878,7 +878,7 @@ const OpportunityDetails: React.FC = () => {
                 setIsApplied(true);
             }
         } catch (err) {
-            console.error("Apply error:", err);
+            console.error("Apply error:");
         } finally {
             setSubmitting(false);
         }
@@ -1686,7 +1686,7 @@ const OpportunityDetails: React.FC = () => {
                                             className="w-full h-full object-contain p-2"
                                             onError={(e) => {
                                                 // Log failing URL for diagnostics
-                                                try { console.warn('[LogoLoadError] failed to load', (e.currentTarget && e.currentTarget.src) || logoSrc); } catch (err) {}
+                                                try {  } catch (err) {}
                                                 e.currentTarget.style.display = 'none';
                                                 const sibling = e.currentTarget.nextElementSibling as HTMLElement;
                                                 if (sibling) sibling.style.display = 'flex';
@@ -2945,48 +2945,10 @@ const OpportunityDetails: React.FC = () => {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={(e) => {
-                            console.log("Backdrop clicked");
+                            
                         }}
                     >
-                        {console.log("Registration modal rendering...")}
-                        <motion.div
-                            className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-100">
-                                <div>
-                                    <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight">
-                                        {submitted && canEditSubmittedRegistration ? 'Update Registration' : 'Decoupled Event Onboarding'}
-                                    </h2>
-                                    <p className="text-xs text-slate-500 mt-1">{opportunity?.title}</p>
-                                </div>
-                                <button
-                                    onClick={() => setShowRegistrationModal(false)}
-                                    className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
-                                >
-                                    <span className="text-slate-500 font-bold">✕</span>
-                                </button>
-                            </div>
-
-                            {submitted && !canEditSubmittedRegistration ? (
-                                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                                    <CheckCircle2 size={48} className="text-emerald-500 mb-4" />
-                                    <h3 className="text-lg font-black text-slate-900">Registration Submitted!</h3>
-                                    <p className="text-sm text-slate-500 mt-2">
-                                            {registrationStatus === 'PENDING_APPROVAL' 
-                                                ? 'Your registration is under host review. Downstream timeline rounds will unlock once approved!'
-                                                : 'Your registration is approved. All competition assessment stages are unlocked!'}
-                                        </p>
-                                        
-                                        {teamInviteCodeResponse && (
-                                            <div className="mt-6 p-4 bg-purple-50 border-2 border-purple-100 rounded-2xl w-full max-w-sm mx-auto">
-                                                <p className="text-xs font-bold text-purple-600 uppercase tracking-widest mb-2">Your Team Invite Code</p>
-                                                <div className="flex items-center justify-between bg-white border border-purple-200 rounded-xl p-2 px-4 shadow-sm">
-                                                    <span className="font-black text-lg text-slate-800 tracking-[0.2em]">{teamInviteCodeResponse}</span>
-                                                    <button type="button" onClick={() => { navigator.clipboard.writeText(teamInviteCodeResponse); alert("Code copied!"); }} className="p-2 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors" title="Copy Code">
+                        { alert("Code copied!"); }} className="p-2 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors" title="Copy Code">
                                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                                                     </button>
                                                 </div>

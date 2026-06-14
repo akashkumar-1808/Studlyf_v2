@@ -11,8 +11,8 @@ def _judge_invitation_url(token: str) -> str:
 
 
 async def create_judge(data: dict):
-    print(f"DEBUG: Creating judge with data: {data}")
-    print(f"DEBUG: is_test flag: {data.get('is_test', False)}")
+
+}")
 
     data["created_at"] = datetime.now(timezone.utc).isoformat()
     data["is_test"] = data.get("is_test", False)
@@ -26,7 +26,7 @@ async def create_judge(data: dict):
     result = await judges_col.insert_one(data)
     data["_id"] = str(result.inserted_id)
 
-    print(f"DEBUG: Judge created successfully: {data['_id']} - {data.get('name', 'Unknown')}")
+}")
     return data
 
 async def get_all_judges():
@@ -190,7 +190,7 @@ async def respond_judge_invitation(*, token: str = "", judge_email: str = "", ev
                     {"$set": {"judges": judges_list}},
                 )
         except Exception as e:
-            print(f"DEBUG: Event judge status sync failed: {e}")
+
 
     if accept:
         # Use the judge's own _id as the identity — no user account created
@@ -324,7 +324,7 @@ async def assign_judge_to_multiple_submissions(submission_ids: list, judge_id: s
     from bson import ObjectId
     from services.email_service import send_notification_email
     
-    print(f"DEBUG: Assigning judge {judge_id} to submissions: {submission_ids}")
+
 
     existing_count = await _count_judge_assignments(judge_id)
     new_ids = [str(s) for s in (submission_ids or []) if s]
@@ -333,21 +333,21 @@ async def assign_judge_to_multiple_submissions(submission_ids: list, judge_id: s
     # 1. Get judge details
     judge = await judges_col.find_one({"_id": ObjectId(judge_id)})
     if not judge:
-        print(f"DEBUG: Judge not found: {judge_id}")
+
         return {"success": False, "error": "Judge not found"}
     
     judge_email = judge.get("email", "")
     judge_name = judge.get("full_name") or judge.get("name", "Unknown")
-    print(f"DEBUG: Judge found: {judge_name} ({judge_email})")
+")
     
     # 2. Process each submission
     projects_data = []
     base_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
-    print(f"DEBUG: Processing {len(submission_ids)} submissions for judge {judge_email}")
+} submissions for judge {judge_email}")
     
     for sid in submission_ids:
         sid_str = str(sid)
-        print(f"DEBUG: Looking up submission with ID/TeamID: {sid_str}")
+
         
         # Robust lookup: try ID first, then team_id/user_id
         # Also handle ObjectId variants for sid
@@ -368,7 +368,7 @@ async def assign_judge_to_multiple_submissions(submission_ids: list, judge_id: s
         target_id = None
         
         if not sub:
-            print(f"DEBUG: No submission_data found for {sid_str}, attempting registration fallback")
+
             reg_query = {"$or": [{"_id": sid_str}, {"team_id": sid_str}]}
             try:
                 if len(sid_str) == 24: reg_query["$or"].append({"_id": ObjectId(sid_str)})
@@ -381,11 +381,11 @@ async def assign_judge_to_multiple_submissions(submission_ids: list, judge_id: s
                     t_query = {"_id": ObjectId(sid_str)} if len(sid_str) == 24 else {"_id": sid_str}
                     reg = await teams_col.find_one(t_query)
                 except Exception as e:
-                    print(f"DEBUG: Error finding team record: {str(e)}")
+}")
                     pass
             
             if reg:
-                print(f"DEBUG: Found registration/team for {sid_str}, creating submission_data record")
+
                 sub = {
                     "event_id": str(reg.get("event_id")),
                     "team_id": sid_str if reg.get("members") else None,
@@ -398,16 +398,16 @@ async def assign_judge_to_multiple_submissions(submission_ids: list, judge_id: s
                 try:
                     res = await submission_data_col.insert_one(sub)
                     sub["_id"] = str(res.inserted_id)
-                    print(f"DEBUG: Successfully created submission_data record: {sub['_id']}")
+
                 except Exception as e:
-                    print(f"DEBUG: Failed to create submission_data record: {str(e)}")
+}")
                     sub = None
             else:
-                print(f"DEBUG: CRITICAL - Could not find any record for sid: {sid_str}")
+
                 continue
         
         target_id = sub["_id"]
-        print(f"DEBUG: Assigning judge to submission_data _id: {target_id}")
+
         
         # Reuse existing token if same judge is already assigned to prevent 404s on refresh
         token = None
@@ -469,7 +469,7 @@ async def assign_judge_to_multiple_submissions(submission_ids: list, judge_id: s
             try:
                 event = await events_col.find_one({"_id": ObjectId(eid) if isinstance(eid, str) and len(eid) == 24 else eid})
             except Exception as e:
-                print(f"DEBUG: Error finding event {eid}: {str(e)}")
+}")
         
         projects_data.append({
             "title": sub.get("title", "Untitled Project"),
@@ -479,7 +479,7 @@ async def assign_judge_to_multiple_submissions(submission_ids: list, judge_id: s
         })
 
     if not projects_data:
-        print("DEBUG: No projects data gathered. Assignment failed.")
+
         return {"success": False, "error": "No valid submissions found"}
 
     # 3. Send SINGLE Consolidated Email
@@ -534,16 +534,16 @@ async def assign_judge_to_multiple_submissions(submission_ids: list, judge_id: s
 
     email_sent = False
     try:
-        print(f"DEBUG: Dispatching consolidated evaluation email to {judge_email}")
+
         email_sent = await send_notification_email(
             to_email=judge_email,
             subject=f"Action Required: {len(projects_data)} Projects Assigned for Evaluation",
             body_html=email_html
         )
         if email_sent:
-            print(f"DEBUG: Consolidated email successfully dispatched to {judge_email}")
+
         else:
-            print(f"DEBUG: email_service returned False for {judge_email}")
+
     except Exception as e:
         print(f"Failed to send consolidated email to {judge_email}: {str(e)}")
 

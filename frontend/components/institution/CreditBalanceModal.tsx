@@ -23,7 +23,7 @@ const CreditBalanceModal: React.FC<CreditBalanceModalProps> = ({ isOpen, onClose
                 const data = await res.json();
                 setCurrentPlanId(data?.currentPlanId || null);
             } catch (e) {
-                console.debug('Failed to load plans', e);
+                
             } finally {
                 setPlansLoading(false);
             }

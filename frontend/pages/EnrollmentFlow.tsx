@@ -212,7 +212,7 @@ const EnrollmentFlow: React.FC = () => {
                 theme: { color: track.accent },
                 modal: {
                     ondismiss: function () {
-                        console.log("[Razorpay] Payment modal dismissed by user.");
+                        
                         setPaymentError("Payment canceled by user. You can try confirming the payment again.");
                         setIsProcessing(false);
 

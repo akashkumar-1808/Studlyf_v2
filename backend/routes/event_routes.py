@@ -303,7 +303,7 @@ async def upload_event_media(
         raise
     except Exception as e:
         import traceback
-        traceback.print_exc()
+# removed
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 @router.get("/{event_id}/hub")

@@ -61,7 +61,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
         setError("Empty response from visual server.");
       }
     } catch (e: any) {
-      console.error("Image generation failed", e);
+      console.error("Image generation failed");
       if (!isMounted) return;
       
       if (e?.message?.includes("429") || e?.status === 429 || JSON.stringify(e).includes("429")) {

@@ -423,7 +423,7 @@ export default function ResumeBuilder() {
                         setHasExistingData(true);
                     }
                 }
-            } catch (err) { console.error("Migration error:", err); }
+            } catch (err) { console.error("Migration error:"); }
         }
         fetchConfig();
     }, [user?.uid]);

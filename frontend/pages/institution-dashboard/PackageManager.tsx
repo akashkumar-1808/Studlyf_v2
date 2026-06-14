@@ -20,10 +20,10 @@ const PackageManager: React.FC<PackageManagerProps> = ({ institutionId }) => {
                 const data = await res.json();
                 setPackages(data.packages || []);
             } else {
-                console.warn('Failed to load packages');
+                
             }
         } catch (e) {
-            console.error('Packages fetch error', e);
+            console.error('Packages fetch error');
         } finally {
             setLoading(false);
         }

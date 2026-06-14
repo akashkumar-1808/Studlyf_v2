@@ -120,7 +120,9 @@ origins = [origin for origin in origins if origin]
 # Remove duplicates
 origins = list(set(origins))
 
-origin_regex = r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+):(3000|3001|3002|3003|5173|4173|8000)$|^https://[a-zA-Z0-9-]+\.vercel\.app$"
+origin_regex = r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+):(3000|3001|3002|3003|5173|4173|8000)$"
+
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
 app.add_middleware(
     CORSMiddleware,
@@ -128,7 +130,7 @@ app.add_middleware(
     allow_origin_regex=origin_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin"],
 )
 
 @app.middleware("http")
@@ -306,32 +308,6 @@ async def health_check():
 
 
 # Debug endpoint removed: career-assessment templates are served from the templates collection.
-
-@app.get("/debug/db-test")
-async def debug_database():
-    """Debug endpoint to test database connectivity and user data"""
-    try:
-        # Test database connection
-        await db.connect()
-        
-        # Count total users
-        user_count = await users_col.count_documents({})
-        
-        # Get sample users
-        sample_users = await users_col.find({}, {"email": 1, "user_id": 1, "role": 1}).to_list(length=3)
-        
-        return {
-            "database_connected": True,
-            "user_count": user_count,
-            "sample_users": sample_users,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-    except Exception as e:
-        return {
-            "database_connected": False,
-            "error": str(e),
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
 
 # In-memory stores for Reset Tokens
 reset_tokens = {} # email: {token, expiry}
@@ -934,19 +910,17 @@ from fastapi import Request
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    print(f"GLOBAL ERROR: {exc}")
-    traceback.print_exc()
+    import logging
+    logger = logging.getLogger("global")
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
     response = JSONResponse(
         status_code=500,
-        content={"detail": str(exc), "traceback": traceback.format_exc()},
+        content={"detail": "Internal server error"},
     )
-    # Add CORS headers manually to error responses since middleware might be bypassed
     origin = request.headers.get("origin")
     if origin:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Methods"] = "*"
-        response.headers["Access-Control-Allow-Headers"] = "*"
     return response
 
 # ─── Ads / Advertisements API ────────────────────────────────────────────────
@@ -3943,7 +3917,8 @@ async def register_student(data: dict, x_admin_email: str = Header(...)):
         
         from auth_utils import get_password_hash
         import uuid
-        temp_password = "Temp@123456"  # Forces password reset on first login
+        import secrets
+        temp_password = secrets.token_urlsafe(12)
         hashed = get_password_hash(temp_password)
         
         await users_col.insert_one({
@@ -3957,7 +3932,7 @@ async def register_student(data: dict, x_admin_email: str = Header(...)):
             "status": "active"
         })
         await log_admin_action(x_admin_email, "Registered Student", f"Email: {email}, Name: {name}")
-        return {"status": "success", "email": email, "message": "Temporary password: Temp@123456"}
+        return {"status": "success", "email": email}
     except HTTPException:
         raise
     except Exception as e:

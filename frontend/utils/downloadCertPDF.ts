@@ -62,7 +62,7 @@ export async function downloadCertPDF(
         const safeName = courseTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         pdf.save(`${safeName}_certificate.pdf`);
     } catch (err) {
-        console.error('PDF generation error:', err);
+        console.error('PDF generation error:');
         alert('Could not generate PDF. Please try again.');
     }
 }

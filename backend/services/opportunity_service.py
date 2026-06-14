@@ -452,7 +452,7 @@ async def get_all_opportunities(filters: dict = None) -> List[dict]:
     except Exception as e:
         print(f"[CRITICAL] get_all_opportunities failed: {e}")
         import traceback
-        traceback.print_exc()
+# removed
         raise e
 
 async def get_opportunity_by_id(
@@ -540,7 +540,7 @@ async def get_opportunity_by_id(
     except Exception as e:
         print(f"[ERROR] get_opportunity_by_id failed: {e}")
         import traceback
-        traceback.print_exc()
+# removed
         return None
 
 async def apply_for_opportunity(application_data: dict) -> dict:

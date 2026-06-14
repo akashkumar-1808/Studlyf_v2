@@ -3742,7 +3742,7 @@ async def send_status_email(event_id: str, email_data: dict, user: dict = Depend
     team_id = email_data.get("team_id")
     emails = email_data.get("emails", [])
     
-    print(f"[EMAIL DEBUG] Team ID: {team_id}, Status: {status}, Provided emails: {emails}")
+
 
     def _add_email(value: str | None, bucket: list[str]):
         if not value:
@@ -3796,10 +3796,10 @@ async def send_status_email(event_id: str, email_data: dict, user: dict = Depend
                         user_doc = None
                 if user_doc and user_doc.get("email"):
                     _add_email(user_doc.get("email"), emails)
-        print(f"[EMAIL DEBUG] Fetched {len(emails)} emails from participants: {emails}")
+} emails from participants: {emails}")
     
     if not emails:
-        print(f"[EMAIL DEBUG] No email addresses found for team {team_id}")
+
         return {"status": "no_emails", "message": "No email addresses provided", "emails_found": emails}
     
     # Stage context from frontend
@@ -3865,14 +3865,14 @@ async def send_status_email(event_id: str, email_data: dict, user: dict = Depend
     sent_count = 0
     for email in emails:
         try:
-            print(f"[EMAIL DEBUG] Attempting to send email to {email}")
+
             result = await send_notification_email(email, subject, body_html)
-            print(f"[EMAIL DEBUG] Email sent to {email}, result: {result}")
+
             sent_count += 1
         except Exception as e:
-            print(f"[EMAIL DEBUG] Failed to send email to {email}: {e}")
+
     
-    print(f"[EMAIL DEBUG] Email sending complete. Sent: {sent_count}/{len(emails)}")
+}")
 
     submission_id = email_data.get("submission_id")
     if sent_count > 0 and submission_id:
@@ -5844,7 +5844,7 @@ async def create_pro_event(request: Request, user: dict = Depends(get_auth_user)
     fest_logo_file = form.get('festival_logo_file')
     fest_banner_file = form.get('festival_banner_file')
     
-    print("=== DEBUG CREATE PRO EVENT ===")
+
     print("Form keys:", list(form.keys()))
     print("logo_file:", logo_file, "type:", type(logo_file))
     print("banner_file:", banner_file, "type:", type(banner_file))
@@ -6118,7 +6118,7 @@ async def update_pro_event(event_id: str, request: Request, user: dict = Depends
     fest_logo_file = form.get('festival_logo_file')
     fest_banner_file = form.get('festival_banner_file')
     
-    print("=== DEBUG UPDATE PRO EVENT ===")
+
     print("Form keys:", list(form.keys()))
     print("logo_file:", logo_file, "type:", type(logo_file))
     print("banner_file:", banner_file, "type:", type(banner_file))

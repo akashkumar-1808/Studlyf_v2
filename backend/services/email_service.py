@@ -28,10 +28,7 @@ async def send_notification_email(to_email: str, subject: str, body_html: str):
     Sends an email notification. 
     Priority: 1. SMTP SSL (Port 465) - User specified SMTP only
     """
-    # Diagnostic logging
-    logger.info(f"[EMAIL DEBUG] SMTP_SERVER: {os.getenv('SMTP_SERVER')}")
-    logger.info(f"[EMAIL DEBUG] SMTP_PORT: {os.getenv('SMTP_PORT')}")
-    logger.info(f"[EMAIL DEBUG] SMTP_USER: {os.getenv('SMTP_USER')[:3] if os.getenv('SMTP_USER') else 'NOT SET'}...")
+    
     
     email_from = os.getenv("EMAIL_FROM_NAME", "Studlyf Notifications")
 
@@ -115,8 +112,7 @@ async def send_notification_email(to_email: str, subject: str, body_html: str):
                 logger.error(f"[TELEMETRY FAILURE] {error_cat} | Domain: {domain_cat} | Attempt: {attempt + 1} | Duration: {duration}s | Error: {str(e)}")
                 # CRITICAL: Print the full stack trace for SMTP errors to help debug
                 import traceback
-                traceback.print_exc()
-
+# removed
         return False
 
     return await asyncio.to_thread(send_sync_email)
