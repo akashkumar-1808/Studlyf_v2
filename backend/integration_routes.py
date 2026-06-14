@@ -6,7 +6,7 @@ import uuid
 import shutil
 import json
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Request, Form, File, UploadFile, Body, Depends, Query, Response
+from fastapi import APIRouter, HTTPException, Request, Form, File, UploadFile, Body, Depends, Query, Response, BackgroundTasks
 from auth_institution import get_auth_user, get_auth_user_optional, assert_institution_scope, assert_institution_owns_event
 from main import get_current_user, require_role
 from services.email_service import (
