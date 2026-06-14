@@ -530,7 +530,6 @@ async def get_event_dashboard_data(
         row["_id"] = sid
         if isinstance(row.get("data"), dict):
             row["data_summary"] = summarize_submission_data(row["data"])
-            row["data"] = summarize_submission_data(row["data"])
         tid = str(row.get("team_id") or "")
         if tid and tid in team_lookup:
             row["team_name"] = team_lookup[tid].get("team_name") or team_lookup[tid].get("name")

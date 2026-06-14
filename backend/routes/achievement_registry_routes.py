@@ -60,11 +60,25 @@ async def get_certificate_registry(
     institution_id: str,
     event_id: Optional[str] = None,
     stage_id: Optional[str] = None,
+    search: Optional[str] = None,
+    type: Optional[str] = None,
+    status: Optional[str] = None,
+    category: Optional[str] = None,
     user: dict = Depends(get_auth_user)
 ):
     query = {"institution_id": institution_id}
-    if event_id: query["event_id"] = event_id
-    if stage_id: query["stage_id"] = stage_id
+    if event_id and event_id != "All Events": query["event_id"] = event_id
+    if stage_id and stage_id != "All Stages": query["stage_id"] = stage_id
+    if type and type != "All Types": query["type"] = type
+    if category and category != "All Certificates": query["category"] = category
+    if status and status != "All Status": query["status"] = status
+    if search:
+        query["$or"] = [
+            {"recipient_name": {"$regex": search, "$options": "i"}},
+            {"student_name": {"$regex": search, "$options": "i"}},
+            {"team_name": {"$regex": search, "$options": "i"}},
+            {"certificate_id": {"$regex": search, "$options": "i"}}
+        ]
     
     certs = await certificates_col.find(query).sort("issued_on", -1).to_list(length=100)
     

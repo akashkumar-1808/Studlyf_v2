@@ -43,6 +43,8 @@ const CertificatesPage: React.FC<{ institutionId: string }> = ({ institutionId }
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('All Certificates');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCertificate, setSelectedCertificate] = useState<CertificateRecord | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -100,6 +102,14 @@ const CertificatesPage: React.FC<{ institutionId: string }> = ({ institutionId }
       (c.team_name || '').toLowerCase().includes(q);
     return matchesTab && matchesSearch;
   });
+
+  const itemsPerPage = 10;
+  const totalPages = Math.max(1, Math.ceil(filteredRegistry.length / itemsPerPage));
+  const currentRegistry = filteredRegistry.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm, selectedEvent, selectedStage]);
 
   const rules = [
     { icon: <Trophy className="w-4 h-4 text-slate-400" />, label: 'Winner', value: 'Top 1 Team' },
@@ -311,8 +321,6 @@ const CertificatesPage: React.FC<{ institutionId: string }> = ({ institutionId }
                       <th className="py-3 px-4">Certificate ID</th>
                       <th className="py-3 px-4">Recipient</th>
                       <th className="py-3 px-4">Team / Entry</th>
-                      <th className="py-3 px-4">Event</th>
-                      <th className="py-3 px-4">Stage</th>
                       <th className="py-3 px-4">Certificate Type</th>
                       <th className="py-3 px-4">Issued On</th>
                       <th className="py-3 px-4">Status</th>
@@ -321,10 +329,10 @@ const CertificatesPage: React.FC<{ institutionId: string }> = ({ institutionId }
                     </tr>
                   </thead>
                   <tbody className="text-sm">
-                    {filteredRegistry.length === 0 ? (
-                      <tr><td colSpan={10} className="py-16 text-center text-slate-400 text-sm font-medium">No certificates found</td></tr>
+                    {currentRegistry.length === 0 ? (
+                      <tr><td colSpan={8} className="py-16 text-center text-slate-400 text-sm font-medium">No certificates found</td></tr>
                     ) : (
-                      filteredRegistry.map((c) => {
+                      currentRegistry.map((c) => {
                         const ft = formatDate(c.issued_on || c.issue_date);
                         const name = c.recipient_name || c.student_name || '-';
                         const certType = c.type || c.category || 'Participation';
@@ -334,8 +342,6 @@ const CertificatesPage: React.FC<{ institutionId: string }> = ({ institutionId }
                             <td className="py-3 px-4 text-xs font-medium text-slate-800">{c.certificate_id || c._id.slice(-8)}</td>
                             <td className="py-3 px-4"><div className="text-xs font-semibold">{name}</div><div className="text-[10px] text-slate-500">{c.email || ''}</div></td>
                             <td className="py-3 px-4 text-xs">{c.team_name || '-'}</td>
-                            <td className="py-3 px-4 text-xs text-slate-600">{c.event_title || selectedEvent?.title || '-'}</td>
-                            <td className="py-3 px-4 text-xs text-slate-600">{stageName}</td>
                             <td className="py-3 px-4 text-xs flex items-center mt-2">{typeIcon(certType)}{certType}</td>
                             <td className="py-3 px-4 text-xs"><div>{ft.date}</div>{ft.time && <div className="text-[10px] text-slate-500">{ft.time}</div>}</td>
                             <td className="py-3 px-4">
@@ -344,7 +350,14 @@ const CertificatesPage: React.FC<{ institutionId: string }> = ({ institutionId }
                               </span>
                             </td>
                             <td className="py-3 px-4"><div className="flex items-center space-x-1"><span className="text-xs font-mono">{c.verification_code || (c.certificate_id || '').slice(-8) || '------'}</span><div className="w-3 h-3 bg-slate-200 rounded-sm" /></div></td>
-                            <td className="py-3 px-4"><div className="flex items-center justify-center space-x-2 text-indigo-600"><Eye className="w-4 h-4 cursor-pointer hover:text-indigo-800" /><Download className="w-4 h-4 cursor-pointer hover:text-indigo-800" /><Mail className="w-4 h-4 cursor-pointer hover:text-indigo-800" /><MoreVertical className="w-4 h-4 cursor-pointer text-slate-400" /></div></td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center justify-center space-x-2 text-indigo-600">
+                                <Eye className="w-4 h-4 cursor-pointer hover:text-indigo-800" onClick={() => setSelectedCertificate(c)} title="Preview Certificate" />
+                                <Download className="w-4 h-4 cursor-pointer hover:text-indigo-800" onClick={() => alert('Download certificate: ' + (c.certificate_id || c._id))} title="Download PDF" />
+                                <Mail className="w-4 h-4 cursor-pointer hover:text-indigo-800" onClick={() => alert('Send email to: ' + c.email)} title="Email Certificate" />
+                                <MoreVertical className="w-4 h-4 cursor-pointer text-slate-400" />
+                              </div>
+                            </td>
                           </tr>
                         );
                       })
@@ -353,15 +366,15 @@ const CertificatesPage: React.FC<{ institutionId: string }> = ({ institutionId }
                 </table>
               </div>
               <div className="flex items-center justify-between p-4 border-t border-slate-200 bg-white">
-                <div className="text-xs text-slate-500">Showing 1 to {Math.min(filteredRegistry.length, 10)} of {filteredRegistry.length} certificates</div>
+                <div className="text-xs text-slate-500">
+                  Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredRegistry.length || 0)} to {Math.min(currentPage * itemsPerPage, filteredRegistry.length)} of {filteredRegistry.length} certificates
+                </div>
                 <div className="flex space-x-1">
-                  <button className="px-2 py-1 border border-slate-200 rounded text-slate-400 text-xs">&lt;</button>
-                  <button className="px-2.5 py-1 border border-indigo-600 bg-indigo-50 text-indigo-600 rounded text-xs font-medium">1</button>
-                  <button className="px-2.5 py-1 border border-slate-200 rounded text-slate-600 hover:bg-slate-50 text-xs">2</button>
-                  <button className="px-2.5 py-1 border border-slate-200 rounded text-slate-600 hover:bg-slate-50 text-xs">3</button>
-                  <span className="px-2 py-1 text-slate-400 text-xs">...</span>
-                  <button className="px-2.5 py-1 border border-slate-200 rounded text-slate-600 hover:bg-slate-50 text-xs">{Math.max(1, Math.ceil(filteredRegistry.length / 10))}</button>
-                  <button className="px-2 py-1 border border-slate-200 rounded text-slate-600 hover:bg-slate-50 text-xs">&gt;</button>
+                  <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-2 py-1 border border-slate-200 rounded text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-xs">&lt;</button>
+                  <span className="px-2.5 py-1 border border-indigo-600 bg-indigo-50 text-indigo-600 rounded text-xs font-medium">{currentPage}</span>
+                  <span className="px-2 py-1 text-slate-400 text-xs">/</span>
+                  <span className="px-2.5 py-1 border border-slate-200 rounded text-slate-600 text-xs">{totalPages}</span>
+                  <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-2 py-1 border border-slate-200 rounded text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-xs">&gt;</button>
                 </div>
               </div>
             </div>
@@ -370,29 +383,43 @@ const CertificatesPage: React.FC<{ institutionId: string }> = ({ institutionId }
             <div className="w-[300px] flex flex-col space-y-4">
               <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
                 <h3 className="text-sm font-semibold text-indigo-600 mb-3">Certificate Preview</h3>
-                <div className="w-full h-40 bg-[#fdfaf5] border-2 border-[#d4af37] rounded flex flex-col items-center justify-center p-4 relative overflow-hidden shadow-inner mb-4">
-                  <div className="absolute top-0 left-0 w-0 h-0 border-t-[40px] border-t-black border-r-[40px] border-r-transparent" />
-                  <div className="absolute bottom-0 right-0 w-0 h-0 border-b-[40px] border-b-black border-l-[40px] border-l-transparent" />
-                  <h4 className="text-[10px] font-serif uppercase tracking-widest text-slate-800">Certificate</h4>
-                  <div className="text-[6px] text-slate-500 uppercase tracking-wider mb-2">Of Achievement</div>
-                  <div className="w-full border-b border-slate-300 my-1" />
-                  <div className="font-serif text-xl italic font-bold my-1">{filteredRegistry[0]?.recipient_name || filteredRegistry[0]?.student_name || 'Recipient Name'}</div>
-                  <div className="w-full border-b border-slate-300 my-1 mb-2" />
-                  <div className="text-[8px] font-semibold">{filteredRegistry[0]?.type || 'Achievement'}</div>
-                  <div className="absolute bottom-2 right-2 flex flex-col items-center"><div className="w-4 h-4 bg-slate-200 mb-1" /></div>
-                  <div className="absolute bottom-2 mt-2 w-6 h-6 rounded-full bg-yellow-600 border border-yellow-400 flex items-center justify-center"><div className="w-4 h-4 rounded-full border border-yellow-300" /></div>
-                </div>
-                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                  <h4 className="text-xs font-semibold mb-2">Verification Preview</h4>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between"><span className="text-slate-500">Certificate ID</span><span className="font-mono font-medium">{filteredRegistry[0]?.certificate_id || '---'}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Verification Code</span><span className="font-mono font-medium">{filteredRegistry[0]?.verification_code || '---'}</span></div>
-                    <div className="flex justify-between items-center"><span className="text-slate-500">Status</span><span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded">{filteredRegistry[0]?.status || 'Pending'}</span></div>
-                  </div>
-                </div>
-                <button className="w-full mt-3 py-2 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 flex justify-center items-center">
-                  View Verification Page <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
-                </button>
+                {(() => {
+                  const certToPreview = selectedCertificate || filteredRegistry[0];
+                  if (!certToPreview) return <div className="text-sm text-slate-500 text-center py-8">No certificate selected</div>;
+                  return (
+                    <>
+                      <div className="w-full h-40 bg-[#fdfaf5] border-2 border-[#d4af37] rounded flex flex-col items-center justify-center p-4 relative overflow-hidden shadow-inner mb-4">
+                        <div className="absolute top-0 left-0 w-0 h-0 border-t-[40px] border-t-black border-r-[40px] border-r-transparent" />
+                        <div className="absolute bottom-0 right-0 w-0 h-0 border-b-[40px] border-b-black border-l-[40px] border-l-transparent" />
+                        <h4 className="text-[10px] font-serif uppercase tracking-widest text-slate-800">Certificate</h4>
+                        <div className="text-[6px] text-slate-500 uppercase tracking-wider mb-2">Of Achievement</div>
+                        <div className="w-full border-b border-slate-300 my-1" />
+                        <div className="font-serif text-xl italic font-bold my-1 text-center truncate w-full px-2" title={certToPreview.recipient_name || certToPreview.student_name || 'Recipient Name'}>
+                          {certToPreview.recipient_name || certToPreview.student_name || 'Recipient Name'}
+                        </div>
+                        <div className="w-full border-b border-slate-300 my-1 mb-2" />
+                        <div className="text-[8px] font-semibold">{certToPreview.type || certToPreview.category || 'Achievement'}</div>
+                        <div className="absolute bottom-2 right-2 flex flex-col items-center">
+                          <img src={`https://api.qrserver.com/v1/create-qr-code/?size=50x50&data=${certToPreview.verification_code || certToPreview.certificate_id || 'dummy'}`} alt="QR Code" className="w-6 h-6 mb-1" />
+                        </div>
+                        <div className="absolute bottom-2 mt-2 w-6 h-6 rounded-full bg-yellow-600 border border-yellow-400 flex items-center justify-center">
+                          <div className="w-4 h-4 rounded-full border border-yellow-300" />
+                        </div>
+                      </div>
+                      <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                        <h4 className="text-xs font-semibold mb-2">Verification Preview</h4>
+                        <div className="space-y-2 text-xs">
+                          <div className="flex justify-between"><span className="text-slate-500">Certificate ID</span><span className="font-mono font-medium">{certToPreview.certificate_id || certToPreview._id?.slice(-8) || '---'}</span></div>
+                          <div className="flex justify-between"><span className="text-slate-500">Verification Code</span><span className="font-mono font-medium">{certToPreview.verification_code || certToPreview.certificate_id?.slice(-8) || '---'}</span></div>
+                          <div className="flex justify-between items-center"><span className="text-slate-500">Status</span><span className={`px-2 py-0.5 text-[10px] font-bold rounded ${(certToPreview.status || '').toLowerCase() === 'issued' || (certToPreview.status || '').toLowerCase() === 'verified' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{certToPreview.status || 'Pending'}</span></div>
+                        </div>
+                      </div>
+                      <button className="w-full mt-3 py-2 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 flex justify-center items-center" onClick={() => window.open(`/verify/${certToPreview.verification_code || certToPreview.certificate_id}`, '_blank')}>
+                        View Verification Page <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
+                      </button>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>

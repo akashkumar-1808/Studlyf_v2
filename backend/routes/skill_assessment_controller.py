@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, status
 from pymongo import DESCENDING
 
 from db import skill_assessments_col
-from models import (
+from domain_models import (
     SaveAssessmentRequest,
     AssessmentResponse,
     QuestionResult,

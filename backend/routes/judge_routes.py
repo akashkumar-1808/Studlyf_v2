@@ -14,6 +14,7 @@ from services.score_service import submit_score, get_scores_for_submission
 router = APIRouter(prefix="/api/judges", tags=["Judges"])
 portal_router = APIRouter(prefix="/api/judge-portal", tags=["Judge Portal"])
 
+@router.post("")
 @router.post("/")
 async def add_judge(data: dict = Body(...), user: dict = Depends(get_auth_user)):
     inst_id = user.get("institution_id") or user.get("user_id")
@@ -37,6 +38,7 @@ async def add_judge(data: dict = Body(...), user: dict = Depends(get_auth_user))
     result["email_sent"] = email_sent
     return result
 
+@router.get("")
 @router.get("/")
 async def list_judges(user: dict = Depends(get_auth_user)):
     judges = await get_all_judges()

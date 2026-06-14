@@ -1,7 +1,7 @@
 import asyncio
 
 from db import db, events_col, users_col, notifications_col, institutions_col
-from models import Opportunity, OpportunityApplication
+from domain_models import Opportunity, OpportunityApplication
 from bson import ObjectId
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional

@@ -1,5 +1,5 @@
 from db import events_col
-from models import Event
+from domain_models import Event
 from bson import ObjectId
 from datetime import datetime
 from typing import List, Optional

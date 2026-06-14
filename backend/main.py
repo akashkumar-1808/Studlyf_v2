@@ -48,6 +48,9 @@ if sentry_dsn:
 
 from routes.skill_assessment_controller import router as skill_assessment_router
 app.include_router(skill_assessment_router)
+
+from routes.certificate_template_routes import router as certificate_template_router
+app.include_router(certificate_template_router)
 # Touch file to trigger uvicorn reload when env changes during local dev
 # reload trigger
 
@@ -614,7 +617,7 @@ async def upload_temp_image(request: Request, file: UploadFile = File(...), publ
         logger.exception('Temporary upload failed')
         raise HTTPException(status_code=500, detail='Upload failed')
 
-from models import Institution, Event, Participant, Team, Submission, Judge, Score, Notification, LeaderboardEntry, Certificate
+from domain_models import Institution, Event, Participant, Team, Submission, Judge, Score, Notification, LeaderboardEntry, Certificate
 from services.email_service import send_notification_email, get_registration_template, get_email_verification_template
 from auth_utils import get_password_hash, verify_password, create_access_token, decode_access_token
 # from routes import upgrade_routes
@@ -817,7 +820,7 @@ def fix_progress(prog, default_status="locked"):
 
 from routes import submission_routes, judge_routes, event_routes, dashboard_routes, opportunity_routes, team_routes, hackathon_judging_routes, stage_endpoints
 from routes import auth
-from routes import evaluation_criteria_routes, quiz_visibility_routes, notification_routes, evaluation_routes, team_formation_routes, stage_sync_routes, test_sync_routes, direct_sync_routes, hackathon_submission_routes
+from routes import evaluation_criteria_routes, quiz_visibility_routes, notification_routes, evaluation_routes, team_formation_routes, stage_sync_routes, direct_sync_routes, hackathon_submission_routes
 from routes import stage_navigation_routes, team_join_request_routes, hackathon_public_routes
 from routes import student_features_routes
 from routes import event_certificate_routes, registration_flow_routes
@@ -888,7 +891,6 @@ app.include_router(quiz_visibility_routes.router)
 app.include_router(notification_routes.router)
 app.include_router(team_formation_routes.router)
 app.include_router(stage_sync_routes.router)
-app.include_router(test_sync_routes.router)
 app.include_router(direct_sync_routes.router)
 app.include_router(hackathon_judging_routes.router)
 app.include_router(hackathon_submission_routes.router)

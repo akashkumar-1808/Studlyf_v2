@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Body, Depends, Query
 from services.submission_service import create_submission, get_all_submissions, get_submission_by_id, update_submission_status
 from typing import List, Optional
 from routes.auth import get_current_user
+from auth_institution import get_auth_user
 
 router = APIRouter(prefix="/api/submissions", tags=["Submissions"])
 
@@ -199,7 +200,7 @@ async def admin_view_event_submissions(
     stage_id: Optional[str] = None,
     user_id: Optional[str] = None,
     team_id: Optional[str] = None,
-    user: dict = Depends(get_current_user)
+    user: dict = Depends(get_auth_user)
 ):
     """Admin endpoint: View all submissions for an event, optionally filtered by stage/user/team.
     
@@ -228,8 +229,14 @@ async def admin_view_event_submissions(
         # Verify calling user is institution owner
         inst_id = str(event.get("institution_id") or event.get("createdBy") or "")
         calling_inst_id = str(user.get("institution_id") or "")
-        if inst_id != calling_inst_id:
-            raise HTTPException(status_code=403, detail="Only event organizers can view submissions")
+        
+        if calling_inst_id and inst_id != calling_inst_id:
+             raise HTTPException(
+                status_code=403, 
+                detail=f"Permission denied: Accessing event institution {inst_id} with user institution {calling_inst_id}"
+            )
+        if not calling_inst_id:
+             raise HTTPException(status_code=403, detail="Permission denied: User institution ID missing")
         
         # Build query
         query = {"event_id": str(event_id)}
@@ -301,7 +308,7 @@ async def admin_view_event_submissions(
 async def admin_view_stage_submissions(
     event_id: str,
     stage_id: str,
-    user: dict = Depends(get_current_user)
+    user: dict = Depends(get_auth_user)
 ):
     """Admin endpoint: View all submissions for a specific stage of an event.
     
@@ -398,6 +405,29 @@ async def admin_view_stage_submissions(
             if sub_team_id and team:
                 team_name = team.get("team_name") or team.get("name") or participant_name
 
+            # Helper to extract files from dynamic data
+            files = []
+            for k, v in (sub.get("data") or {}).items():
+                if isinstance(v, str) and (v.startswith("data:") or v.startswith("http")):
+                    # Try to find field label in stage_fields
+                    field_label = k
+                    for f in stage_fields:
+                        if str(f.get("field_id") or f.get("id") or "") == k:
+                            field_label = f.get("label") or k
+                            break
+                    
+                    # Dynamically determine file type
+                    file_type = "other"
+                    v_lower = v.lower()
+                    if "pdf" in v_lower or "application/pdf" in v_lower:
+                        file_type = "pdf"
+                    elif "presentation" in v_lower or "powerpoint" in v_lower or "ppt" in v_lower:
+                        file_type = "ppt"
+                    elif "image" in v_lower:
+                        file_type = "image"
+                        
+                    files.append({"name": field_label, "url": v, "type": file_type})
+
             submissions.append({
                 "_id": str(sub.get("_id")),
                 "participant_name": participant_name,
@@ -408,6 +438,7 @@ async def admin_view_stage_submissions(
                 "stage_id": stage_id,
                 "stage_name": stage_name or sub.get("stage_name"),
                 "data": sub.get("data") or {},
+                "files": files,  # Added this field for frontend compatibility
                 "labeled_data": _format_labeled_data(sub.get("data") or {}),
                 "status": sub.get("status"),
                 "submitted_at": sub.get("submitted_at"),
@@ -436,7 +467,7 @@ async def admin_view_stage_submissions(
 @router.get("/admin/submissions/{submission_id}/history")
 async def admin_view_submission_history(
     submission_id: str,
-    user: dict = Depends(get_current_user)
+    user: dict = Depends(get_auth_user)
 ):
     """Admin endpoint: View submission edit history and all changes made by participant.
     
