@@ -447,6 +447,21 @@ async def admin_view_stage_submissions(
                 "feedback": sub.get("evaluator_feedback"),
             })
         
+        # Calculate counts for the dashboard
+        counts = {
+            "Total": len(submissions),
+            "Shortlisted": 0,
+            "Waitlisted": 0,
+            "Rejected": 0,
+            "Pending": 0
+        }
+        for s in submissions:
+            status = str(s.get("status") or "").title()
+            if status in ["Shortlisted", "Waitlisted", "Rejected", "Pending"]:
+                counts[status] += 1
+            else:
+                counts["Pending"] += 1
+
         return {
             "status": "success",
             "event_id": str(event_id),
@@ -455,6 +470,7 @@ async def admin_view_stage_submissions(
             "stage_name": stage_name,
             "stage_fields": stage_fields,
             "total_submissions": len(submissions),
+            "counts": counts,
             "submissions": submissions
         }
         
