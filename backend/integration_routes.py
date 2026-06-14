@@ -2258,39 +2258,41 @@ async def get_integrated_leaderboard(
     # 3. Calculate Counts based on status and scores
     counts = {
         "Total": len(rankings),
-        "Shortlisted": 0,
-        "Waitlisted": 0,
-        "Rejected": 0
+        "shortlisted": 0,
+        "waitlisted": 0,
+        "rejected": 0,
+        "pending": 0
     }
-    
+
     shortlist_min = float(thresholds.get("shortlist_min") or 70)
     waitlist_min = float(thresholds.get("waitlist_min") or 50)
     reject_below = float(thresholds.get("reject_below") or 50)
-    
+
     processed_rankings = []
     for r in rankings:
         score = float(r.get("total_score") or 0)
         # Use status if already set, otherwise classify by score
-        status = r.get("status")
-        
+        status = str(r.get("status") or "").lower()
+
         if not status:
             if score >= shortlist_min:
-                status = "Shortlisted"
+                status = "shortlisted"
             elif score >= waitlist_min:
-                status = "Waitlisted"
+                status = "waitlisted"
             else:
-                status = "Rejected"
+                status = "rejected"
             r["status"] = status
-            
-        if status == "Shortlisted": counts["Shortlisted"] += 1
-        elif status == "Waitlisted": counts["Waitlisted"] += 1
-        elif status == "Rejected": counts["Rejected"] += 1
-        
+
+        if status == "shortlisted": counts["shortlisted"] += 1
+        elif status == "waitlisted": counts["waitlisted"] += 1
+        elif status == "rejected": counts["rejected"] += 1
+        else: counts["pending"] += 1
+
         # Ensure ID is string for frontend
         if "_id" in r:
             r["_id"] = str(r["_id"])
         processed_rankings.append(r)
-        
+
     return {
         "counts": counts,
         "submissions": processed_rankings,
@@ -4890,7 +4892,7 @@ async def remove_event_judge(event_id: str, judge_email: str, user: dict = Depen
     )
     return {"status": "success"}
 
-async def _background_auto_classify(event_id: str, thresholds: dict, criteria_data: list):
+async def _background_auto_classify(event_id: str, thresholds: dict, criteria_data: list, stage_id: Optional[str] = None):
     """Background task to re-classify submissions when thresholds change."""
     try:
         shortlist_min = float(thresholds.get("shortlist_min", 80))
@@ -4905,7 +4907,12 @@ async def _background_auto_classify(event_id: str, thresholds: dict, criteria_da
                 try: event_id_in.append(ObjectId(vid))
                 except: pass
 
-        raw_scores = await scores_col.find({"event_id": {"$in": event_id_in}}).to_list(length=10000)
+        # Filter by stage_id if provided
+        query: dict = {"event_id": {"$in": event_id_in}}
+        if stage_id:
+            query["stage_id"] = stage_id
+
+        raw_scores = await scores_col.find(query).to_list(length=10000)
 
         # Average scores per submission
         scores_by_sub: dict[str, list[float]] = {}
@@ -4942,12 +4949,12 @@ async def _background_auto_classify(event_id: str, thresholds: dict, criteria_da
                 )
 
         # Classify submissions_col
-        raw_subs = await submissions_col.find({"event_id": {"$in": event_id_in}}).to_list(length=10000)
+        raw_subs = await submissions_col.find(query).to_list(length=10000)
         for sub in raw_subs:
             await _classify_and_update(submissions_col, {"_id": sub["_id"]}, sub)
 
         # Classify submission_data_col
-        raw_sd = await submission_data_col.find({"event_id": {"$in": event_id_in}}).to_list(length=10000)
+        raw_sd = await submission_data_col.find(query).to_list(length=10000)
         for sd in raw_sd:
             await _classify_and_update(submission_data_col, {"_id": sd["_id"]}, sd)
 
@@ -4962,9 +4969,11 @@ async def update_judging_criteria(event_id: str, request: Request, background_ta
     if isinstance(body, list):
         criteria_data = body
         thresholds = None
+        stage_id = None
     elif isinstance(body, dict):
         criteria_data = body.get("criteria", [])
         thresholds = body.get("evaluation_thresholds")
+        stage_id = body.get("stage_id")
     else:
         raise HTTPException(status_code=400, detail="Invalid criteria payload")
     update_doc = {"judging_criteria": criteria_data, "updated_at": datetime.utcnow()}
@@ -4974,7 +4983,7 @@ async def update_judging_criteria(event_id: str, request: Request, background_ta
 
     # ── Auto-classify submissions based on thresholds (BACKGROUND) ──
     if isinstance(thresholds, dict) and criteria_data:
-        background_tasks.add_task(_background_auto_classify, event_id, thresholds, criteria_data)
+        background_tasks.add_task(_background_auto_classify, event_id, thresholds, criteria_data, stage_id)
 
     return {"status": "success", "message": "Thresholds updated. Re-classification running in background."}
 

@@ -69,18 +69,35 @@ const getScoreLabel = (score: number): { label: string; color: string } => {
 const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
     case 'winner':
-      return { bg: 'bg-yellow-100 text-yellow-700', icon: <Trophy className="w-3.5 h-3.5 mr-1" /> };
+      return { bg: 'bg-emerald-50 text-emerald-700 border border-emerald-200', icon: <Trophy className="w-3.5 h-3.5 mr-1" /> };
     case 'shortlisted':
       return { bg: 'bg-blue-50 text-blue-600 border border-blue-200', icon: <Award className="w-3.5 h-3.5 mr-1" /> };
     case 'waitlisted':
       return { bg: 'bg-orange-50 text-orange-600 border border-orange-200', icon: <Clock className="w-3.5 h-3.5 mr-1" /> };
     case 'rejected':
       return { bg: 'bg-red-50 text-red-600 border border-red-200', icon: <XCircle className="w-3.5 h-3.5 mr-1" /> };
-    case 'approved':
-      return { bg: 'bg-emerald-50 text-emerald-600 border border-emerald-200', icon: <CheckCircle className="w-3.5 h-3.5 mr-1" /> };
     default:
       return { bg: 'bg-slate-100 text-slate-600 border border-slate-200', icon: <Clock className="w-3.5 h-3.5 mr-1" /> };
   }
+};
+
+const resolveSubmissionFields = (row: Submission, fields?: { field_id: string; label: string }[]) => {
+    // 1. Title Mapping: Try row.project_title, then dynamic field, then fallback
+    let title = row.project_title || row.data?.project_title || '';
+    if (!title && fields && fields.length > 0) {
+        title = row.data?.[fields[0].field_id] || '';
+    }
+
+    // 2. Description Mapping: Try row.solution_description, then dynamic field, then fallback
+    let description = row.solution_description || row.data?.solution_description || row.data?.idea_abstract || '';
+    if (!description && fields && fields.length > 1) {
+        description = row.data?.[fields[1].field_id] || '';
+    }
+
+    return {
+        title: title || 'Unnamed Project',
+        description: description || 'No description provided'
+    };
 };
 
 const renderRank = (rank: number) => {
@@ -117,9 +134,7 @@ export default function LiveResultsDashboard() {
           const data = await res.json();
           const eventsArray = Array.isArray(data) ? data : [];
           setEvents(eventsArray);
-          if (eventsArray.length > 0) {
-            setSelectedEvent(eventsArray[0]);
-          }
+          // Removed automatic event selection here
         }
       } catch (e) {
         console.error('Error fetching events:', e);
@@ -129,15 +144,17 @@ export default function LiveResultsDashboard() {
   }, [user?.institution_id]);
 
   useEffect(() => {
-    if (selectedEvent && selectedEvent.stages?.length > 0) {
-      setSelectedStage(selectedEvent.stages[0]);
+    // Only set stage if not already set, or if selected event changed
+    if (selectedEvent && (!selectedStage || selectedStage.id === '')) {
+      setSelectedStage(selectedEvent.stages && selectedEvent.stages.length > 0 ? selectedEvent.stages[0] : null);
     }
   }, [selectedEvent]);
 
   useEffect(() => {
     if (!selectedEvent || !selectedStage) return;
     const fetchBoard = async () => {
-      setLoading(true);
+      // Don't set loading to true if we already have data, just let it update in the background
+      if (!leaderboardData) setLoading(true);
       try {
         const res = await fetch(
           `${API_BASE_URL}/api/v1/institution/leaderboard/${selectedEvent._id}/integrated?stage_id=${selectedStage.id}&institution_id=${user?.institution_id}`,
@@ -146,7 +163,7 @@ export default function LiveResultsDashboard() {
         if (res.ok) {
           const json = await res.json();
           setLeaderboardData(json);
-          setCurrentPage(1);
+          // Don't reset current page unless it's out of bounds
         }
       } catch (e) {
         console.error('Error fetching leaderboard:', e);
@@ -159,6 +176,9 @@ export default function LiveResultsDashboard() {
 
   const counts = leaderboardData?.counts || {};
   const submissions = leaderboardData?.submissions || [];
+  
+  // Helper to handle both casing
+  const getCount = (key: string) => (counts as any)[key] || (counts as any)[key.toLowerCase()] || 0;
 
   const filteredSubmissions = useMemo(() => {
     return submissions
@@ -183,18 +203,18 @@ export default function LiveResultsDashboard() {
   const rejectBelow = thresholds.reject_below ?? 50;
 
   const summaryCards = [
-    { title: 'Total Teams', value: String(counts.Total || 0), subtext: 'Registered', icon: <Trophy className="w-5 h-5 text-yellow-600" />, bgColor: 'bg-yellow-50', iconBg: 'bg-yellow-100' },
-    { title: 'Shortlisted', value: String(counts.Shortlisted || 0), subtext: `Min. ${shortlistMin}%`, icon: <CheckCircle className="w-5 h-5 text-emerald-600" />, bgColor: 'bg-emerald-50', iconBg: 'bg-emerald-100' },
-    { title: 'Waitlisted', value: String(counts.Waitlisted || 0), subtext: `Min. ${waitlistMin}%`, icon: <Clock className="w-5 h-5 text-blue-600" />, bgColor: 'bg-blue-50', iconBg: 'bg-blue-100' },
-    { title: 'Rejected', value: String(counts.Rejected || 0), subtext: `Below ${rejectBelow}%`, icon: <XCircle className="w-5 h-5 text-red-600" />, bgColor: 'bg-red-50', iconBg: 'bg-red-100' },
+    { title: 'Total Teams', value: String(getCount('Total')), subtext: 'Registered', icon: <Trophy className="w-5 h-5 text-yellow-600" />, bgColor: 'bg-yellow-50', iconBg: 'bg-yellow-100' },
+    { title: 'Shortlisted', value: String(getCount('Shortlisted')), subtext: `Min. ${shortlistMin}%`, icon: <CheckCircle className="w-5 h-5 text-emerald-600" />, bgColor: 'bg-emerald-50', iconBg: 'bg-emerald-100' },
+    { title: 'Waitlisted', value: String(getCount('Waitlisted')), subtext: `Min. ${waitlistMin}%`, icon: <Clock className="w-5 h-5 text-blue-600" />, bgColor: 'bg-blue-50', iconBg: 'bg-blue-100' },
+    { title: 'Rejected', value: String(getCount('Rejected')), subtext: `Below ${rejectBelow}%`, icon: <XCircle className="w-5 h-5 text-red-600" />, bgColor: 'bg-red-50', iconBg: 'bg-red-100' },
   ];
 
   const tabs = [
-    { id: 'All', label: 'All', count: counts.Total || 0 },
-    { id: 'Shortlisted', label: 'Shortlisted', count: counts.Shortlisted || 0 },
-    { id: 'Waitlisted', label: 'Waitlisted', count: counts.Waitlisted || 0 },
-    { id: 'Rejected', label: 'Rejected', count: counts.Rejected || 0 },
-    { id: 'Pending', label: 'Pending', count: counts.Pending || 0 },
+    { id: 'All', label: 'All', count: getCount('Total') },
+    { id: 'Shortlisted', label: 'Shortlisted', count: getCount('Shortlisted') },
+    { id: 'Waitlisted', label: 'Waitlisted', count: getCount('Waitlisted') },
+    { id: 'Rejected', label: 'Rejected', count: getCount('Rejected') },
+    { id: 'Pending', label: 'Pending', count: getCount('Pending') },
   ];
 
   const handleExportPDF = () => {
@@ -392,7 +412,6 @@ export default function LiveResultsDashboard() {
                       <th className="py-4 px-6 w-1/4">Project / Idea</th>
                       <th className="py-4 px-6 w-32">
                         Final Score{' '}
-                        <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-slate-300 text-slate-400 text-[10px] ml-1">i</span>
                       </th>
                       <th className="py-4 px-6 w-32">Status</th>
                       <th className="py-4 px-6 w-1/4">Recommendation</th>
@@ -412,6 +431,16 @@ export default function LiveResultsDashboard() {
                       </tr>
                     ) : (
                       paginatedSubmissions.map((row) => {
+                        console.log("DEBUG: Rendering submission row:", { 
+                            row, 
+                            project_title: row.project_title, 
+                            data_project_title: row.data?.project_title,
+                            solution_description: row.solution_description,
+                            data_solution_description: row.data?.solution_description,
+                            data_idea_abstract: row.data?.idea_abstract,
+                            score: row.score
+                        });
+                        const { title, description } = resolveSubmissionFields(row, leaderboardData?.stage_fields);
                         const scoreInfo = getScoreLabel(row.score);
                         const statusStyle = getStatusStyle(row.status);
                         return (
@@ -421,7 +450,9 @@ export default function LiveResultsDashboard() {
                             </td>
                             <td className="py-4 px-6 truncate">
                               <div className="flex items-center space-x-2 mb-1">
-                                <span className="font-bold text-slate-900 truncate">{row.display_name}</span>
+                                <span className="font-bold text-slate-900 truncate">
+                                  {row.display_name || row.team_name || 'Unnamed Team'}
+                                </span>
                                 {row.is_verified && <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-[#4f46e5]">Verified</span>}
                               </div>
                               <div className="flex items-center text-xs text-slate-500 truncate">
@@ -430,8 +461,12 @@ export default function LiveResultsDashboard() {
                               </div>
                             </td>
                             <td className="py-4 px-6 truncate">
-                              <div className="font-semibold text-slate-800 mb-1 truncate">{row.project_title}</div>
-                              <div className="text-xs text-slate-500 truncate">{row.solution_description || row.data?.idea_abstract || 'No description provided'}</div>
+                              <div className="font-semibold text-slate-800 mb-1 truncate">
+                                {title}
+                              </div>
+                              <div className="text-xs text-slate-500 truncate">
+                                {description}
+                              </div>
                             </td>
                             <td className="py-4 px-6 truncate">
                               <div className="flex flex-col">

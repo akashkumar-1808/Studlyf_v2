@@ -285,7 +285,7 @@ async def admin_view_event_submissions(
                 "recommendation": sub.get("recommendation") or sub.get("status"),
                 "submitted_at": sub.get("submitted_at"),
                 "last_updated_at": sub.get("last_updated_at") or sub.get("updated_at"),
-                "evaluation_score": sub.get("evaluation_score"),
+                "score": sub.get("evaluation_score") or sub.get("score") or 0.0,
                 "evaluator_feedback": sub.get("evaluator_feedback"),
             })
         
@@ -445,24 +445,24 @@ async def admin_view_stage_submissions(
                 "recommendation": sub.get("recommendation") or sub.get("status"),
                 "submitted_at": sub.get("submitted_at"),
                 "last_updated_at": sub.get("last_updated_at") or sub.get("updated_at"),
-                "evaluation_score": sub.get("evaluation_score"),
+                "score": sub.get("evaluation_score") or sub.get("score") or 0.0,
                 "feedback": sub.get("evaluator_feedback"),
             })
         
         # Calculate counts for the dashboard
         counts = {
             "Total": len(submissions),
-            "Shortlisted": 0,
-            "Waitlisted": 0,
-            "Rejected": 0,
-            "Pending": 0
+            "shortlisted": 0,
+            "waitlisted": 0,
+            "rejected": 0,
+            "pending": 0
         }
         for s in submissions:
-            status = str(s.get("status") or "").title()
-            if status in ["Shortlisted", "Waitlisted", "Rejected", "Pending"]:
+            status = str(s.get("status") or "").lower()
+            if status in ["shortlisted", "waitlisted", "rejected", "pending"]:
                 counts[status] += 1
             else:
-                counts["Pending"] += 1
+                counts["pending"] += 1
 
         return {
             "status": "success",
