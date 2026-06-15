@@ -32,7 +32,7 @@ const items = [
     {
         id: '04',
         title: 'Complete Placement Ecosystem',
-        description: 'Everything you need for placements in one platform — learning, mock interviews, career guidance, and structured preparation.',
+        description: 'Everything you need for placements in one platform - learning, mock interviews, career guidance, and structured preparation.',
         image: '/images/placement-ecosystem.png',
         bgColor: 'bg-[#0F0A1F]',
         borderColor: 'border-purple-500/30'
