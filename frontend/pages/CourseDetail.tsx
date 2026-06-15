@@ -9,7 +9,7 @@ import {
   BookOpen, ChevronDown, Shield, Laptop, ChevronRight,
   Briefcase, GraduationCap, LayoutDashboard, BrainCircuit, Play, Globe, X
 } from 'lucide-react';
-import { GENERATIVE_AI_CURRICULUM } from '../data/courseCurriculum';
+import { getDetailedCurriculum } from '../utils/curriculumUtils';
 import DashboardFooter from '../components/DashboardFooter';
 
 interface Course {

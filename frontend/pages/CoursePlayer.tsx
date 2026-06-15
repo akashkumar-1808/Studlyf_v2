@@ -15,7 +15,7 @@ import {
   AlignLeft, Code, Award, Trophy, ShieldAlert, Link, AlertTriangle, Link as LinkIcon, FileText as FileTextIcon, PlayCircle as PlayCircleIcon, Code2 as Code2Icon, Download as DownloadIcon, Lock
 } from 'lucide-react';
 import { ResourcesTab } from '../components/ResourcesTab';
-import { getCurriculumData } from '../data/curriculumData';
+import { getDetailedCurriculum } from '../utils/curriculumUtils';
 
 /* ═══════ Types ═══════ */
 interface Lesson {
@@ -85,7 +85,7 @@ const CoursePlayer: React.FC = () => {
 
   const [modules, setModules] = useState<Module[]>([]);
   const resolvedCourseId = extractCourseId(courseId);
-  const courseCurriculum = useMemo(() => getCurriculumData(resolvedCourseId), [resolvedCourseId]);
+  const curriculumSource = useMemo(() => getDetailedCurriculum(resolvedCourseId), [resolvedCourseId]);
 
   const [activeModuleIndex, setActiveModuleIndex] = useState(() => {
     const saved = localStorage.getItem(`studlyf_last_module_${resolvedCourseId}`);
@@ -209,8 +209,8 @@ const CoursePlayer: React.FC = () => {
       let fetched = Array.isArray(data) ? data : [];
 
       // Fallback for courses without backend modules
-      if (fetched.length === 0 && courseCurriculum && courseCurriculum.length > 0) {
-        fetched = courseCurriculum.map((_, i) => ({
+      if (fetched.length === 0 && curriculumSource && curriculumSource.length > 0) {
+        fetched = curriculumSource.map((_, i) => ({
           _id: `dummy-mod-${i}`,
           progress: null
         }));
@@ -218,7 +218,7 @@ const CoursePlayer: React.FC = () => {
 
       // Enforce the dynamic subtopics schema using the imported curriculum
       const formatted = fetched.map((mod: any, i: number) => {
-        const curChapter = courseCurriculum[i] || courseCurriculum[i % courseCurriculum.length];
+        const curChapter = curriculumSource[i] || curriculumSource[i % curriculumSource.length];
         return {
           ...mod,
           title: curChapter.title,
