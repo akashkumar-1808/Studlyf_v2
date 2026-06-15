@@ -83,7 +83,6 @@ const CoursePlayer: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [modules, setModules] = useState<Module[]>([]);
   const resolvedCourseId = extractCourseId(courseId);
   const curriculumSource = useMemo(() => getDetailedCurriculum(resolvedCourseId), [resolvedCourseId]);
 
