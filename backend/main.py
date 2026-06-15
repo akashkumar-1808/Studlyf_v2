@@ -218,7 +218,7 @@ async def startup_event():
         opps_cursor = opportunities_col.find({})
         opps = await opps_cursor.to_list(length=100)
         
-        diag_path = os.path.join(os.path.dirname(__file__), "db_diagnostics.txt")
+        diag_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "db_diagnostics.txt")
         with open(diag_path, "w", encoding="utf-8") as f:
             f.write(f"=== DB DIAGNOSTICS ===\n")
             f.write(f"Timestamp: {datetime.now().isoformat()}\n\n")
@@ -337,34 +337,7 @@ async def debug_database():
 reset_tokens = {} # email: {token, expiry}
 
 # --- SECURITY DEPENDENCIES (RBAC) ---
-async def get_current_user(authorization: Optional[str] = Header(None)):
-    """
-    Validates the JWT token from the Authorization header.
-    """
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid token")
-    
-    token = authorization.split(" ")[1]
-    from auth_utils import decode_access_token
-    payload = decode_access_token(token)
-    if not payload:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    
-    # Ensure required fields are present
-    if not payload.get("user_id"):
-        raise HTTPException(status_code=401, detail="Invalid token payload")
-    
-    return payload
-
-def require_role(allowed_roles: List[str]):
-    """
-    Restricts access to specific roles.
-    """
-    async def role_checker(user: dict = Depends(get_current_user)):
-        if user.get("role") not in allowed_roles:
-            raise HTTPException(status_code=403, detail="Permission denied")
-        return user
-    return role_checker
+from routes.auth import get_current_user, require_role
 
 # --- ADMIN SECURITY MIDDLEWARE ---
 async def admin_required(x_admin_email: str = Header(None)):
