@@ -186,7 +186,7 @@ hackathon-admin/
 participant-card/
 
 # Backend diagnostic and user-generated files
-backend/db_diagnostics.txt
+db_diagnostics.txt
 backend/generated_portfolios/
 backend/tmp_admin_event_submissions.json
 

@@ -17,6 +17,7 @@ interface Question {
   difficulty: "EASY" | "MEDIUM" | "HARD";
   question: string;
   options?: string[];
+  correctAnswer?: string;
   expectedConcepts: string[];
 }
 
@@ -70,14 +71,17 @@ const QUESTION_BANK: Record<string, Question[]> = {
     { id: 1,  type: "MCQ",        topic: "Python Basics",              difficulty: "EASY",
       question: "Which of the following is used to handle exceptions in Python?",
       options: ["try/catch", "try/except", "try/error", "handle/except"],
+      correctAnswer: "try/except",
       expectedConcepts: ["exception handling", "try/except syntax"] },
     { id: 2,  type: "MCQ",        topic: "Data Structures",            difficulty: "MEDIUM",
       question: "What is the time complexity of accessing an element in a Python dictionary?",
       options: ["O(n)", "O(log n)", "O(1) average", "O(n²)"],
+      correctAnswer: "O(1) average",
       expectedConcepts: ["hash table", "O(1) average", "hash collision"] },
     { id: 3,  type: "MCQ",        topic: "OOP",                        difficulty: "MEDIUM",
       question: "Which method is called when a new instance of a class is created?",
       options: ["__start__", "__create__", "__init__", "__new__"],
+      correctAnswer: "__init__",
       expectedConcepts: ["__init__", "constructor", "instance creation"] },
     { id: 4,  type: "CODING",     topic: "Functions & Recursion",      difficulty: "MEDIUM",
       question: "Write a Python function `flatten(lst)` that takes a nested list of arbitrary depth and returns a single flat list.",
@@ -105,14 +109,17 @@ const QUESTION_BANK: Record<string, Question[]> = {
     { id: 1,  type: "MCQ",        topic: "Hooks",                      difficulty: "EASY",
       question: "Which hook runs a side effect after every render?",
       options: ["useState", "useCallback", "useEffect", "useMemo"],
+      correctAnswer: "useEffect",
       expectedConcepts: ["useEffect", "lifecycle", "side effects"] },
     { id: 2,  type: "MCQ",        topic: "Performance",                difficulty: "MEDIUM",
       question: "What does React.memo do?",
       options: ["Memoizes a function's return value", "Prevents re-renders if props haven't changed", "Creates a memoized selector", "Caches API responses"],
+      correctAnswer: "Prevents re-renders if props haven't changed",
       expectedConcepts: ["memoization", "shallow comparison", "re-render optimization"] },
     { id: 3,  type: "MCQ",        topic: "State Management",           difficulty: "MEDIUM",
       question: "When should you prefer useReducer over useState?",
       options: ["When state is a string", "When state logic involves multiple sub-values or next state depends on previous", "When you need async state", "Always"],
+      correctAnswer: "When state logic involves multiple sub-values or next state depends on previous",
       expectedConcepts: ["complex state", "predictable updates", "action dispatch"] },
     { id: 4,  type: "CODING",     topic: "Custom Hooks",               difficulty: "MEDIUM",
       question: "Write a custom hook `useFetch(url)` that fetches data, returns { data, loading, error }, and cleans up on unmount.",
@@ -135,6 +142,272 @@ const QUESTION_BANK: Record<string, Question[]> = {
     { id: 10, type: "REAL_WORLD", topic: "Micro-frontend",             difficulty: "HARD",
       question: "Your React monolith causes deployment bottlenecks for 8 teams. Propose a micro-frontend architecture.",
       expectedConcepts: ["Module Federation", "Webpack 5", "shared dependencies", "design system", "single-spa"] },
+  ],
+  java: [
+    { id: 1,  type: "MCQ",        topic: "Java Basics",                difficulty: "EASY",
+      question: "Which keyword is used to prevent a class from being inherited in Java?",
+      options: ["static", "final", "private", "abstract"],
+      correctAnswer: "final",
+      expectedConcepts: ["final keyword", "inheritance restriction", "class modifiers"] },
+    { id: 2,  type: "MCQ",        topic: "OOP Concepts",               difficulty: "MEDIUM",
+      question: "What is the main difference between an abstract class and an interface in Java (pre-Java 8)?",
+      options: ["Abstract classes can have constructors, interfaces cannot", "Interfaces can have fields, abstract classes cannot", "Abstract classes cannot have methods", "There is no difference"],
+      correctAnswer: "Abstract classes can have constructors, interfaces cannot",
+      expectedConcepts: ["abstract class", "interface", "constructors", "multiple inheritance"] },
+    { id: 3,  type: "MCQ",        topic: "Collections",                difficulty: "MEDIUM",
+      question: "Which collection class would you use to maintain insertion order while ensuring no duplicate elements?",
+      options: ["HashSet", "LinkedHashSet", "TreeSet", "ArrayList"],
+      correctAnswer: "LinkedHashSet",
+      expectedConcepts: ["LinkedHashSet", "insertion order", "Set uniqueness", "collection hierarchy"] },
+    { id: 4,  type: "CODING",     topic: "Collections & Generics",     difficulty: "MEDIUM",
+      question: "Write a Java method `groupByLength(List<String> words)` that returns a `Map<Integer, List<String>>` grouping words by their length.",
+      expectedConcepts: ["generics", "HashMap", "computeIfAbsent", "iteration", "List manipulation"] },
+    { id: 5,  type: "CODING",     topic: "Multithreading",             difficulty: "HARD",
+      question: "Write a Java class `Counter` with a thread-safe `increment()` method and a `getValue()` method, ensuring correct behavior when accessed by multiple threads.",
+      expectedConcepts: ["synchronized", "AtomicInteger", "thread safety", "race conditions", "volatile"] },
+    { id: 6,  type: "CODING",     topic: "Exception Handling",         difficulty: "MEDIUM",
+      question: "Write a Java method `readNumberFromFile(String path)` that reads an integer from a file, handling `FileNotFoundException` and `NumberFormatException` appropriately, and returns -1 if parsing fails.",
+      expectedConcepts: ["try/catch/finally", "custom exceptions", "FileNotFoundException", "NumberFormatException", "resource management"] },
+    { id: 7,  type: "SCENARIO",   topic: "Memory Management",          difficulty: "HARD",
+      question: "Your Java application's heap usage grows steadily and eventually throws OutOfMemoryError after running for several hours. How would you diagnose and fix this?",
+      expectedConcepts: ["memory leaks", "heap dump analysis", "garbage collection", "profiling tools", "object references"] },
+    { id: 8,  type: "SCENARIO",   topic: "Design Patterns",            difficulty: "MEDIUM",
+      question: "You're building a configuration manager that should have exactly one instance shared across the application, and must be thread-safe in a multi-threaded environment. How would you design this?",
+      expectedConcepts: ["Singleton pattern", "thread safety", "lazy initialization", "double-checked locking", "enum singleton"] },
+    { id: 9,  type: "REAL_WORLD", topic: "System Design",              difficulty: "HARD",
+      question: "Design a Java-based inventory management backend that handles concurrent stock updates from multiple warehouses without overselling. Discuss data structures, concurrency control, and persistence.",
+      expectedConcepts: ["optimistic/pessimistic locking", "transactions", "JPA/Hibernate", "concurrency", "database design"] },
+    { id: 10, type: "REAL_WORLD", topic: "Spring Boot Application",    difficulty: "HARD",
+      question: "Design a Spring Boot REST API for a library management system supporting book checkout, returns, and overdue fine calculation. Describe your layered architecture, key entities, and how you'd handle concurrent checkouts.",
+      expectedConcepts: ["Spring Boot", "REST controllers", "service layer", "JPA entities", "concurrency handling", "scheduled tasks"] },
+  ],
+  sql: [
+    { id: 1,  type: "MCQ",        topic: "SQL Basics",                 difficulty: "EASY",
+      question: "Which SQL clause is used to filter groups after aggregation?",
+      options: ["WHERE", "GROUP BY", "HAVING", "ORDER BY"],
+      correctAnswer: "HAVING",
+      expectedConcepts: ["HAVING clause", "aggregation", "GROUP BY", "filtering groups"] },
+    { id: 2,  type: "MCQ",        topic: "Joins",                      difficulty: "MEDIUM",
+      question: "Which join returns all rows from the left table and matched rows from the right table, with NULLs for non-matches?",
+      options: ["INNER JOIN", "LEFT JOIN", "RIGHT JOIN", "CROSS JOIN"],
+      correctAnswer: "LEFT JOIN",
+      expectedConcepts: ["LEFT JOIN", "join types", "NULL handling", "table relationships"] },
+    { id: 3,  type: "MCQ",        topic: "Indexes",                    difficulty: "MEDIUM",
+      question: "What is a primary downside of adding too many indexes to a table?",
+      options: ["SELECT queries become slower", "INSERT/UPDATE/DELETE operations become slower", "Tables can no longer have foreign keys", "Indexes increase the need for joins"],
+      correctAnswer: "INSERT/UPDATE/DELETE operations become slower",
+      expectedConcepts: ["index overhead", "write performance", "index maintenance", "trade-offs"] },
+    { id: 4,  type: "CODING",     topic: "Aggregation & Grouping",     difficulty: "MEDIUM",
+      question: "Write a SQL query to find the department with the highest average salary, given a table `employees(id, name, department, salary)`. Return the department name and average salary.",
+      expectedConcepts: ["GROUP BY", "AVG()", "ORDER BY", "LIMIT", "aggregation"] },
+    { id: 5,  type: "CODING",     topic: "Window Functions",           difficulty: "HARD",
+      question: "Write a SQL query using a window function to find the second-highest salary in each department from a table `employees(id, name, department, salary)`.",
+      expectedConcepts: ["RANK()", "DENSE_RANK()", "PARTITION BY", "window functions", "subqueries"] },
+    { id: 6,  type: "CODING",     topic: "Subqueries & CTEs",          difficulty: "HARD",
+      question: "Write a SQL query using a CTE to find customers who placed orders in every month of 2024, given tables `orders(id, customer_id, order_date)` and `customers(id, name)`.",
+      expectedConcepts: ["CTE (WITH clause)", "EXTRACT/MONTH", "COUNT DISTINCT", "HAVING", "set-based thinking"] },
+    { id: 7,  type: "SCENARIO",   topic: "Query Optimization",         difficulty: "HARD",
+      question: "A query joining a 50-million row `orders` table with a `customers` table on `customer_id` takes 30 seconds. Walk through how you would diagnose and optimize this query.",
+      expectedConcepts: ["EXPLAIN/EXPLAIN ANALYZE", "indexing foreign keys", "query plan analysis", "table statistics", "denormalization"] },
+    { id: 8,  type: "SCENARIO",   topic: "Data Integrity",             difficulty: "MEDIUM",
+      question: "Your application allows two users to update the same row in a `bank_accounts` table simultaneously, occasionally causing incorrect balances. How would you fix this at the database level?",
+      expectedConcepts: ["transactions", "ACID properties", "row-level locking", "isolation levels", "optimistic concurrency"] },
+    { id: 9,  type: "REAL_WORLD", topic: "Database Design",            difficulty: "HARD",
+      question: "Design a normalized database schema for an e-commerce platform supporting products, categories, orders, order items, and customer reviews. Describe tables, keys, and relationships.",
+      expectedConcepts: ["normalization (3NF)", "primary/foreign keys", "many-to-many relationships", "schema design", "indexing strategy"] },
+    { id: 10, type: "REAL_WORLD", topic: "Analytics & Reporting",      difficulty: "HARD",
+      question: "Design a SQL-based reporting solution that generates monthly revenue trends, top-selling products, and customer retention rates for a SaaS company, given raw transactional tables. Describe your query strategy and any supporting structures.",
+      expectedConcepts: ["aggregate queries", "materialized views", "date functions", "cohort analysis", "performance considerations"] },
+  ],
+  dsa: [
+    { id: 1,  type: "MCQ",        topic: "Arrays & Complexity",        difficulty: "EASY",
+      question: "What is the time complexity of inserting an element at the beginning of an array of size n?",
+      options: ["O(1)", "O(log n)", "O(n)", "O(n²)"],
+      correctAnswer: "O(n)",
+      expectedConcepts: ["array shifting", "time complexity", "Big-O notation"] },
+    { id: 2,  type: "MCQ",        topic: "Trees",                      difficulty: "MEDIUM",
+      question: "In a balanced binary search tree with n nodes, what is the time complexity of search, insert, and delete operations?",
+      options: ["O(1)", "O(log n)", "O(n)", "O(n log n)"],
+      correctAnswer: "O(log n)",
+      expectedConcepts: ["binary search tree", "balanced tree", "logarithmic complexity", "tree height"] },
+    { id: 3,  type: "MCQ",        topic: "Graphs",                     difficulty: "MEDIUM",
+      question: "Which algorithm is most appropriate for finding the shortest path in an unweighted graph?",
+      options: ["Depth-First Search", "Breadth-First Search", "Dijkstra's Algorithm", "Bellman-Ford Algorithm"],
+      correctAnswer: "Breadth-First Search",
+      expectedConcepts: ["BFS", "shortest path", "unweighted graphs", "graph traversal"] },
+    { id: 4,  type: "CODING",     topic: "Linked Lists",               difficulty: "MEDIUM",
+      question: "Write a function `reverseLinkedList(head)` that reverses a singly linked list in place and returns the new head.",
+      expectedConcepts: ["pointer manipulation", "iterative reversal", "linked list traversal", "in-place algorithms"] },
+    { id: 5,  type: "CODING",     topic: "Dynamic Programming",        difficulty: "HARD",
+      question: "Write a function `longestCommonSubsequence(s1, s2)` that returns the length of the longest common subsequence between two strings using dynamic programming.",
+      expectedConcepts: ["dynamic programming", "2D DP table", "subsequence vs substring", "memoization", "time complexity O(m*n)"] },
+    { id: 6,  type: "CODING",     topic: "Trees & Recursion",          difficulty: "MEDIUM",
+      question: "Write a function `levelOrderTraversal(root)` that returns the level-order traversal of a binary tree as a list of lists, one list per level.",
+      expectedConcepts: ["BFS", "queue", "binary tree traversal", "level grouping"] },
+    { id: 7,  type: "SCENARIO",   topic: "Algorithm Design",           difficulty: "HARD",
+      question: "You're given a stream of numbers and need to efficiently find the median at any point in time. Describe the data structure and algorithm you would use, and analyze its complexity.",
+      expectedConcepts: ["two heaps approach", "min-heap/max-heap", "balancing heaps", "amortized complexity", "streaming algorithms"] },
+    { id: 8,  type: "SCENARIO",   topic: "Graph Algorithms",           difficulty: "HARD",
+      question: "You need to detect whether a directed graph representing task dependencies contains a cycle (which would indicate a deadlock in scheduling). How would you approach this, and what would you do if a cycle is found?",
+      expectedConcepts: ["cycle detection", "DFS with recursion stack", "topological sort", "directed graphs", "dependency resolution"] },
+    { id: 9,  type: "REAL_WORLD", topic: "System Design with DSA",     difficulty: "HARD",
+      question: "Design an autocomplete system that suggests the top 5 most relevant search queries as a user types, supporting millions of queries. Discuss the data structures you would use and how you'd update them in real-time.",
+      expectedConcepts: ["Trie data structure", "top-K with heaps", "frequency counting", "caching", "real-time updates"] },
+    { id: 10, type: "REAL_WORLD", topic: "Practical Problem Solving",  difficulty: "HARD",
+      question: "A ride-sharing app needs to match riders to the nearest available drivers in real-time across a city. Describe the data structures and algorithms you would use to efficiently find nearby drivers.",
+      expectedConcepts: ["spatial indexing", "quadtrees/geohashing", "nearest-neighbor search", "priority queues", "scalability"] },
+  ],
+  nodejs: [
+    { id: 1,  type: "MCQ",        topic: "Node.js Basics",             difficulty: "EASY",
+      question: "What is the primary mechanism Node.js uses to handle asynchronous, non-blocking I/O operations?",
+      options: ["Multi-threading", "The Event Loop", "Forking processes for each request", "Synchronous I/O with callbacks"],
+      correctAnswer: "The Event Loop",
+      expectedConcepts: ["event loop", "non-blocking I/O", "single-threaded model", "asynchronous programming"] },
+    { id: 2,  type: "MCQ",        topic: "Modules & Packages",         difficulty: "EASY",
+      question: "Which file is used to define a Node.js project's dependencies, scripts, and metadata?",
+      options: ["index.js", "package.json", "node_modules.json", "config.js"],
+      correctAnswer: "package.json",
+      expectedConcepts: ["package.json", "npm", "dependency management", "project metadata"] },
+    { id: 3,  type: "MCQ",        topic: "Express Middleware",         difficulty: "MEDIUM",
+      question: "In Express.js, what does calling `next()` inside a middleware function do?",
+      options: ["Ends the request-response cycle", "Passes control to the next middleware in the stack", "Restarts the server", "Sends an error response"],
+      correctAnswer: "Passes control to the next middleware in the stack",
+      expectedConcepts: ["middleware", "next() function", "request pipeline", "Express.js"] },
+    { id: 4,  type: "CODING",     topic: "REST API Development",       difficulty: "MEDIUM",
+      question: "Write an Express.js route handler for `GET /users/:id` that fetches a user from a database (assume an async `findUserById(id)` function exists), returns 404 if not found, and handles errors with proper status codes.",
+      expectedConcepts: ["Express routing", "async/await", "error handling middleware", "HTTP status codes", "try/catch"] },
+    { id: 5,  type: "CODING",     topic: "Streams",                    difficulty: "HARD",
+      question: "Write a Node.js script that reads a large CSV file using streams, transforms each row (e.g., uppercase a column), and writes the result to a new file, without loading the entire file into memory.",
+      expectedConcepts: ["fs.createReadStream", "Transform streams", "pipe()", "backpressure", "memory efficiency"] },
+    { id: 6,  type: "CODING",     topic: "Authentication",             difficulty: "HARD",
+      question: "Write Express.js middleware `verifyToken(req, res, next)` that validates a JWT from the Authorization header, attaches the decoded user to `req.user`, and returns 401 for invalid or missing tokens.",
+      expectedConcepts: ["JWT verification", "Authorization header parsing", "middleware pattern", "error responses", "jsonwebtoken library"] },
+    { id: 7,  type: "SCENARIO",   topic: "Performance & Scaling",      difficulty: "HARD",
+      question: "Your Node.js API server's CPU usage spikes to 100% under moderate load, causing all requests to slow down, even simple ones. How would you diagnose and fix this?",
+      expectedConcepts: ["event loop blocking", "CPU profiling", "worker threads", "offloading heavy computation", "clustering"] },
+    { id: 8,  type: "SCENARIO",   topic: "Error Handling & Reliability", difficulty: "MEDIUM",
+      question: "An unhandled promise rejection in one of your route handlers occasionally crashes the entire Node.js process. How would you prevent this and make the application more resilient?",
+      expectedConcepts: ["unhandledRejection handler", "global error middleware", "process management (PM2)", "async error wrapping", "graceful shutdown"] },
+    { id: 9,  type: "REAL_WORLD", topic: "System Design",              difficulty: "HARD",
+      question: "Design a Node.js backend for a real-time chat application supporting multiple rooms, message persistence, and online presence indicators for thousands of concurrent users.",
+      expectedConcepts: ["WebSockets/Socket.io", "horizontal scaling", "Redis pub/sub", "message persistence", "presence tracking"] },
+    { id: 10, type: "REAL_WORLD", topic: "Microservices Architecture", difficulty: "HARD",
+      question: "Your Node.js monolith handling user management, payments, and notifications has become difficult to maintain and deploy. Propose a microservices architecture and describe how the services would communicate.",
+      expectedConcepts: ["service decomposition", "API gateway", "message queues", "inter-service communication", "data consistency"] },
+  ],
+  uiux: [
+    { id: 1,  type: "MCQ",        topic: "Design Fundamentals",        difficulty: "EASY",
+      question: "What is the primary purpose of a 'wireframe' in the design process?",
+      options: ["To finalize color schemes", "To represent the layout and structure of a page without visual design details", "To write production code", "To test server performance"],
+      correctAnswer: "To represent the layout and structure of a page without visual design details",
+      expectedConcepts: ["wireframing", "low-fidelity design", "layout structure", "design process"] },
+    { id: 2,  type: "MCQ",        topic: "Usability Principles",       difficulty: "MEDIUM",
+      question: "Which usability heuristic refers to the idea that users should always know where they are and how to get back?",
+      options: ["Consistency and standards", "Visibility of system status", "Error prevention", "User control and freedom"],
+      correctAnswer: "User control and freedom",
+      expectedConcepts: ["Nielsen's heuristics", "user control and freedom", "navigation", "usability principles"] },
+    { id: 3,  type: "MCQ",        topic: "Accessibility",              difficulty: "MEDIUM",
+      question: "According to WCAG guidelines, what is the minimum recommended contrast ratio for normal body text against its background?",
+      options: ["2:1", "3:1", "4.5:1", "10:1"],
+      correctAnswer: "4.5:1",
+      expectedConcepts: ["WCAG", "contrast ratio", "accessibility standards", "AA compliance"] },
+    { id: 4,  type: "CODING",     topic: "User Research",              difficulty: "MEDIUM",
+      question: "You're designing a new onboarding flow for a fitness app. Outline a user research plan: what methods would you use, who would you recruit, and what questions would you ask to validate your design assumptions?",
+      expectedConcepts: ["user interviews", "usability testing", "recruitment criteria", "research questions", "validation methods"] },
+    { id: 5,  type: "CODING",     topic: "Wireframing & Prototyping",  difficulty: "MEDIUM",
+      question: "Describe step-by-step how you would create a clickable prototype for a 'forgot password' flow (email entry, verification, new password, confirmation) using a tool like Figma, including key states and transitions.",
+      expectedConcepts: ["screen flow mapping", "interactive prototyping", "error and success states", "Figma components", "user flow diagrams"] },
+    { id: 6,  type: "CODING",     topic: "Design Systems",             difficulty: "HARD",
+      question: "Your team is building a design system for a multi-product company. Describe the core components, tokens, and documentation you would include, and how you'd ensure consistency across teams.",
+      expectedConcepts: ["design tokens", "component libraries", "style guides", "versioning", "cross-team adoption"] },
+    { id: 7,  type: "SCENARIO",   topic: "Usability Problems",         difficulty: "HARD",
+      question: "Analytics show that 60% of users abandon your e-commerce checkout flow at the payment step. How would you investigate the cause and redesign the flow to reduce drop-off?",
+      expectedConcepts: ["funnel analysis", "usability testing", "friction reduction", "trust signals", "form design best practices"] },
+    { id: 8,  type: "SCENARIO",   topic: "Design Critique",            difficulty: "MEDIUM",
+      question: "A stakeholder insists on adding a large promotional banner to the homepage that conflicts with your user research findings on clutter and load time. How would you handle this disagreement?",
+      expectedConcepts: ["stakeholder management", "data-driven design decisions", "A/B testing", "communication", "balancing business and user needs"] },
+    { id: 9,  type: "REAL_WORLD", topic: "End-to-End Design Process",  difficulty: "HARD",
+      question: "Walk through your end-to-end design process for creating a mobile banking app's transaction history screen, from research to final handoff to developers.",
+      expectedConcepts: ["research", "information architecture", "wireframing", "visual design", "developer handoff", "iteration based on feedback"] },
+    { id: 10, type: "REAL_WORLD", topic: "Cross-Platform Design",      difficulty: "HARD",
+      question: "Design a consistent user experience for a productivity app that works across mobile, tablet, and desktop. Discuss how layouts, navigation patterns, and interactions would adapt across these platforms.",
+      expectedConcepts: ["responsive design", "platform-specific patterns", "navigation adaptation", "touch vs pointer interactions", "consistency vs platform conventions"] },
+  ],
+  marketing: [
+    { id: 1,  type: "MCQ",        topic: "Marketing Fundamentals",     difficulty: "EASY",
+      question: "What does 'CAC' stand for in marketing metrics?",
+      options: ["Customer Acquisition Cost", "Conversion Average Calculation", "Customer Activity Cycle", "Channel Allocation Cost"],
+      correctAnswer: "Customer Acquisition Cost",
+      expectedConcepts: ["CAC", "marketing metrics", "acquisition cost", "ROI measurement"] },
+    { id: 2,  type: "MCQ",        topic: "Digital Marketing Channels", difficulty: "MEDIUM",
+      question: "Which metric best measures how effectively an email campaign converts recipients into customers?",
+      options: ["Open rate", "Click-through rate", "Conversion rate", "Bounce rate"],
+      correctAnswer: "Conversion rate",
+      expectedConcepts: ["conversion rate", "email marketing metrics", "funnel measurement", "campaign performance"] },
+    { id: 3,  type: "MCQ",        topic: "SEO",                        difficulty: "MEDIUM",
+      question: "What is the primary purpose of building high-quality backlinks to a website?",
+      options: ["To increase page load speed", "To improve the site's domain authority and search ranking", "To reduce bounce rate", "To increase ad revenue directly"],
+      correctAnswer: "To improve the site's domain authority and search ranking",
+      expectedConcepts: ["backlinks", "domain authority", "SEO ranking factors", "off-page SEO"] },
+    { id: 4,  type: "CODING",     topic: "Campaign Planning",          difficulty: "MEDIUM",
+      question: "You're launching a new productivity app targeting freelancers. Create an outline of a go-to-market campaign: target audience, key channels, messaging, and success metrics for the first 90 days.",
+      expectedConcepts: ["target audience definition", "channel selection", "messaging strategy", "KPIs", "campaign timeline"] },
+    { id: 5,  type: "CODING",     topic: "Content Strategy",           difficulty: "MEDIUM",
+      question: "Design a content calendar outline for one month for a B2B SaaS company's blog and LinkedIn page, aimed at generating leads. Include content types, themes, and posting frequency.",
+      expectedConcepts: ["content calendar", "B2B content strategy", "lead generation content", "channel-specific formats", "thematic planning"] },
+    { id: 6,  type: "CODING",     topic: "Performance Marketing",      difficulty: "HARD",
+      question: "Your paid social campaign has a CTR of 3% but a conversion rate of only 0.5%, well below the 2% target. Outline the steps you would take to diagnose and improve the conversion rate.",
+      expectedConcepts: ["landing page optimization", "A/B testing", "audience targeting", "funnel analysis", "ad-to-landing-page message match"] },
+    { id: 7,  type: "SCENARIO",   topic: "Budget Allocation",          difficulty: "HARD",
+      question: "You have a $50,000 quarterly marketing budget split across paid search, social media, content marketing, and email. Sales has flagged that lead quality from paid social is poor. How would you reallocate the budget and measure the impact?",
+      expectedConcepts: ["budget allocation", "channel ROI analysis", "lead quality metrics", "attribution modeling", "iterative reallocation"] },
+    { id: 8,  type: "SCENARIO",   topic: "Brand Crisis Management",    difficulty: "HARD",
+      question: "A viral social media post is criticizing your company's product for a bug that affected customer data. How would you respond from a marketing and communications perspective in the first 24 hours and beyond?",
+      expectedConcepts: ["crisis communication", "transparency", "stakeholder messaging", "social listening", "reputation management"] },
+    { id: 9,  type: "REAL_WORLD", topic: "Growth Strategy",            difficulty: "HARD",
+      question: "Design a 6-month growth marketing strategy for an early-stage startup with a $20,000/month budget aiming to scale from 1,000 to 10,000 monthly active users. Cover channels, experiments, and measurement.",
+      expectedConcepts: ["growth loops", "experimentation framework", "channel mix", "budget pacing", "metrics and milestones"] },
+    { id: 10, type: "REAL_WORLD", topic: "Marketing Analytics",        difficulty: "HARD",
+      question: "Your marketing team relies on gut feeling for decisions and lacks a measurement framework. Propose an analytics setup (tools, dashboards, and key metrics) to enable data-driven marketing decisions across channels.",
+      expectedConcepts: ["analytics tooling", "attribution models", "dashboard design", "key marketing metrics (CAC, LTV, ROAS)", "data-driven culture"] },
+  ],
+  pm: [
+    { id: 1,  type: "MCQ",        topic: "Product Management Basics", difficulty: "EASY",
+      question: "What is the primary purpose of a Product Requirements Document (PRD)?",
+      options: ["To track engineering bugs", "To define what a feature should do, why, and for whom, guiding the team's work", "To document the company's financial reports", "To replace user research"],
+      correctAnswer: "To define what a feature should do, why, and for whom, guiding the team's work",
+      expectedConcepts: ["PRD", "product requirements", "alignment", "documentation"] },
+    { id: 2,  type: "MCQ",        topic: "Prioritization Frameworks",  difficulty: "MEDIUM",
+      question: "In the RICE prioritization framework, what does the 'C' stand for?",
+      options: ["Cost", "Confidence", "Complexity", "Customer"],
+      correctAnswer: "Confidence",
+      expectedConcepts: ["RICE framework", "Reach Impact Confidence Effort", "prioritization", "scoring models"] },
+    { id: 3,  type: "MCQ",        topic: "Metrics & OKRs",             difficulty: "MEDIUM",
+      question: "Which of the following is the best example of a 'North Star Metric' for a music streaming app?",
+      options: ["Total revenue", "Number of employees", "Weekly listening hours per active user", "Number of app downloads"],
+      correctAnswer: "Weekly listening hours per active user",
+      expectedConcepts: ["North Star Metric", "leading vs lagging indicators", "product metrics", "user engagement"] },
+    { id: 4,  type: "CODING",     topic: "Writing a PRD",              difficulty: "MEDIUM",
+      question: "Write a concise PRD outline for a new 'Saved Items' feature in a shopping app, including problem statement, goals, user stories, success metrics, and out-of-scope items.",
+      expectedConcepts: ["problem statement", "user stories", "success metrics", "scope definition", "PRD structure"] },
+    { id: 5,  type: "CODING",     topic: "Roadmapping",                difficulty: "MEDIUM",
+      question: "You're a PM for a project management tool with 4 competing feature requests (mobile app, integrations, reporting dashboard, team permissions) but capacity for only 2 this quarter. Walk through how you would prioritize and structure your roadmap.",
+      expectedConcepts: ["prioritization frameworks", "stakeholder input", "roadmap structuring", "trade-off analysis", "capacity planning"] },
+    { id: 6,  type: "CODING",     topic: "A/B Testing",                difficulty: "HARD",
+      question: "You want to test whether a new onboarding flow increases activation rate. Describe how you would design this A/B test, including hypothesis, sample size considerations, success metrics, and how you'd interpret results.",
+      expectedConcepts: ["hypothesis formulation", "A/B test design", "statistical significance", "activation metrics", "result interpretation"] },
+    { id: 7,  type: "SCENARIO",   topic: "Stakeholder Management",     difficulty: "HARD",
+      question: "Engineering says a highly requested feature will take 3 months, but sales has promised it to a major client in 6 weeks. How would you handle this situation?",
+      expectedConcepts: ["expectation management", "scope negotiation", "cross-functional communication", "MVP scoping", "trade-off transparency"] },
+    { id: 8,  type: "SCENARIO",   topic: "Product Metrics Decline",    difficulty: "HARD",
+      question: "Your app's Day-7 retention dropped from 40% to 25% after the last release, which included several UI changes and a new pricing model. How would you investigate the cause?",
+      expectedConcepts: ["root cause analysis", "cohort analysis", "feature flagging", "segmentation", "rollback decisions"] },
+    { id: 9,  type: "REAL_WORLD", topic: "Product Strategy",           difficulty: "HARD",
+      question: "You're the PM for a B2B SaaS tool with strong adoption in small businesses but struggling to break into mid-market and enterprise segments. Define a product strategy to address this.",
+      expectedConcepts: ["market segmentation", "enterprise feature gaps", "pricing strategy", "competitive analysis", "go-to-market alignment"] },
+    { id: 10, type: "REAL_WORLD", topic: "Zero-to-One Product",        difficulty: "HARD",
+      question: "You're tasked with launching a brand-new feature: an AI-powered writing assistant inside a note-taking app. Walk through your process from discovery to launch, including how you'd validate demand and measure success post-launch.",
+      expectedConcepts: ["discovery and validation", "MVP definition", "success metrics", "launch planning", "post-launch iteration"] },
   ],
 };
 
@@ -275,6 +548,20 @@ const buildReport = (
     .filter(({ f }) => f.score < 70)
     .map(({ idx, f }) => {
       const q = questions[idx];
+      // MCQ questions get structured selected/correct answer display
+      if (q.type === "MCQ") {
+        return {
+          questionId:            q.id,
+          questionNumber:        idx + 1,
+          topic:                 q.topic,
+          questionType:          q.type,
+          score:                 f.score,
+          mistake:               `Selected Option: ${f.selectedAnswer}`,
+          expectedApproach:      `Correct Answer: ${f.correctAnswer}`,
+          improvementSuggestion: `Review ${q.topic} concepts and practice similar questions.`,
+        };
+      }
+      // Non-MCQ: original AI-driven analysis
       return {
         questionId:            q.id,
         questionNumber:        idx + 1,
@@ -485,7 +772,6 @@ function QuestionScreen({
   const [feedback, setFeedback]   = useState<Record<number, any>>({});
   const [loading, setLoading]     = useState(false);
 
-  // FIX #4: ref always holds latest feedback, avoiding stale closure
   const feedbackRef = useRef<Record<number, any>>({});
 
   const q          = questions[qIdx];
@@ -497,18 +783,35 @@ function QuestionScreen({
 
   const handleSubmit = async () => {
     if (!curAnswer.trim()) return;
+
+    // ── MCQ: evaluate entirely on the frontend, no API call ──────────────────
+    if (isMCQ) {
+      const isCorrect = curAnswer === q.correctAnswer;
+      const mcqFeedback = {
+        score:           isCorrect ? 100 : 0,
+        verdict:         isCorrect ? "PASS" : "FAIL",
+        strengths:       isCorrect ? ["Correct answer selected"] : [],
+        gaps:            !isCorrect ? [`Selected "${curAnswer}" instead of "${q.correctAnswer}"`] : [],
+        ideal_approach:  `Correct Answer: ${q.correctAnswer}`,
+        interviewReadiness: isCorrect ? 100 : 0,
+        selectedAnswer:  curAnswer,
+        correctAnswer:   q.correctAnswer,
+        _answer:         curAnswer,
+        _questionId:     q.id,
+        _questionType:   q.type,
+        _topic:          q.topic,
+      };
+      const updated = { ...feedbackRef.current, [qIdx]: mcqFeedback };
+      feedbackRef.current = updated;
+      setFeedback(updated);
+      setAnswered(p => ({ ...p, [qIdx]: true }));
+      return;
+    }
+
+    // ── Non-MCQ: call AI evaluation endpoint ──────────────────────────────────
     setLoading(true);
 
-    const evalPrompt = isMCQ
-      ? `You are evaluating a skill assessment MCQ for ${skill.label}.
-Question: "${q.question}"
-Options: ${q.options?.join(" | ")}
-Expected concepts: ${q.expectedConcepts.join(", ")}
-Student selected: "${curAnswer}"
-
-Respond ONLY with a valid JSON object (no markdown, no backticks):
-{"score": <0 or 100>, "verdict": "<STRONG PASS|PASS|BORDERLINE|FAIL>", "strengths": ["<specific strength>"], "gaps": ["<specific gap>"], "ideal_approach": "<brief explanation of the correct answer>", "interviewReadiness": <0 or 100>}`
-      : `You are a senior ${skill.label} expert evaluating a skill assessment.
+    const evalPrompt = `You are a senior ${skill.label} expert evaluating a skill assessment.
 Question type: ${q.type}, Difficulty: ${q.difficulty}
 Topic: ${q.topic}
 Question: "${q.question}"
@@ -544,15 +847,14 @@ Respond ONLY with a valid JSON object (no markdown, no backticks):
     parsedFeedback._topic        = q.topic;
 
     const updated = { ...feedbackRef.current, [qIdx]: parsedFeedback };
-    feedbackRef.current = updated;   // sync update — always fresh
-    setFeedback(updated);            // triggers re-render
+    feedbackRef.current = updated;
+    setFeedback(updated);
     setAnswered(p => ({ ...p, [qIdx]: true }));
     setLoading(false);
   };
 
   const handleNext = () => {
     if (isLast) {
-      // FIX #4: read from ref, not from stale state closure
       onComplete(feedbackRef.current, answers);
     } else {
       setQIdx(p => p + 1);
@@ -615,17 +917,46 @@ Respond ONLY with a valid JSON object (no markdown, no backticks):
             </>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ background: "#F5F3FF", borderRadius: 10, padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 20, color: PURPLE }}>✓</span>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: PURPLE }}>Answer submitted</div>
-                  <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Your response has been recorded. Full feedback appears in the report.</div>
+              {/* MCQ result: show correct/incorrect inline */}
+              {isMCQ && feedback[qIdx] && (
+                <div style={{
+                  background: feedback[qIdx].score === 100 ? "#ECFDF5" : "#FEF2F2",
+                  border: `1.5px solid ${feedback[qIdx].score === 100 ? "#10B981" : "#EF4444"}`,
+                  borderRadius: 10,
+                  padding: 16,
+                }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: feedback[qIdx].score === 100 ? "#10B981" : "#EF4444", marginBottom: 8 }}>
+                    {feedback[qIdx].score === 100 ? "✓ Correct!" : "✗ Incorrect"}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#374151", marginBottom: 4 }}>
+                    <span style={{ fontWeight: 600 }}>Your answer: </span>{feedback[qIdx].selectedAnswer}
+                  </div>
+                  {feedback[qIdx].score !== 100 && (
+                    <div style={{ fontSize: 12, color: "#374151" }}>
+                      <span style={{ fontWeight: 600 }}>Correct answer: </span>
+                      <span style={{ color: "#10B981", fontWeight: 700 }}>{feedback[qIdx].correctAnswer}</span>
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div style={{ background: "#F9FAFB", borderRadius: 10, padding: 14, border: "1px solid #e5e7eb" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", letterSpacing: 1, marginBottom: 6 }}>YOUR ANSWER</div>
-                <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.6, fontFamily: q.type === "CODING" ? "monospace" : "inherit", whiteSpace: "pre-wrap", maxHeight: 120, overflow: "hidden" }}>{curAnswer}</div>
-              </div>
+              )}
+
+              {/* Non-MCQ submitted state */}
+              {!isMCQ && (
+                <>
+                  <div style={{ background: "#F5F3FF", borderRadius: 10, padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 20, color: PURPLE }}>✓</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: PURPLE }}>Answer submitted</div>
+                      <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Your response has been recorded. Full feedback appears in the report.</div>
+                    </div>
+                  </div>
+                  <div style={{ background: "#F9FAFB", borderRadius: 10, padding: 14, border: "1px solid #e5e7eb" }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", letterSpacing: 1, marginBottom: 6 }}>YOUR ANSWER</div>
+                    <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.6, fontFamily: q.type === "CODING" ? "monospace" : "inherit", whiteSpace: "pre-wrap", maxHeight: 120, overflow: "hidden" }}>{curAnswer}</div>
+                  </div>
+                </>
+              )}
+
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <button onClick={handleNext}
                   style={{ background: PURPLE, color: "white", border: "none", borderRadius: 8, padding: "10px 24px", fontWeight: 800, fontSize: 10, cursor: "pointer", letterSpacing: 1 }}>
@@ -788,14 +1119,19 @@ function ReportScreen({
                 <span style={{ background: "#FEF2F2", color: "#EF4444", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 800 }}>Q{m.questionNumber}</span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>{m.topic}</span>
                 <span style={{ fontSize: 10, color: "#9CA3AF" }}>Score: {m.score}/100</span>
+                {m.questionType === "MCQ" && (
+                  <span style={{ background: "#EFF6FF", color: "#2563EB", borderRadius: 6, padding: "2px 8px", fontSize: 9, fontWeight: 800 }}>MCQ</span>
+                )}
               </div>
               <div style={{ marginBottom: 8 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", letterSpacing: 1, marginBottom: 4 }}>MISTAKE</div>
                 <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.6 }}>{m.mistake}</div>
               </div>
               <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#10B981", letterSpacing: 1, marginBottom: 4 }}>EXPECTED APPROACH</div>
-                <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.6, fontStyle: "italic" }}>{m.expectedApproach}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#10B981", letterSpacing: 1, marginBottom: 4 }}>
+                  {m.questionType === "MCQ" ? "CORRECT ANSWER" : "EXPECTED APPROACH"}
+                </div>
+                <div style={{ fontSize: 13, color: m.questionType === "MCQ" ? "#10B981" : "#374151", lineHeight: 1.6, fontStyle: m.questionType === "MCQ" ? "normal" : "italic", fontWeight: m.questionType === "MCQ" ? 700 : 400 }}>{m.expectedApproach}</div>
               </div>
               <div style={{ background: "#F5F3FF", borderRadius: 8, padding: "10px 14px" }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: PURPLE, letterSpacing: 1, marginBottom: 4 }}>IMPROVEMENT</div>
@@ -883,8 +1219,6 @@ export default function SkillAssessment() {
     const builtReport = buildReport(fb, questions, skill);
     setReport(builtReport);
     setScreen("report");
-
-    // ── Persist to localStorage ──────────────────────────────────────────────
     saveToHistory(builtReport);
   };
 
@@ -907,4 +1241,3 @@ export default function SkillAssessment() {
     </div>
   );
 }
-
