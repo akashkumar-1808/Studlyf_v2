@@ -426,6 +426,10 @@ async def health_check():
     return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
 
+# Password hashing context (initialized once)
+from passlib.context import CryptContext
+pwd_context = CryptContext(schemes=["bcrypt"])
+
 @app.post("/login")
 async def login(email: str, password: str, request: Request):
     """
@@ -438,25 +442,21 @@ async def login(email: str, password: str, request: Request):
     try:
         # Rate limit (5 attempts per 15 minutes)
         check_rate_limit(f"login:{request.client.host}", max_attempts=5, window_seconds=900)
-        
+
         # Validate email
         email = validate_email(email)
-        
+
         # Find user
         user = await db.users.find_one({"email": email})
         if not user:
-            logger.warning(f"Login attempt: user not found - {email}")
+            logger.warning(f"Login attempt: user not found")
             # Don't reveal if user exists (prevent enumeration)
             raise HTTPException(status_code=401, detail="Invalid credentials")
-        
+
         # Verify password
-        from passlib.context import CryptContext
-        pwd_context = CryptContext(schemes=["bcrypt"])
-        
         if not pwd_context.verify(password, user.get("password_hash", "")):
-            logger.warning(f"Login attempt: invalid password - {email}")
+            logger.warning(f"Login attempt: invalid password")
             raise HTTPException(status_code=401, detail="Invalid credentials")
-        
         # Check email verified
         if not user.get("email_verified"):
             raise HTTPException(
