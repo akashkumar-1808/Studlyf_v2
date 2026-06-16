@@ -1,5 +1,4 @@
 import { CURRICULUM_DATA, ModuleData } from '../data/curriculumData';
-import { AI_AUTOMATION_DATA } from '../data/aiAutomationData';
 import { GFG_CURRICULUM_DATA } from '../data/gfgCurriculumData';
 
 /**
@@ -8,10 +7,6 @@ import { GFG_CURRICULUM_DATA } from '../data/gfgCurriculumData';
  */
 export const getDetailedCurriculum = (courseId: string): ModuleData[] => {
   const resolvedId = courseId.toLowerCase();
-  
-  if (resolvedId === 'ai-automation-mastery' || resolvedId.includes('ai-automation')) {
-    return AI_AUTOMATION_DATA;
-  }
   
   if (resolvedId === 'ai-foundations' || resolvedId.includes('fundamentals')) {
     return GFG_CURRICULUM_DATA.map(chapter => ({
