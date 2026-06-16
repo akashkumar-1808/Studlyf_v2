@@ -27,6 +27,7 @@ import {
     Trophy,
     Building2
 } from 'lucide-react';
+import DashboardFooter from '../components/DashboardFooter';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Step = 'INTRO' | 'API_KEY' | 'SETUP' | 'INTERVIEW' | 'REPORT';
@@ -884,9 +885,14 @@ export default function MockInterview() {
         
         // Attempt to save report to backend asynchronously (no wait)
         if (sessionId && !isDummyMode) {
-            fetch(`${API_BASE_URL}/api/interview/report?session_id=${sessionId}`, { timeout: 5000 }).catch(err => {
-                console.warn('Backend report save failed (non-critical):', err);
-            });
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            fetch(`${API_BASE_URL}/api/interview/report?session_id=${sessionId}`, { signal: controller.signal })
+                .then(() => clearTimeout(timeoutId))
+                .catch(err => {
+                    clearTimeout(timeoutId);
+                    console.warn('Backend report save failed (non-critical):', err);
+                });
         }
     };
 
@@ -992,8 +998,9 @@ export default function MockInterview() {
     };
 
     return (
-        <div className="min-h-screen bg-white pt-24 pb-20">
-            <style>{`
+        <div className="min-h-screen bg-white flex flex-col pt-24 pb-0">
+            <div className="flex-grow pb-20">
+                <style>{`
                 @keyframes sp-shimmer {
                     0%   { transform: translateX(-180%) skewX(-20deg); }
                     100% { transform: translateX(300%) skewX(-20deg); }
@@ -1140,10 +1147,10 @@ export default function MockInterview() {
 
                             <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-5">
                                 {[
-                                    { title: 'Video interview simulation', desc: 'Turn on camera mode and rehearse eye contact, speaking pace, and presence.', img: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&q=80&w=900' },
-                                    { title: 'Company-specific practice', desc: 'Set company type and role so the questions feel closer to the real job.', img: 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&q=80&w=900' },
-                                    { title: 'HR interview mode', desc: 'Switch into voice mode and practice how you answer under pressure.', img: 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&q=80&w=900' },
-                                    { title: 'History and score tracking', desc: 'Return to past interviews, compare performance, and see progress over time.', img: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=900' }
+                                    { title: 'Company Learning Modules', desc: 'Master placement preparation with company-specific learning paths tailored for Google, Amazon, Microsoft, and more.', img: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&q=80&w=900' },
+                                    { title: 'AI Mock Interview Simulator', desc: 'Practice realistic company-level mock interviews with adaptive questions designed for Google, Amazon, and Microsoft preparation.', img: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&q=80&w=900' },
+                                    { title: 'AI Career Dreamer', desc: 'Discover personalized career paths based on your skills, interests, strengths, and technical experience.', img: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&q=80&w=900' },
+                                    { title: 'Placement Progress Tracker', desc: 'Track preparation progress, revisit interview sessions, and measure improvement throughout your placement journey.', img: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=900' }
                                 ].map((item, index) => (
                                     <motion.div
                                         key={item.title}
@@ -1837,6 +1844,8 @@ export default function MockInterview() {
                     </motion.div>
                 )}
             </AnimatePresence>
+            </div>
+            <DashboardFooter />
         </div>
     );
 }
