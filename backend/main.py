@@ -27,8 +27,24 @@ import secrets
  
 
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
+import time
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("perf_logger")
+
+class PerformanceMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        start_time = time.time()
+        response = await call_next(request)
+        process_time = (time.time() - start_time) * 1000
+        logger.info(f"[PERF] {process_time:.2f}ms - {request.method} {request.url.path}")
+        return response
 
 app = FastAPI()
+app.add_middleware(PerformanceMiddleware)
+
 os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -804,6 +820,7 @@ from routes import evaluation_criteria_routes, quiz_visibility_routes, notificat
 from routes import stage_navigation_routes, team_join_request_routes, hackathon_public_routes
 from routes import student_features_routes
 from routes import event_certificate_routes, registration_flow_routes
+from routes import achievement_registry_routes
 
 import hackathon_integration_routes
 import participant_card_routes
@@ -882,6 +899,7 @@ app.include_router(hackathon_public_routes.router)
 app.include_router(participant_card_routes.router)
 app.include_router(event_certificate_routes.router)
 app.include_router(event_certificate_routes.verification_router)
+app.include_router(achievement_registry_routes.router)
 app.include_router(registration_flow_routes.router)
 app.include_router(stage_endpoints.router)
 from routes import company_simulator

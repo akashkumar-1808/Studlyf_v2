@@ -265,10 +265,22 @@ class LeaderboardService:
         for idx, entry in enumerate(rankings_data):
             entry["rank"] = idx + 1
 
-        # 6. Atomic Sync: Clear old and insert new
-        await leaderboard_col.delete_many({"event_id": {"$in": event_id_in}})
+        # 6. Atomic Sync: Clear old and insert new using a transaction
+        delete_query = {"event_id": {"$in": event_id_in}}
+        try:
+            client = leaderboard_col.database.client
+            async with await client.start_session() as session:
+                async with session.start_transaction():
+                    await leaderboard_col.delete_many(delete_query, session=session)
+                    if rankings_data:
+                        await leaderboard_col.insert_many(rankings_data, session=session)
+        except Exception:
+            # Fallback: non-atomic update (standalone MongoDB)
+            await leaderboard_col.delete_many(delete_query)
+            if rankings_data:
+                await leaderboard_col.insert_many(rankings_data)
+
         if rankings_data:
-            await leaderboard_col.insert_many(rankings_data)
             for entry in rankings_data:
                 if "_id" in entry:
                     entry["_id"] = str(entry["_id"])

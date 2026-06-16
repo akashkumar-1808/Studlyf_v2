@@ -238,18 +238,54 @@ async def evaluate_submission(data: dict = Body(...)):
         }
         await submission_scores_col.insert_one(score_doc)
         
-    # Update submission
-    await submissions_col.update_one(
+    # Update submission — try submission_data_col first, then legacy submissions_col
+    from db import submission_data_col
+    sd_updated = False
+    try:
+        sd_res = await submission_data_col.update_one(
+            {"_id": ObjectId(submission_id)},
+            {"$set": {
+                "total_score": total_score,
+                "evaluation_score": total_score,
+                "evaluation_status": "completed",
+                "status": "Scored",
+            }}
+        )
+        sd_updated = sd_res.matched_count > 0
+    except Exception:
+        pass
+
+    if not sd_updated:
+        await submissions_col.update_one(
+            {"_id": ObjectId(submission_id)},
+            {"$set": {
+                "evaluation_status": "Evaluated",
+                "status": "Pending Review",
+                "total_score": total_score,
+                "evaluator_feedback": feedback,
+                "evaluated_at": datetime.utcnow()
+            }}
+        )
+
+    # Auto-advance participant if score meets shortlist threshold
+    from stage_access_control import auto_advance_participant_on_score
+    # Resolve event_id from the submission
+    sub_doc_ev = await submission_data_col.find_one(
         {"_id": ObjectId(submission_id)},
-        {"$set": {
-            "evaluation_status": "Evaluated",
-            "status": "Pending Review",
-            "total_score": total_score,
-            "evaluator_feedback": feedback,
-            "evaluated_at": datetime.utcnow()
-        }}
+        {"event_id": 1}
     )
-    
+    if not sub_doc_ev:
+        sub_doc_ev = await submissions_col.find_one(
+            {"_id": ObjectId(submission_id)},
+            {"event_id": 1}
+        )
+    if sub_doc_ev:
+        await auto_advance_participant_on_score(
+            str(sub_doc_ev.get("event_id", "")),
+            submission_id,
+            float(total_score),
+        )
+
     return {"status": "success", "total_score": total_score}
 
 # --- Leaderboard ---

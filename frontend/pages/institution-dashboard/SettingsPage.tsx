@@ -162,6 +162,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ institutionId, onProfileUpd
                     setProfile(prev => ({
                         ...prev,
                         ...data,
+                        name: data.name || data.institution_name || (user as any)?.institution_name || prev.name || '',
                         logo_url: resolveMedia(data.logo_url || data.logoUrl) || prev.logo_url,
                         banner_url: resolveMedia(data.banner_url || data.bannerUrl) || prev.banner_url,
                         notifications: data.notifications || prev.notifications
@@ -489,7 +490,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ institutionId, onProfileUpd
         try {
             setSaving(true);
             const { _id, ...cleanProfile } = profile;
-            const payload = { ...cleanProfile, institution_id: institutionId };
+            const payload = {
+                ...cleanProfile,
+                institution_id: institutionId,
+                name: cleanProfile.name || (user as any)?.institution_name || '',
+            };
             
             const res = await fetch(`${API_BASE_URL}/api/v1/institution/profile`, {
                 method: 'POST',

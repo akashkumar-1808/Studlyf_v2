@@ -299,6 +299,7 @@ async def submit_evaluation(
         "team_id": submission.get("team_id"),
         "judge_id": str(judge_id) if judge_id else "",
         "judge_email": str(judge_email).strip().lower() if judge_email else "",
+        "judge_name": (judge_entry or {}).get("name") or (user or {}).get("full_name") or (user or {}).get("name") or "",
         "event_id": submission.get("event_id"),
         "stage_id": submission.get("stage_id"),
         "total_score": float(score),
@@ -311,17 +312,28 @@ async def submit_evaluation(
         "status": "completed",
     }
 
-    upsert_filter: Dict[str, Any] = {"submission_id": submission_id}
+    # Find existing score entry by judge_id OR judge_email to avoid duplicates
+    existing_score = None
     if judge_id:
-        upsert_filter["judge_id"] = str(judge_id)
-    elif judge_email:
-        upsert_filter["judge_email"] = str(judge_email).strip().lower()
+        existing_score = await scores_col.find_one({"submission_id": submission_id, "judge_id": str(judge_id)})
+    if not existing_score and judge_email:
+        existing_score = await scores_col.find_one({"submission_id": submission_id, "judge_email": str(judge_email).strip().lower()})
+    if not existing_score:
+        existing_score = await scores_col.find_one({"submission_id": submission_id, "evaluation_token": token_or_id})
+
+    if existing_score:
+        await scores_col.update_one({"_id": existing_score["_id"]}, {"$set": score_data})
     else:
-        upsert_filter["evaluation_token"] = token_or_id
+        upsert_filter: Dict[str, Any] = {"submission_id": submission_id}
+        if judge_id:
+            upsert_filter["judge_id"] = str(judge_id)
+        elif judge_email:
+            upsert_filter["judge_email"] = str(judge_email).strip().lower()
+        else:
+            upsert_filter["evaluation_token"] = token_or_id
+        await scores_col.update_one(upsert_filter, {"$set": score_data}, upsert=True)
 
-    await scores_col.update_one(upsert_filter, {"$set": score_data}, upsert=True)
-
-    pct = round((float(score) / max_pts * 100), 1) if max_pts > 0 else float(score)
+    # pct = round((float(score) / max_pts * 100), 1) if max_pts > 0 else float(score)
     await submission_data_col.update_one(
         {"_id": submission["_id"]},
         {"$set": {
@@ -330,15 +342,62 @@ async def submit_evaluation(
             "total_score": float(score),
             "evaluation_recommendation": recommendation,
             "status": status_label,
-            "score_percent": pct,
+            # "score_percent": pct,
         }},
     )
+
+    # Auto-advance participant if score meets shortlist threshold
+    from stage_access_control import auto_advance_participant_on_score
+    await auto_advance_participant_on_score(
+        str(submission.get("event_id", "")),
+        str(submission["_id"]),
+        float(score),
+    )
+
+    # Also update hackathon_submissions_col if this submission exists there
+    try:
+        from db import hackathon_submissions_col
+        await hackathon_submissions_col.update_one(
+            {"_id": ObjectId(submission_id)},
+            {"$set": {
+                "totalScore": float(score),
+                "rubricScores": criteria_scores,
+                "status": "Evaluated",
+                "updatedAt": datetime.now(timezone.utc),
+            }},
+        )
+    except Exception:
+        pass
+
+    # Also update legacy submissions_col if this submission exists there
+    try:
+        from db import submissions_col
+        await submissions_col.update_one(
+            {"_id": ObjectId(submission_id)},
+            {"$set": {
+                "total_score": float(score),
+                "evaluation_score": float(score),
+                "status": "Reviewed",
+            }},
+        )
+    except Exception:
+        pass
+
+    # Refresh leaderboard in background
+    import asyncio
+    from services.leaderboard_service import leaderboard_service
+    async def _refresh_lb():
+        try:
+            await leaderboard_service.calculate_event_leaderboard(str(submission.get("event_id", "")))
+        except Exception:
+            pass
+    asyncio.create_task(_refresh_lb())
 
     return {
         "success": True,
         "message": "Evaluation submitted successfully",
         "total_score": float(score),
-        "score_percent": pct,
+        # "score_percent": pct,
         "recommendation": recommendation,
         "status": status_label,
     }

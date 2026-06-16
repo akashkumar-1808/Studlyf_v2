@@ -620,15 +620,15 @@ const JudgeDashboard: React.FC = () => {
                                             <div className="grid grid-cols-3 gap-3">
                                                 <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-center">
                                                     <p className="text-[7px] font-black text-emerald-400 uppercase tracking-widest">Shortlist ≥</p>
-                                                    <p className="text-sm font-black text-white">{selectedAssignment.event_thresholds.shortlist_min || 80}%</p>
+                                                    <p className="text-sm font-black text-white">{selectedAssignment.event_thresholds.shortlist_min || 80}</p>
                                                 </div>
                                                 <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-center">
                                                     <p className="text-[7px] font-black text-amber-400 uppercase tracking-widest">Waitlist ≥</p>
-                                                    <p className="text-sm font-black text-white">{selectedAssignment.event_thresholds.waitlist_min || Math.max((selectedAssignment.event_thresholds.shortlist_min || 80) * 0.75, (selectedAssignment.event_thresholds.shortlist_min || 80) - 15)}%</p>
+                                                    <p className="text-sm font-black text-white">{selectedAssignment.event_thresholds.waitlist_min || Math.max((selectedAssignment.event_thresholds.shortlist_min || 80) * 0.75, (selectedAssignment.event_thresholds.shortlist_min || 80) - 15)}</p>
                                                 </div>
                                                 <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-2xl text-center">
                                                     <p className="text-[7px] font-black text-red-400 uppercase tracking-widest">Reject &lt;</p>
-                                                    <p className="text-sm font-black text-white">{selectedAssignment.event_thresholds.reject_below || selectedAssignment.event_thresholds.waitlist_min || Math.max((selectedAssignment.event_thresholds.shortlist_min || 80) * 0.75, (selectedAssignment.event_thresholds.shortlist_min || 80) - 15)}%</p>
+                                                    <p className="text-sm font-black text-white">{selectedAssignment.event_thresholds.reject_below || selectedAssignment.event_thresholds.waitlist_min || Math.max((selectedAssignment.event_thresholds.shortlist_min || 80) * 0.75, (selectedAssignment.event_thresholds.shortlist_min || 80) - 15)}</p>
                                                 </div>
                                             </div>
                                         )}

@@ -178,6 +178,7 @@ class DatabaseManager:
             await self.db.scores.create_index("submission_id")
             await self.db.scores.create_index([("event_id", 1), ("submission_id", 1)])
             await self.db.scores.create_index([("event_id", 1), ("team_id", 1)])
+            await self.db.scores.create_index([("event_id", 1), ("stage_id", 1)])
             
             # ── Notifications ──
             await self.db.notifications.create_index([("user_id", 1), ("is_read", 1)])

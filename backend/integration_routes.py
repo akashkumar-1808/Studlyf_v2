@@ -1,13 +1,29 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import asyncio
 import os
 import re
 import uuid
 import shutil
 import json
+import logging
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Request, Form, File, UploadFile, Body, Depends, Query, Response, BackgroundTasks
 from auth_institution import get_auth_user, get_auth_user_optional, assert_institution_scope, assert_institution_owns_event
+
+# Simple In-Memory Cache
+_cache = {}
+CACHE_TTL = timedelta(seconds=60)
+
+def get_cache(key: str):
+    if key in _cache:
+        data, timestamp = _cache[key]
+        if datetime.now() - timestamp < CACHE_TTL:
+            return data
+    return None
+
+def set_cache(key: str, data: any):
+    _cache[key] = (data, datetime.now())
+from main import get_current_user, require_role
 from routes.auth import get_current_user, require_role
 from services.email_service import (
     send_notification_email,
@@ -1491,8 +1507,8 @@ async def get_qualified_bundle(
         if s.get("assigned_judges"):
             item["assigned_judges"] = s.get("assigned_judges") or []
 
-    score_judges_by_submission: dict[str, set[str]] = {}
     scores_by_submission: dict[str, list[float]] = {}
+    judges_feedback_by_submission: dict[str, list[dict]] = {}
     for sc in raw_scores:
         sc_sid = sc.get("submission_id")
         if not sc_sid:
@@ -1500,10 +1516,43 @@ async def get_qualified_bundle(
         sid = str(sc_sid)
         _ensure_item(sid, "scores_col", f"Submission {sid[-8:]}")
         score_val = _score_sum(sc)
-        scores_by_submission.setdefault(sid, []).append(score_val)
-        judge_key = str(sc.get("judge_email") or sc.get("judge_id") or sc.get("judge") or "").strip().lower()
-        if judge_key:
-            score_judges_by_submission.setdefault(sid, set()).add(judge_key)
+        judge_id_key = str(sc.get("judge_id") or "").strip()
+        judge_email_key = str(sc.get("judge_email") or "").strip().lower()
+
+        # Check if this judge (by either ID or email) already has feedback
+        existing_feedback = judges_feedback_by_submission.get(sid, [])
+        found_idx = None
+        for idx, entry in enumerate(existing_feedback):
+            if (judge_id_key and entry.get("judge_id") == judge_id_key) or (judge_email_key and entry.get("judge_email") == judge_email_key):
+                found_idx = idx
+                break
+
+        if found_idx is not None:
+            # Update existing entry
+            existing_feedback[found_idx]["score"] = score_val
+            existing_feedback[found_idx]["feedback"] = sc.get("feedback") or sc.get("comments") or ""
+            existing_feedback[found_idx]["comments"] = sc.get("comments") or sc.get("feedback") or ""
+            # Also update scores_by_submission
+            fb_scores = [fb.get("score", 0) for fb in existing_feedback if isinstance(fb.get("score"), (int, float))]
+            scores_by_submission[sid] = fb_scores
+        else:
+            scores_by_submission.setdefault(sid, []).append(score_val)
+            judges_feedback_by_submission.setdefault(sid, []).append({
+                "judge_name": sc.get("judge_name") or sc.get("judge") or "",
+                "judge_email": sc.get("judge_email") or "",
+                "judge_id": sc.get("judge_id") or "",
+                "feedback": sc.get("feedback") or sc.get("comments") or "",
+                "comments": sc.get("comments") or sc.get("feedback") or "",
+                "score": score_val,
+            })
+
+    # Only keep one judge score per submission (highest score wins)
+    for sid in list(judges_feedback_by_submission.keys()):
+        fb_list = judges_feedback_by_submission.get(sid, [])
+        if len(fb_list) > 1:
+            fb_list.sort(key=lambda fb: fb.get("score", 0), reverse=True)
+            judges_feedback_by_submission[sid] = fb_list[:1]
+            scores_by_submission[sid] = [fb_list[0]["score"]]
 
     # Average scores across all judges for each submission
     for sid, score_list in scores_by_submission.items():
@@ -1543,7 +1592,7 @@ async def get_qualified_bundle(
             item["assigned_judges"] = sd.get("assigned_judges") or []
 
     # Determine a sane event-level judge count even when the event payload is incomplete.
-    inferred_total_judges = len({j for judges in score_judges_by_submission.values() for j in judges})
+    inferred_total_judges = len({fb.get("judge_id") or fb.get("judge_email") for fb_list in judges_feedback_by_submission.values() for fb in fb_list if fb.get("judge_id") or fb.get("judge_email")})
     if not inferred_total_judges:
         inferred_total_judges = len(event_judges)
 
@@ -1564,26 +1613,26 @@ async def get_qualified_bundle(
 
     shortlisted, approved, rejected, pending, waitlisted = [], [], [], [], []
     for sid, item in all_items.items():
-        item_judges = score_judges_by_submission.get(sid, set())
+        fb_for_item = judges_feedback_by_submission.get(sid, [])
+        unique_judges = {(fb.get("judge_id") or fb.get("judge_email") or "") for fb in fb_for_item}
         assigned = item.get("assigned_judges") or []
-        item["judges_completed"] = len(item_judges)
+        item["judges_completed"] = len(unique_judges)
         item["total_judges"] = max(len(event_judges), inferred_total_judges, len(assigned), item["judges_completed"])
         item["is_fully_evaluated"] = item["total_judges"] > 0 and item["judges_completed"] >= item["total_judges"]
+        item["judges_feedback"] = judges_feedback_by_submission.get(sid, [])
         item.pop("judge_ids", None)
 
         raw_score = float(item.get("score") or 0)
-        item["score_percent"] = round((raw_score / max_possible) * 100, 1) if max_possible > 0 else raw_score
 
         st = str(item.get("status") or "").lower()
-        pct = item["score_percent"]
         if raw_score > 0:
-            if pct >= shortlist_min:
+            if raw_score >= shortlist_min:
                 item["status"] = "Shortlisted"
                 shortlisted.append(item)
-            elif pct >= waitlist_min_val:
+            elif raw_score >= waitlist_min_val:
                 item["status"] = "Waitlisted"
                 waitlisted.append(item)
-            elif pct < reject_below_val:
+            elif raw_score < reject_below_val:
                 item["status"] = "Rejected"
                 rejected.append(item)
             else:
@@ -1880,20 +1929,16 @@ async def send_bulk_selection_emails(event_id: str, data: dict, user: dict = Dep
 
 
 def _score_sum(sc: dict) -> float:
-    """Extract the rubric SUM from a scores_col doc (handles both scores and criteria_scores fields)."""
-    rubric = None
-    if "scores" in sc and sc["scores"]:
-        rubric = sc["scores"]
-    elif "criteria_scores" in sc and sc["criteria_scores"]:
-        rubric = sc["criteria_scores"]
-    if isinstance(rubric, dict):
+    """Extract the total score from a scores_col doc (prefers total_score as the authoritative field)."""
+    total = sc.get("total_score")
+    if total is not None:
+        return float(total)
+    rubric = sc.get("scores") or sc.get("criteria_scores") or {}
+    if isinstance(rubric, dict) and rubric:
         try:
             return sum(float(v) for v in rubric.values())
         except (TypeError, ValueError):
             pass
-    total = sc.get("total_score")
-    if total is not None:
-        return float(total)
     score = sc.get("score")
     if score is not None:
         return float(score)
@@ -2231,72 +2276,281 @@ async def get_integrated_leaderboard(
     event_id: str,
     stage_id: Optional[str] = None,
     institution_id: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    status: Optional[str] = None,
+    search: Optional[str] = None,
     user: dict = Depends(get_auth_user)
 ):
     """
     Returns an integrated leaderboard with counts and thresholds.
-    This endpoint is used by the Institution Leaderboard Dashboard.
+    Reads submissions directly from submission_data_col (scores stored by judges).
+    No recalculation — uses the total_score already set on each submission.
     """
     await assert_institution_owns_event(event_id, user)
-    
-    # 1. Get Event to get thresholds
+
+    # 1. Get event config and thresholds
     event = await events_col.find_one({"_id": ObjectId(event_id)})
     if not event:
-        # Try finding by event_id string if ObjectId fails
         event = await events_col.find_one({"event_id": event_id})
-    
+
     thresholds = (event or {}).get("evaluation_thresholds") or {
         "shortlist_min": 70,
         "waitlist_min": 50,
         "reject_below": 50
-    }
-    
-    # 2. Get Leaderboard Data using the service
-    from services.leaderboard_service import leaderboard_service
-    rankings = await leaderboard_service.calculate_event_leaderboard(event_id, stage_id=stage_id)
-    
-    # 3. Calculate Counts based on status and scores
-    counts = {
-        "Total": len(rankings),
-        "shortlisted": 0,
-        "waitlisted": 0,
-        "rejected": 0,
-        "pending": 0
     }
 
     shortlist_min = float(thresholds.get("shortlist_min") or 70)
     waitlist_min = float(thresholds.get("waitlist_min") or 50)
     reject_below = float(thresholds.get("reject_below") or 50)
 
-    processed_rankings = []
-    for r in rankings:
-        score = float(r.get("total_score") or 0)
-        # Use status if already set, otherwise classify by score
-        status = str(r.get("status") or "").lower()
+    # 2. Collect event_id variants for flexible matching
+    event_id_variants = await collect_event_id_variants(event_id)
+    event_id_in: list = list(event_id_variants)
+    for vid in list(event_id_variants):
+        if ObjectId.is_valid(vid):
+            try:
+                event_id_in.append(ObjectId(vid))
+            except Exception:
+                pass
 
-        if not status:
-            if score >= shortlist_min:
-                status = "shortlisted"
-            elif score >= waitlist_min:
-                status = "waitlisted"
-            else:
-                status = "rejected"
-            r["status"] = status
+    # 3. Query submission_data_col directly (judge scores stored here via submit_score)
+    sub_query: dict = {"event_id": {"$in": event_id_in}}
+    if stage_id:
+        sub_query["stage_id"] = stage_id
 
-        if status == "shortlisted": counts["shortlisted"] += 1
-        elif status == "waitlisted": counts["waitlisted"] += 1
-        elif status == "rejected": counts["rejected"] += 1
-        else: counts["pending"] += 1
+    all_submissions = await submission_data_col.find(sub_query).to_list(length=10000)
 
-        # Ensure ID is string for frontend
-        if "_id" in r:
-            r["_id"] = str(r["_id"])
-        processed_rankings.append(r)
+    # 4. Batch-fetch teams and users for lookup
+    team_ids = set()
+    user_ids = set()
+    for sub in all_submissions:
+        if sub.get("team_id"):
+            team_ids.add(str(sub["team_id"]))
+        if sub.get("user_id"):
+            user_ids.add(str(sub["user_id"]))
+
+    teams_map: dict = {}
+    if team_ids:
+        team_oids = [ObjectId(tid) for tid in team_ids if ObjectId.is_valid(tid)]
+        if team_oids:
+            async for team in teams_col.find({"_id": {"$in": team_oids}}):
+                teams_map[str(team["_id"])] = team
+
+    users_map: dict = {}
+    if user_ids:
+        async for u in users_col.find({"user_id": {"$in": list(user_ids)}}):
+            users_map[str(u["user_id"])] = u
+
+    # Fetch all scores for this event to include judge feedback
+    all_scores = await scores_col.find({"event_id": {"$in": event_id_in}}).to_list(length=10000)
+    judges_feedback_map: dict[str, list[dict]] = {}
+    dedup_seen: dict[str, set[str]] = {}
+    for sc in all_scores:
+        sc_sid = sc.get("submission_id")
+        if not sc_sid:
+            continue
+        sid = str(sc_sid)
+        judge_id = str(sc.get("judge_id") or "").strip()
+        judge_email = str(sc.get("judge_email") or "").strip().lower()
+
+        # Check if this judge (by either ID or email) already has feedback
+        existing_entries = judges_feedback_map.get(sid, [])
+        found_idx = None
+        for idx, entry in enumerate(existing_entries):
+            if (judge_id and entry.get("judge_id") == judge_id) or (judge_email and entry.get("judge_email") == judge_email):
+                found_idx = idx
+                break
+
+        if found_idx is not None:
+            existing_entries[found_idx]["score"] = sc.get("total_score") or 0
+            existing_entries[found_idx]["feedback"] = sc.get("feedback") or sc.get("comments") or ""
+            existing_entries[found_idx]["comments"] = sc.get("comments") or sc.get("feedback") or ""
+            continue
+
+        feedback_entry = {
+            "judge_name": sc.get("judge_name") or sc.get("judge") or "",
+            "judge_email": sc.get("judge_email") or "",
+            "judge_id": sc.get("judge_id") or "",
+            "feedback": sc.get("feedback") or sc.get("comments") or "",
+            "comments": sc.get("comments") or sc.get("feedback") or "",
+            "score": sc.get("total_score") or 0,
+        }
+        judges_feedback_map.setdefault(sid, []).append(feedback_entry)
+
+    # 5. Build rankings from submission data
+    rankings = []
+    for sub in all_submissions:
+        sub_id = str(sub.get("_id", ""))
+        fb_list = judges_feedback_map.get(sub_id, [])
+        # Only keep one judge score (highest) since only one judge per submission is expected
+        if len(fb_list) > 1:
+            fb_list.sort(key=lambda fb: fb.get("score", 0), reverse=True)
+            fb_list = fb_list[:1]
+        fb_scores = [fb.get("score", 0) for fb in fb_list if isinstance(fb.get("score"), (int, float))]
+        total_score = float(sub.get("total_score") or sub.get("evaluation_score") or 0)
+        if total_score == 0 and fb_scores:
+            total_score = round(sum(fb_scores) / len(fb_scores), 1)
+        elif fb_scores:
+            total_score = fb_scores[0]
+
+        team_id = sub.get("team_id")
+        team = teams_map.get(str(team_id)) if team_id else None
+
+        if team:
+            display_name = team.get("team_name") or team.get("name") or "Unnamed Team"
+            member_count = len(team.get("members") or [])
+            members = team.get("members") or []
+            contact_email = team.get("contact_email") or ""
+        else:
+            user_doc = users_map.get(str(sub.get("user_id", "")))
+            display_name = (user_doc.get("full_name") or user_doc.get("name") or "Participant") if user_doc else "Participant"
+            member_count = 0
+            members = []
+            contact_email = user_doc.get("email", "") if user_doc else ""
+
+        data = sub.get("data") or {}
+
+        # Dynamic project title & description from submission data
+        project_title = ""
+        description = ""
+        if isinstance(data, dict):
+            for key, val in data.items():
+                if val and isinstance(val, str) and val.strip():
+                    if not project_title and ("title" in key.lower() or "name" in key.lower()):
+                        project_title = val
+                    elif not description and ("abstract" in key.lower() or "description" in key.lower() or "problem" in key.lower() or "solution" in key.lower()):
+                        description = val
+            if not project_title:
+                for key, val in data.items():
+                    if val and isinstance(val, str) and val.strip():
+                        project_title = val
+                        break
+            if not project_title:
+                project_title = data.get("project_title") or data.get("project_name") or data.get("idea_name") or "Unnamed Project"
+            if not description:
+                description = data.get("solution_description") or data.get("abstract") or data.get("problem_statement") or ""
+
+        rankings.append({
+            "team_id": str(team_id) if team_id else None,
+            "display_name": display_name,
+            "team_name": display_name,
+            "recipient_name": display_name,
+            "project_title": project_title,
+            "solution_description": description,
+            "score": total_score,
+            "total_score": total_score,
+            "rank": 0,
+            "status": "",
+            "recommendation": (lambda r: "" if r.lower() in {"shortlisted","waitlisted","rejected","pending review","pending","shortlist","waitlist","reject","hold"} else r)((sub.get("recommendation") or "")) or sub.get("evaluation_summary") or sub.get("judge_comments") or "",
+            "judges_feedback": fb_list,
+            "member_count": member_count,
+            "members": members,
+            "submission_id": sub_id,
+            "data": data,
+            "email": contact_email or sub.get("email", ""),
+            "submitted_at": str(sub.get("submitted_at") or sub.get("created_at") or ""),
+        })
+
+    if not rankings:
+        return {
+            "counts": {"Total": 0, "Shortlisted": 0, "Waitlisted": 0, "Rejected": 0, "Pending": 0},
+            "submissions": [],
+            "total": 0,
+            "page": page,
+            "limit": limit,
+            "evaluation_thresholds": thresholds,
+            "stage_fields": [],
+        }
+
+    # 6. Sort by score descending and assign ranks
+    rankings.sort(key=lambda x: x["score"], reverse=True)
+    for idx, entry in enumerate(rankings):
+        entry["rank"] = idx + 1
+        s = entry["score"]
+        if s == 0 and not entry.get("judges_feedback"):
+            entry["status"] = "pending"
+        elif s >= shortlist_min:
+            entry["status"] = "shortlisted"
+        elif s >= waitlist_min:
+            entry["status"] = "waitlisted"
+        else:
+            entry["status"] = "rejected"
+
+    # 7. Counts
+    total = len(rankings)
+    shortlisted_count = sum(1 for r in rankings if r["score"] >= shortlist_min)
+    waitlisted_count = sum(1 for r in rankings if waitlist_min <= r["score"] < shortlist_min)
+    rejected_count = sum(1 for r in rankings if r["score"] < reject_below and r["score"] > 0)
+    pending_count = sum(1 for r in rankings if r["score"] == 0 and not r.get("judges_feedback"))
+
+    # 8. Apply status filter
+    filtered = rankings
+    if status and status.lower() != "all":
+        if status.lower() == "shortlisted":
+            filtered = [r for r in filtered if r["score"] >= shortlist_min]
+        elif status.lower() == "waitlisted":
+            filtered = [r for r in filtered if waitlist_min <= r["score"] < shortlist_min]
+        elif status.lower() == "rejected":
+            filtered = [r for r in filtered if r["score"] < reject_below and r["score"] > 0]
+        elif status.lower() == "pending":
+            filtered = [r for r in filtered if r["score"] == 0 and not r.get("judges_feedback")]
+
+    # 9. Apply search filter
+    if search:
+        sl = search.lower()
+        filtered = [r for r in filtered if
+            sl in r["display_name"].lower() or
+            sl in r["project_title"].lower() or
+            sl in (r.get("recommendation") or "").lower()]
+
+    # 10. Paginate
+    filtered_total = len(filtered)
+    skip = (page - 1) * limit
+    paginated = filtered[skip:skip + limit]
+
+    # 11. Build stage_fields from event form config for dynamic columns
+    stage_fields = []
+    if event:
+        stages = event.get("stages") or []
+        for s in stages:
+            if str(s.get("id") or s.get("_id") or "") == str(stage_id) or (stage_id is None):
+                stage_fields = (s.get("fields") or (s.get("config") or {}).get("fields") or [])
+                # Normalize field_id key (FieldBuilder stores as `id`, backend uses `field_id`)
+                normalized = []
+                for f in stage_fields:
+                    base = f.get("field_id") or f.get("id") or ""
+                    norm = dict(f)
+                    norm["field_id"] = base
+                    norm["label"] = f.get("label") or base
+                    norm["field_type"] = f.get("field_type") or f.get("type") or "text"
+                    normalized.append(norm)
+                stage_fields = normalized
+                break
+
+    # 12. Leaderboard display config (admin-configured primary/preview fields)
+    leaderboard_config = event.get("leaderboard_config") or {}
+
+    # 13. Score bands for performance labels (from evaluation settings)
+    score_bands = event.get("score_bands") or []
 
     return {
-        "counts": counts,
-        "submissions": processed_rankings,
-        "evaluation_thresholds": thresholds
+        "counts": {
+            "Total": total,
+            "Shortlisted": shortlisted_count,
+            "Waitlisted": waitlisted_count,
+            "Rejected": rejected_count,
+            "Pending": pending_count
+        },
+        "submissions": paginated,
+        "total": filtered_total,
+        "page": page,
+        "limit": limit,
+        "evaluation_thresholds": thresholds,
+        "stage_fields": stage_fields,
+        "leaderboard_config": leaderboard_config,
+        "score_bands": score_bands,
+        "event_title": event.get("title", "") if event else "",
     }
 
 @router.post("/events/{event_id}/leaderboard/verify")
@@ -3447,6 +3701,7 @@ async def save_judge_score(score_data: dict, user: dict = Depends(get_auth_user)
             "submission_id": submission_id,
             "judge_email": ue,
             "judge_id": judge_id,
+            "judge_name": user.get("full_name") or user.get("name") or score_data.get("judge_name") or "",
             "scores": criteria_scores,
             "criteria_scores": criteria_scores,
             "total_score": total_score,
@@ -3468,6 +3723,21 @@ async def save_judge_score(score_data: dict, user: dict = Depends(get_auth_user)
             "last_evaluated_at": now,
         }},
     )
+
+    # Also update hackathon_submissions_col if this submission exists there
+    try:
+        from db import hackathon_submissions_col
+        await hackathon_submissions_col.update_one(
+            {"_id": ObjectId(str(submission_id))},
+            {"$set": {
+                "totalScore": total_score,
+                "rubricScores": criteria_scores,
+                "status": "Evaluated",
+                "updatedAt": now,
+            }},
+        )
+    except Exception:
+        pass
 
     event = await events_col.find_one({"_id": ObjectId(str(event_id))})
     if event:
@@ -3513,6 +3783,23 @@ async def save_judge_score(score_data: dict, user: dict = Depends(get_auth_user)
                     asyncio.create_task(send_notification_email(inst_email, subject, body))
 
     await log_admin_action(ue, "SUBMISSION_SCORED", f"Scored team {team_id}")
+
+    # Auto-advance participant if shortlisted
+    try:
+        from stage_access_control import auto_advance_participant_on_score
+        await auto_advance_participant_on_score(str(event_id), str(submission_id), total_score)
+    except Exception:
+        pass
+
+    # Refresh leaderboard in background
+    async def _refresh_lb():
+        try:
+            from services.leaderboard_service import leaderboard_service
+            await leaderboard_service.calculate_event_leaderboard(str(event_id))
+        except Exception:
+            pass
+    asyncio.create_task(_refresh_lb())
+
     return {"status": "success", "total_score": total_score}
 
 @router.get("/analytics/{institution_id}/timeline")
@@ -4930,11 +5217,11 @@ async def _background_auto_classify(event_id: str, thresholds: dict, criteria_da
 
             avg_score = sum(score_list) / len(score_list)
             if avg_score <= 0: return
-            pct = round((avg_score / max_possible) * 100, 1) if max_possible > 0 else avg_score
 
-            if pct >= shortlist_min: new_status = "Shortlisted"
-            elif pct >= waitlist_min: new_status = "Waitlisted"
-            elif pct < reject_below: new_status = "Rejected"
+            # Use direct score comparison (not percentage) — thresholds are raw scores
+            if avg_score >= shortlist_min: new_status = "Shortlisted"
+            elif avg_score >= waitlist_min: new_status = "Waitlisted"
+            elif avg_score < reject_below: new_status = "Rejected"
             else: new_status = "Pending Review"
 
             if str(sub_doc.get("status") or "") != new_status or str(sub_doc.get("recommendation") or "") != new_status:

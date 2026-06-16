@@ -1,8 +1,23 @@
 from fastapi import APIRouter, HTTPException, Body, Depends, Query
 from services.submission_service import create_submission, get_all_submissions, get_submission_by_id, update_submission_status
 from typing import List, Optional
-from routes.auth import get_current_user
+from routes.auth import get_current_user, require_role
 from auth_institution import get_auth_user
+
+# --- Cache Implementation ---
+# Simple In-Memory Cache
+_cache = {}
+CACHE_TTL = timedelta(seconds=60)
+
+def get_cache(key: str):
+    if key in _cache:
+        data, timestamp = _cache[key]
+        if datetime.now() - timestamp < CACHE_TTL:
+            return data
+    return None
+
+def set_cache(key: str, data: any):
+    _cache[key] = (data, datetime.now())
 
 router = APIRouter(prefix="/api/submissions", tags=["Submissions"])
 

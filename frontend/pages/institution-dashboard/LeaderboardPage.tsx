@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Trophy, Award, Download, CheckCircle, Search, Filter,
   ChevronDown, ChevronRight, ChevronLeft, Medal, Clock, XCircle,
   X, Mail, Users, Users2
 } from 'lucide-react';
+import { DynamicTableCell, SubmissionDetailsRenderer } from '../../components/leaderboard/DynamicComponents';
 import { API_BASE_URL, authHeaders } from '../../apiConfig';
 import { useAuth } from '../../AuthContext';
 
@@ -17,18 +18,38 @@ interface TeamMember {
 interface Submission {
   team_id: string | null;
   display_name: string;
+  team_name?: string;
   project_title: string;
   solution_description: string;
   score: number;
+  total_score?: number;
   status: string;
   recommendation: string;
   member_count: number;
   members: TeamMember[];
   email: string;
   rank: number;
+  is_verified?: boolean;
   submission_id?: string;
   submitted_at?: string | null;
   data?: Record<string, any>;
+}
+
+interface StageField {
+  field_id: string;
+  label: string;
+  field_type: string;
+}
+
+interface ScoreBand {
+  min: number;
+  label: string;
+  color?: string;
+}
+
+interface LeaderboardConfig {
+  primary_field_id?: string;
+  preview_field_id?: string;
 }
 
 interface LeaderboardResponse {
@@ -36,10 +57,14 @@ interface LeaderboardResponse {
   event_id: string;
   stage_id: string | null;
   counts: Record<string, number>;
-  total_submissions: number;
+  total: number;
+  page: number;
+  limit: number;
   submissions: Submission[];
-  stage_fields?: { field_id: string; label: string; field_type: string }[];
+  stage_fields?: StageField[];
   evaluation_thresholds?: { shortlist_min?: number; waitlist_min?: number; reject_below?: number };
+  leaderboard_config?: LeaderboardConfig;
+  score_bands?: ScoreBand[];
   event_title?: string;
 }
 
@@ -56,49 +81,143 @@ interface EventItem {
   stages?: EventStage[];
 }
 
-const ITEMS_PER_PAGE = 5;
+const PAGE_SIZE_OPTIONS = [5, 10, 25, 50];
+const DEFAULT_PAGE_SIZE = 10;
 
-const getScoreLabel = (score: number): { label: string; color: string } => {
-  if (score >= 90) return { label: 'Outstanding', color: 'text-emerald-600' };
-  if (score >= 80) return { label: 'Excellent', color: 'text-emerald-600' };
-  if (score >= 70) return { label: 'Very Good', color: 'text-blue-600' };
-  if (score >= 60) return { label: 'Good', color: 'text-amber-600' };
-  return { label: 'Needs Work', color: 'text-red-600' };
-};
+const STORAGE_KEY = 'leaderboard_state';
 
-const getStatusStyle = (status: string) => {
-  switch (status?.toLowerCase()) {
-    case 'winner':
-      return { bg: 'bg-emerald-50 text-emerald-700 border border-emerald-200', icon: <Trophy className="w-3.5 h-3.5 mr-1" /> };
-    case 'shortlisted':
-      return { bg: 'bg-blue-50 text-blue-600 border border-blue-200', icon: <Award className="w-3.5 h-3.5 mr-1" /> };
-    case 'waitlisted':
-      return { bg: 'bg-orange-50 text-orange-600 border border-orange-200', icon: <Clock className="w-3.5 h-3.5 mr-1" /> };
-    case 'rejected':
-      return { bg: 'bg-red-50 text-red-600 border border-red-200', icon: <XCircle className="w-3.5 h-3.5 mr-1" /> };
-    default:
-      return { bg: 'bg-slate-100 text-slate-600 border border-slate-200', icon: <Clock className="w-3.5 h-3.5 mr-1" /> };
+function loadPersistedState<T>(key: string, fallback: T): T {
+  try {
+    const raw = sessionStorage.getItem(`${STORAGE_KEY}_${key}`);
+    if (raw !== null) return JSON.parse(raw);
+  } catch {}
+  return fallback;
+}
+
+function persistState(key: string, value: any) {
+  try {
+    sessionStorage.setItem(`${STORAGE_KEY}_${key}`, JSON.stringify(value));
+  } catch {}
+}
+
+// === DYNAMIC RESOLVERS ===
+
+interface ProjectInfo {
+  title: string;
+  preview: string | null;
+  usedFieldIds: string[];
+}
+
+function resolveProjectInfo(
+  row: Submission,
+  fields: StageField[],
+  config: LeaderboardConfig | null
+): ProjectInfo {
+  const data = row.data || {};
+  const usedFieldIds: string[] = [];
+
+  // 1. Use configured primary field
+  if (config?.primary_field_id && data[config.primary_field_id]) {
+    usedFieldIds.push(config.primary_field_id);
+    return { title: String(data[config.primary_field_id]), preview: null, usedFieldIds };
   }
-};
 
-const resolveSubmissionFields = (row: Submission, fields?: { field_id: string; label: string }[]) => {
-    // 1. Title Mapping: Try row.project_title, then dynamic field, then fallback
-    let title = row.project_title || row.data?.project_title || '';
-    if (!title && fields && fields.length > 0) {
-        title = row.data?.[fields[0].field_id] || '';
-    }
+  // 2. Heuristic: find field by label matching common title/key patterns
+  const titleKeywords = /title|name|project|idea|startup|research|topic|theme/i;
+  const titleField = fields.find(
+    f => titleKeywords.test(f.label) && f.field_type !== 'file' && data[f.field_id]
+  );
+  if (titleField) {
+    usedFieldIds.push(titleField.field_id);
+    return { title: String(data[titleField.field_id]), preview: null, usedFieldIds };
+  }
 
-    // 2. Description Mapping: Try row.solution_description, then dynamic field, then fallback
-    let description = row.solution_description || row.data?.solution_description || row.data?.idea_abstract || '';
-    if (!description && fields && fields.length > 1) {
-        description = row.data?.[fields[1].field_id] || '';
-    }
+  // 3. Fallback: first non-file field with data
+  const firstField = fields.find(f => f.field_type !== 'file' && data[f.field_id]);
+  if (firstField) {
+    usedFieldIds.push(firstField.field_id);
+    return { title: String(data[firstField.field_id]), preview: null, usedFieldIds };
+  }
 
-    return {
-        title: title || 'Unnamed Project',
-        description: description || 'No description provided'
-    };
-};
+  return { title: 'Project information unavailable', preview: null, usedFieldIds };
+}
+
+interface ScoreDisplay {
+  score: number;
+  label: string | null;
+  color: string;
+}
+
+function resolveScoreDisplay(
+  score: number | undefined | null,
+  scoreBands: ScoreBand[],
+  thresholds: { shortlist_min?: number; waitlist_min?: number; reject_below?: number } | null
+): ScoreDisplay | null {
+  if (score === undefined || score === null || (typeof score === 'number' && isNaN(score))) {
+    return null;
+  }
+
+  if (scoreBands && scoreBands.length > 0) {
+    const sorted = [...scoreBands].sort((a, b) => b.min - a.min);
+    const band = sorted.find(b => score >= b.min);
+    if (band) return { score, label: band.label, color: band.color || 'text-slate-600' };
+  }
+
+  if (thresholds) {
+    const shortlistMin = thresholds.shortlist_min ?? 70;
+    const waitlistMin = thresholds.waitlist_min ?? 50;
+    if (score >= shortlistMin) return { score, label: 'Outstanding', color: 'text-emerald-600' };
+    if (score >= (shortlistMin + waitlistMin) / 2) return { score, label: 'Very Good', color: 'text-blue-600' };
+    if (score >= waitlistMin) return { score, label: 'Good', color: 'text-amber-600' };
+    return { score, label: 'Needs Improvement', color: 'text-red-600' };
+  }
+
+  return { score, label: null, color: '' };
+}
+
+function resolveStatusBadge(status: string) {
+  if (!status || status.trim() === '') return null;
+  const s = status.toLowerCase();
+  const map: Record<string, { bg: string; icon: React.ReactNode }> = {
+    winner: { bg: 'bg-emerald-50 text-emerald-700 border border-emerald-200', icon: <Trophy className="w-3.5 h-3.5 mr-1" /> },
+    shortlisted: { bg: 'bg-blue-50 text-blue-600 border border-blue-200', icon: <Award className="w-3.5 h-3.5 mr-1" /> },
+    waitlisted: { bg: 'bg-orange-50 text-orange-600 border border-orange-200', icon: <Clock className="w-3.5 h-3.5 mr-1" /> },
+    rejected: { bg: 'bg-red-50 text-red-600 border border-red-200', icon: <XCircle className="w-3.5 h-3.5 mr-1" /> },
+    pending: { bg: 'bg-yellow-50 text-yellow-700 border border-yellow-200', icon: <Clock className="w-3.5 h-3.5 mr-1" /> },
+    qualified: { bg: 'bg-green-50 text-green-700 border border-green-200', icon: <CheckCircle className="w-3.5 h-3.5 mr-1" /> },
+    finalist: { bg: 'bg-purple-50 text-purple-700 border border-purple-200', icon: <Award className="w-3.5 h-3.5 mr-1" /> },
+    'runner-up': { bg: 'bg-indigo-50 text-indigo-700 border border-indigo-200', icon: <Award className="w-3.5 h-3.5 mr-1" /> },
+  };
+  return map[s] || { bg: 'bg-slate-100 text-slate-600 border border-slate-200', icon: <Clock className="w-3.5 h-3.5 mr-1" /> };
+}
+
+function resolveRecommendation(row: Submission): string | null {
+  const data = row.data || {};
+  const raw = row.recommendation || '';
+  const autoLabels = new Set(['shortlisted','waitlisted','rejected','pending review','pending','shortlist','waitlist','reject','hold']);
+  const rec = autoLabels.has(raw.toLowerCase().trim()) ? '' : raw;
+  return rec || data.evaluation_summary || data.ai_evaluation || data.ai_evaluation_summary || data.organizer_recommendation || data.judge_feedback || null;
+}
+
+interface TeamInfo {
+  name: string;
+  subtitle: string;
+  isVerified: boolean;
+}
+
+function resolveTeamInfo(row: Submission): TeamInfo {
+  const teamName = row.display_name || row.team_name || 'Unnamed Team';
+  const members = row.members || [];
+  const memberCount = row.member_count || members.length;
+  const leader = members.find(m => m.role === 'Lead' || m.role === 'leader') || members[0] || null;
+
+  let subtitle = '';
+  if (leader && memberCount > 1) subtitle = `${leader.name} + ${memberCount - 1} Members`;
+  else if (leader) subtitle = leader.name || '1 Member';
+  else if (memberCount > 0) subtitle = `${memberCount} Member${memberCount > 1 ? 's' : ''}`;
+
+  return { name: teamName, subtitle, isVerified: !!row.is_verified };
+}
 
 const renderRank = (rank: number) => {
   if (rank === 1) return <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center border border-yellow-300 shadow-sm"><Medal className="w-5 h-5 text-yellow-600" /></div>;
@@ -109,14 +228,15 @@ const renderRank = (rank: number) => {
 
 export default function LiveResultsDashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('All');
+  const [activeTab, setActiveTab] = useState(() => loadPersistedState('activeTab', 'All'));
   const [events, setEvents] = useState<EventItem[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
-  const [selectedStage, setSelectedStage] = useState<EventStage | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(() => loadPersistedState('selectedEvent', null));
+  const [selectedStage, setSelectedStage] = useState<EventStage | null>(() => loadPersistedState('selectedStage', null));
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState(() => loadPersistedState('searchTerm', ''));
+  const [currentPage, setCurrentPage] = useState(() => loadPersistedState('currentPage', 1));
+  const [pageSize, setPageSize] = useState(() => loadPersistedState('pageSize', DEFAULT_PAGE_SIZE));
   const [selectedTeam, setSelectedTeam] = useState<Submission | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
@@ -134,7 +254,20 @@ export default function LiveResultsDashboard() {
           const data = await res.json();
           const eventsArray = Array.isArray(data) ? data : [];
           setEvents(eventsArray);
-          // Removed automatic event selection here
+
+          // Restore full event/stage objects from persisted IDs
+          const savedEvent = loadPersistedState('selectedEvent', null);
+          const savedStage = loadPersistedState('selectedStage', null);
+          if (savedEvent?._id) {
+            const match = eventsArray.find((e: any) => e._id === savedEvent._id);
+            if (match) {
+              setSelectedEvent(match);
+              if (savedStage?.id) {
+                const stageMatch = (match.stages || []).find((s: any) => s.id === savedStage.id);
+                if (stageMatch) setSelectedStage(stageMatch);
+              }
+            }
+          }
         }
       } catch (e) {
         console.error('Error fetching events:', e);
@@ -153,21 +286,29 @@ export default function LiveResultsDashboard() {
   useEffect(() => {
     if (!selectedEvent || !selectedStage) return;
     const fetchBoard = async () => {
-      if (!selectedEvent || !selectedStage) return;
-      if (!leaderboardData) setLoading(true);
+      setLoading(true);
       
-      const url = `${API_BASE_URL}/api/v1/institution/leaderboard/${selectedEvent._id}/integrated?stage_id=${selectedStage.id}&institution_id=${user?.institution_id}`;
-      console.log("DEBUG: Fetching leaderboard with URL:", url);
+      const params = new URLSearchParams({
+        stage_id: selectedStage.id,
+        institution_id: user?.institution_id || '',
+        page: String(currentPage),
+        limit: String(pageSize),
+        status: activeTab,
+      });
+      if (searchTerm.trim()) {
+        params.set('search', searchTerm.trim());
+      }
+      
+      const url = `${API_BASE_URL}/api/v1/institution/leaderboard/${selectedEvent._id}/integrated?${params}`;
       
       try {
         const res = await fetch(url, { headers: authHeaders() });
         const json = await res.json();
-        console.log("DEBUG: Leaderboard API response:", json);
         
         if (res.ok) {
           setLeaderboardData(json);
         } else {
-          console.error("DEBUG: Leaderboard API error:", json);
+          console.error("Leaderboard API error:", json);
         }
       } catch (e) {
         console.error('Error fetching leaderboard:', e);
@@ -176,7 +317,17 @@ export default function LiveResultsDashboard() {
       }
     };
     fetchBoard();
-  }, [selectedEvent, selectedStage, user?.institution_id]);
+  }, [selectedEvent, selectedStage, user?.institution_id, currentPage, activeTab, searchTerm, pageSize]);
+
+  // Persist leaderboard state across tab switches
+  useEffect(() => {
+    persistState('activeTab', activeTab);
+    persistState('searchTerm', searchTerm);
+    persistState('currentPage', currentPage);
+    persistState('pageSize', pageSize);
+    persistState('selectedEvent', selectedEvent ? { _id: selectedEvent._id, title: selectedEvent.title, status: selectedEvent.status, stages: selectedEvent.stages } : null);
+    persistState('selectedStage', selectedStage ? { id: selectedStage.id, name: selectedStage.name, type: selectedStage.type } : null);
+  }, [activeTab, searchTerm, currentPage, pageSize, selectedEvent, selectedStage]);
 
   const counts = leaderboardData?.counts || {};
   const submissions = leaderboardData?.submissions || [];
@@ -184,22 +335,10 @@ export default function LiveResultsDashboard() {
   // Helper to handle both casing
   const getCount = (key: string) => (counts as any)[key] || (counts as any)[key.toLowerCase()] || 0;
 
-  const filteredSubmissions = useMemo(() => {
-    return submissions
-      .filter((s) => {
-        const matchesTab = activeTab === 'All' || s.status === activeTab;
-        const matchesSearch = s.display_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          s.project_title?.toLowerCase().includes(searchTerm.toLowerCase());
-        return matchesTab && matchesSearch;
-      })
-      .sort((a, b) => a.rank - b.rank);
-  }, [submissions, activeTab, searchTerm]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredSubmissions.length / ITEMS_PER_PAGE));
-  const paginatedSubmissions = filteredSubmissions.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  // Server handles all filtering and pagination
+  const paginatedSubmissions = submissions;
+  const totalFiltered = leaderboardData?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
 
   const thresholds = leaderboardData?.evaluation_thresholds || {};
   const shortlistMin = thresholds.shortlist_min ?? 70;
@@ -208,9 +347,9 @@ export default function LiveResultsDashboard() {
 
   const summaryCards = [
     { title: 'Total Teams', value: String(getCount('Total')), subtext: 'Registered', icon: <Trophy className="w-5 h-5 text-yellow-600" />, bgColor: 'bg-yellow-50', iconBg: 'bg-yellow-100' },
-    { title: 'Shortlisted', value: String(getCount('Shortlisted')), subtext: `Min. ${shortlistMin}%`, icon: <CheckCircle className="w-5 h-5 text-emerald-600" />, bgColor: 'bg-emerald-50', iconBg: 'bg-emerald-100' },
-    { title: 'Waitlisted', value: String(getCount('Waitlisted')), subtext: `Min. ${waitlistMin}%`, icon: <Clock className="w-5 h-5 text-blue-600" />, bgColor: 'bg-blue-50', iconBg: 'bg-blue-100' },
-    { title: 'Rejected', value: String(getCount('Rejected')), subtext: `Below ${rejectBelow}%`, icon: <XCircle className="w-5 h-5 text-red-600" />, bgColor: 'bg-red-50', iconBg: 'bg-red-100' },
+    { title: 'Shortlisted', value: String(getCount('Shortlisted')), subtext: `Min. ${shortlistMin}`, icon: <CheckCircle className="w-5 h-5 text-emerald-600" />, bgColor: 'bg-emerald-50', iconBg: 'bg-emerald-100' },
+    { title: 'Waitlisted', value: String(getCount('Waitlisted')), subtext: `Min. ${waitlistMin}`, icon: <Clock className="w-5 h-5 text-blue-600" />, bgColor: 'bg-blue-50', iconBg: 'bg-blue-100' },
+    { title: 'Rejected', value: String(getCount('Rejected')), subtext: `Below ${rejectBelow}`, icon: <XCircle className="w-5 h-5 text-red-600" />, bgColor: 'bg-red-50', iconBg: 'bg-red-100' },
   ];
 
   const tabs = [
@@ -410,22 +549,48 @@ export default function LiveResultsDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1000px] text-left border-collapse table-fixed">
                   <thead>
-                    <tr className="border-b border-slate-200 text-xs font-semibold text-slate-800 bg-white">
-                      <th className="py-4 px-6 w-20">Rank</th>
-                      <th className="py-4 px-6 w-1/4">Team / Participant</th>
-                      <th className="py-4 px-6 w-1/4">Project / Idea</th>
-                      <th className="py-4 px-6 w-32">
-                        Final Score{' '}
-                      </th>
+                    <tr className="border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider bg-slate-50">
+                      <th className="py-4 px-6 w-20 text-center">Rank</th>
+                      <th className="py-4 px-6 w-1/5">Team</th>
+                      <th className="py-4 px-6 w-1/5">Project / Idea</th>
+                      {/* Dynamic columns — text fields only, excludes title/preview */}
+                      {(leaderboardData?.stage_fields || []).filter(f => {
+                        if (f.field_type === 'file') return false;
+                        const cfg = leaderboardData?.leaderboard_config || {};
+                        if (cfg.primary_field_id && f.field_id === cfg.primary_field_id) return false;
+                        if (cfg.preview_field_id && f.field_id === cfg.preview_field_id) return false;
+                        if (!cfg.primary_field_id) {
+                          const titleKw = /title|name|project|idea|startup|research|topic|theme/i;
+                          if (titleKw.test(f.label)) return false;
+                          const prevKw = /description|abstract|problem|solution|summary|overview|details/i;
+                          if (prevKw.test(f.label)) return false;
+                        }
+                        return true;
+                      }).map((field) => (
+                        <th key={field.field_id} className="py-4 px-6 w-32">{field.label}</th>
+                      ))}
+                      <th className="py-4 px-6 w-32">Final Score</th>
                       <th className="py-4 px-6 w-32">Status</th>
-                      <th className="py-4 px-6 w-1/4">Recommendation</th>
+                      <th className="py-4 px-6 w-1/5">Recommendation</th>
                       <th className="py-4 px-6 w-24" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-sm">
                     {paginatedSubmissions.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-24 text-center">
+                        <td colSpan={7 + (leaderboardData?.stage_fields?.filter(f => {
+                          if (f.field_type === 'file') return false;
+                          const cfg = leaderboardData?.leaderboard_config || {};
+                          if (cfg.primary_field_id && f.field_id === cfg.primary_field_id) return false;
+                          if (cfg.preview_field_id && f.field_id === cfg.preview_field_id) return false;
+                          if (!cfg.primary_field_id) {
+                            const titleKw = /title|name|project|idea|startup|research|topic|theme/i;
+                            if (titleKw.test(f.label)) return false;
+                            const prevKw = /description|abstract|problem|solution|summary|overview|details/i;
+                            if (prevKw.test(f.label)) return false;
+                          }
+                          return true;
+                        }).length || 0)} className="py-24 text-center">
                           <div className="flex flex-col items-center space-y-2">
                             <Search className="w-8 h-8 text-slate-300" />
                             <p className="text-sm font-medium text-slate-500">No submissions found</p>
@@ -435,67 +600,113 @@ export default function LiveResultsDashboard() {
                       </tr>
                     ) : (
                       paginatedSubmissions.map((row) => {
-                        console.log("DEBUG: Rendering submission row:", { 
-                            row, 
-                            project_title: row.project_title, 
-                            data_project_title: row.data?.project_title,
-                            solution_description: row.solution_description,
-                            data_solution_description: row.data?.solution_description,
-                            data_idea_abstract: row.data?.idea_abstract,
-                            score: row.score
+                        const stageFields = leaderboardData?.stage_fields || [];
+                        const cfg = leaderboardData?.leaderboard_config || {};
+                        const scoreBands = leaderboardData?.score_bands || [];
+                        const thresholds = leaderboardData?.evaluation_thresholds || null;
+
+                        const projectInfo = resolveProjectInfo(row, stageFields, leaderboardData?.leaderboard_config || null);
+                        const scoreDisplay = resolveScoreDisplay(row.score, scoreBands, thresholds);
+                        const statusBadge = resolveStatusBadge(row.status);
+                        const recommendation = resolveRecommendation(row);
+                        const teamInfo = resolveTeamInfo(row);
+
+                        // Dynamic columns = text fields only, excluding title/preview fields (same for all rows)
+                        const dynamicFields = stageFields.filter(f => {
+                          if (f.field_type === 'file') return false;
+                          if (cfg.primary_field_id && f.field_id === cfg.primary_field_id) return false;
+                          if (cfg.preview_field_id && f.field_id === cfg.preview_field_id) return false;
+                          if (!cfg.primary_field_id) {
+                            const titleKw = /title|name|project|idea|startup|research|topic|theme/i;
+                            if (titleKw.test(f.label)) return false;
+                            const prevKw = /description|abstract|problem|solution|summary|overview|details/i;
+                            if (prevKw.test(f.label)) return false;
+                          }
+                          return true;
                         });
-                        const { title, description } = resolveSubmissionFields(row, leaderboardData?.stage_fields);
-                        const scoreInfo = getScoreLabel(row.score);
-                        const statusStyle = getStatusStyle(row.status);
+
                         return (
                           <tr key={row.team_id || row.rank} className="hover:bg-slate-50 transition-colors">
-                            <td className="py-4 px-6 truncate flex items-center justify-center">
+                            <td className="py-4 px-6 text-center">
                               {renderRank(row.rank)}
                             </td>
-                            <td className="py-4 px-6 truncate">
+                            <td className="py-4 px-6">
                               <div className="flex items-center space-x-2 mb-1">
-                                <span className="font-bold text-slate-900 truncate">
-                                  {row.display_name || row.team_name || 'Unnamed Team'}
-                                </span>
-                                {row.is_verified && <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-[#4f46e5]">Verified</span>}
-                              </div>
-                              <div className="flex items-center text-xs text-slate-500 truncate">
-                                <Users2 className="w-3.5 h-3.5 mr-1.5" />
-                                {row.member_count > 0 ? `${row.member_count} members` : 'Individual'}
-                              </div>
-                            </td>
-                            <td className="py-4 px-6 truncate">
-                              <div className="font-semibold text-slate-800 mb-1 truncate">
-                                {title}
-                              </div>
-                              <div className="text-xs text-slate-500 truncate">
-                                {description}
-                              </div>
-                            </td>
-                            <td className="py-4 px-6 truncate">
-                              <div className="flex flex-col">
-                                <span className="font-bold text-lg text-slate-900">{row.score?.toFixed(1) || '0.0'}</span>
-                                <span className={`text-xs font-medium ${scoreInfo.color}`}>{scoreInfo.label}</span>
-                              </div>
-                            </td>
-                            <td className="py-4 px-6 truncate">
-                              <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold ${statusStyle.bg}`}>
-                                {statusStyle.icon}
-                                {row.status}
-                              </span>
-                            </td>
-                            <td className="py-4 px-6 text-xs text-slate-600 truncate">
-                              <span className="truncate">{row.recommendation}</span>
-                            </td>
-                            <td className="py-4 px-6 text-right truncate">
-                              <div className="flex justify-end min-w-[100px]">
                                 <button
-                                  onClick={() => { console.log('Row Data:', row); setSelectedTeam(row); }}
-                                  className="inline-flex items-center justify-center px-6 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 shadow-sm transition-all whitespace-nowrap"
+                                  onClick={() => setSelectedTeam(row)}
+                                  className="font-bold text-slate-900 hover:text-[#4f46e5] transition-colors text-left"
                                 >
-                                  View Details
+                                  {teamInfo.name}
                                 </button>
+                                {teamInfo.isVerified && (
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-[#4f46e5]">Verified</span>
+                                )}
                               </div>
+                              {teamInfo.subtitle && (
+                                <div className="text-xs text-slate-500">{teamInfo.subtitle}</div>
+                              )}
+                            </td>
+                            <td className="py-4 px-6">
+                              <div className="font-bold text-slate-900">{projectInfo.title}</div>
+                            </td>
+                            {dynamicFields.map((field) => (
+                              <td key={field.field_id} className="py-4 px-6">
+                                <DynamicTableCell value={row.data?.[field.field_id]} fieldType={field.field_type} />
+                              </td>
+                            ))}
+                            <td className="py-4 px-6">
+                              {scoreDisplay ? (
+                                <div className="flex flex-col">
+                                  <span className="text-lg font-bold text-slate-900">{scoreDisplay.score.toFixed(1)}</span>
+                                  {scoreDisplay.label && (
+                                    <span className={`text-xs font-semibold ${scoreDisplay.color}`}>{scoreDisplay.label}</span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-sm text-slate-400 italic">Not Evaluated</span>
+                              )}
+                            </td>
+                            <td className="py-4 px-6">
+                              {statusBadge ? (
+                                <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold ${statusBadge.bg}`}>
+                                  {statusBadge.icon}
+                                  {row.status}
+                                </span>
+                              ) : (
+                                <span className="text-sm text-slate-400 italic">Not Evaluated</span>
+                              )}
+                            </td>
+                            <td className="py-4 px-6 text-xs text-slate-600 max-w-[200px]">
+                              {Array.isArray(row.judges_feedback) && row.judges_feedback.length > 0 ? (
+                                <div className="flex flex-col gap-1.5">
+                                  {row.judges_feedback.slice(0, 2).map((fb: any, fbi: number) => (
+                                    <div key={fbi} className="bg-slate-50 rounded-lg p-2 border border-slate-100">
+                                      <div className="flex items-center justify-between gap-1">
+                                        <span className="text-[9px] font-bold text-slate-500 truncate">{fb.judge_name || fb.judge_email || 'Judge'}</span>
+                                        <span className="text-[10px] font-bold text-indigo-600 shrink-0">{typeof fb.score === 'number' ? fb.score.toFixed(1) : fb.score}</span>
+                                      </div>
+                                      {fb.feedback ? (
+                                        <p className="text-[10px] text-slate-600 mt-0.5 line-clamp-2 leading-relaxed">{fb.feedback}</p>
+                                      ) : null}
+                                    </div>
+                                  ))}
+                                  {row.judges_feedback.length > 2 && (
+                                    <span className="text-[9px] font-semibold text-slate-400 italic">+{row.judges_feedback.length - 2} more</span>
+                                  )}
+                                </div>
+                              ) : recommendation ? (
+                                <span className="line-clamp-2">{recommendation}</span>
+                              ) : (
+                                <span className="text-slate-400 italic">No recommendation available</span>
+                              )}
+                            </td>
+                            <td className="py-4 px-6 text-right">
+                              <button
+                                onClick={() => setSelectedTeam(row)}
+                                className="inline-flex items-center justify-center px-4 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 shadow-sm transition-all"
+                              >
+                                View Details
+                              </button>
                             </td>
                           </tr>
                         );
@@ -507,8 +718,22 @@ export default function LiveResultsDashboard() {
 
               {/* Pagination */}
               <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-white">
-                <div className="text-sm text-slate-500">
-                  Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredSubmissions.length)} of {filteredSubmissions.length} entries
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <label className="text-xs text-slate-500 font-medium">Per page</label>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                      className="border border-slate-200 rounded-lg text-sm py-1.5 px-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                    >
+                      {PAGE_SIZE_OPTIONS.map((size) => (
+                        <option key={size} value={size}>{size}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="text-sm text-slate-500">
+                    Showing {totalFiltered > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} to {Math.min(currentPage * pageSize, totalFiltered)} of {totalFiltered} entries
+                  </div>
                 </div>
                 <div className="flex items-center space-x-1">
                   <button
@@ -567,59 +792,90 @@ export default function LiveResultsDashboard() {
           )}
         </div>
 
-      {/* View Details Modal */}
-      {selectedTeam && (
+      {/* View Details Modal — Fully Dynamic */}
+      {selectedTeam && (() => {
+        const stageFields = leaderboardData?.stage_fields || [];
+        const data = selectedTeam.data || {};
+        const teamInfo = resolveTeamInfo(selectedTeam);
+        const scoreDisplay = resolveScoreDisplay(selectedTeam.score, leaderboardData?.score_bands || [], leaderboardData?.evaluation_thresholds || null);
+        const statusBadge = resolveStatusBadge(selectedTeam.status);
+        const recommendation = resolveRecommendation(selectedTeam);
+
+        const hasSubmissionData = stageFields.some(f => data[f.field_id] !== undefined && data[f.field_id] !== null && data[f.field_id] !== '');
+        const hasScoreData = scoreDisplay !== null;
+        const hasStatusData = statusBadge !== null;
+        const hasRecData = recommendation !== null;
+
+        return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-y-auto max-h-[90vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900">Team Details</h3>
+              <h3 className="text-lg font-bold text-slate-900">{teamInfo.name}</h3>
               <button onClick={() => setSelectedTeam(null)} className="p-1 rounded-lg hover:bg-slate-100 transition-colors">
                 <X className="w-5 h-5 text-slate-500" />
               </button>
             </div>
-            <div className="p-6 space-y-5">
+            <div className="p-6 space-y-6">
+
+              {/* Header: Rank + Team Info */}
               <div className="flex items-center space-x-4">
                 <div className="w-14 h-14 rounded-full bg-indigo-50 flex items-center justify-center border border-indigo-200">
                   <Users className="w-6 h-6 text-[#4f46e5]" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-lg text-slate-900">{selectedTeam.display_name}</h4>
+                  <h4 className="font-bold text-lg text-slate-900">{teamInfo.name}</h4>
                   <div className="flex items-center space-x-2 text-sm text-slate-500">
                     <Award className="w-4 h-4" />
                     <span>Rank #{selectedTeam.rank}</span>
                   </div>
+                  {teamInfo.subtitle && <p className="text-xs text-slate-400 mt-0.5">{teamInfo.subtitle}</p>}
                 </div>
               </div>
 
-              <div className="bg-slate-50 rounded-xl p-4 space-y-3">
+              {/* Submission Data Section — dynamically rendered from stage fields */}
+              {hasSubmissionData && (
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Project</p>
-                  <p className="font-semibold text-slate-900">{selectedTeam.project_title}</p>
-                </div>
-                {selectedTeam.solution_description && (
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Description</p>
-                    <p className="text-sm text-slate-700">{selectedTeam.solution_description}</p>
-                  </div>
-                )}
-                <div className="flex items-center space-x-6">
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Score</p>
-                    <p className="font-bold text-xl text-slate-900">{selectedTeam.score?.toFixed(1)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</p>
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold ${getStatusStyle(selectedTeam.status).bg}`}>
-                      {getStatusStyle(selectedTeam.status).icon}
-                      {selectedTeam.status}
-                    </span>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Submission Details</p>
+                  <div className="bg-slate-50 rounded-xl p-4 space-y-3">
+                    <SubmissionDetailsRenderer
+                      data={data}
+                      fields={stageFields}
+                    />
                   </div>
                 </div>
-              </div>
+              )}
 
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Team Members ({selectedTeam.member_count})</p>
-                {selectedTeam.members && selectedTeam.members.length > 0 ? (
+              {/* Evaluation Section — only if score or status data exists */}
+              {(hasScoreData || hasStatusData) && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Evaluation</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {hasScoreData && (
+                      <div className="bg-white border border-slate-100 rounded-lg p-3">
+                        <p className="text-xs font-medium text-slate-400">Final Score</p>
+                        <p className="text-xl font-bold text-slate-900">{scoreDisplay!.score.toFixed(1)}</p>
+                        {scoreDisplay!.label && <p className={`text-xs font-semibold ${scoreDisplay!.color}`}>{scoreDisplay!.label}</p>}
+                      </div>
+                    )}
+                    {hasStatusData && (
+                      <div className="bg-white border border-slate-100 rounded-lg p-3">
+                        <p className="text-xs font-medium text-slate-400">Status</p>
+                        <div className="mt-1">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold ${statusBadge!.bg}`}>
+                            {statusBadge!.icon}
+                            {selectedTeam.status}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Team Members Section */}
+              {selectedTeam.members && selectedTeam.members.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Team Members ({selectedTeam.member_count})</p>
                   <div className="space-y-2">
                     {selectedTeam.members.map((m, i) => (
                       <div key={i} className="flex items-center space-x-3 bg-white border border-slate-100 rounded-lg p-3">
@@ -634,24 +890,36 @@ export default function LiveResultsDashboard() {
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <div className="flex items-center space-x-3 bg-white border border-slate-100 rounded-lg p-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">
-                      {selectedTeam.display_name?.charAt(0) || '?'}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">{selectedTeam.display_name}</p>
-                      {selectedTeam.email && <p className="text-xs text-slate-500 flex items-center"><Mail className="w-3 h-3 mr-1" />{selectedTeam.email}</p>}
-                    </div>
-                    <span className="text-xs font-medium text-slate-400 ml-auto">Individual</span>
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
 
-              {selectedTeam.recommendation && selectedTeam.recommendation !== '—' && (
+              {/* Judge Feedback Section */}
+              {Array.isArray(selectedTeam.judges_feedback) && selectedTeam.judges_feedback.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Judge Feedback</p>
+                  <div className="space-y-2">
+                    {selectedTeam.judges_feedback.map((fb: any, fbi: number) => (
+                      <div key={fbi} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-bold text-slate-600">{fb.judge_name || fb.judge_email || 'Judge'}</span>
+                          <span className="text-xs font-bold text-indigo-600">{typeof fb.score === 'number' ? fb.score.toFixed(1) : fb.score}</span>
+                        </div>
+                        {fb.feedback ? (
+                          <p className="text-sm text-slate-700 leading-relaxed">{fb.feedback}</p>
+                        ) : (
+                          <p className="text-xs text-slate-400 italic">No feedback provided</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recommendation Section */}
+              {hasRecData && (
                 <div>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Recommendation</p>
-                  <p className="text-sm text-slate-700 bg-slate-50 rounded-lg p-3 border border-slate-100">{selectedTeam.recommendation}</p>
+                  <p className="text-sm text-slate-700 bg-slate-50 rounded-lg p-3 border border-slate-100">{recommendation}</p>
                 </div>
               )}
             </div>
@@ -665,7 +933,8 @@ export default function LiveResultsDashboard() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Toast Notification */}
       {toast && (

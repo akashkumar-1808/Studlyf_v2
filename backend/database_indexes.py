@@ -38,10 +38,30 @@ class DatabaseIndexManager:
             # Email deliveries collection
             await self._create_email_indexes()
             
+            # Submission collections
+            await self._create_submission_indexes()
+            
             # Audit logs collection
             await self._create_audit_logs_indexes()
             
             logger.info("All indexes created successfully")
+
+    async def _create_submission_indexes(self):
+        """Indexes for submission collections"""
+        subs = self.db.submissions
+        sub_data = self.db.submission_data
+
+        # Indexing for lookup speed
+        for col in [subs, sub_data]:
+            await col.create_index([("event_id", ASCENDING)])
+            await col.create_index([("stage_id", ASCENDING)])
+            await col.create_index([("team_id", ASCENDING)])
+            await col.create_index([("user_id", ASCENDING)])
+            await col.create_index([("status", ASCENDING)])
+            # Compound index for filtered queries
+            await col.create_index([("event_id", ASCENDING), ("stage_id", ASCENDING)])
+            
+        logger.info("✓ Submission indexes created")
         
         except Exception as e:
             logger.error(f"Error creating indexes: {e}")

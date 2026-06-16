@@ -385,12 +385,12 @@ async def get_event_hub_data(event_id: str, user: dict = Depends(get_auth_user))
             sub_query["user_id"] = uid
             
         latest_sub = await submissions_col.find_one(sub_query, sort=[("submitted_at", -1)])
-        if latest_sub and latest_sub.get("status") == "Evaluated":
+        if latest_sub and latest_sub.get("status") in ("Evaluated", "Reviewed", "Scored", "Scoring", "Shortlisted", "Waitlisted"):
             is_evaluated = True
             evaluation_data = {
-                "score": latest_sub.get("total_score"),
-                "feedback": latest_sub.get("evaluator_feedback"),
-                "evaluated_at": latest_sub.get("evaluated_at")
+                "score": latest_sub.get("total_score") or latest_sub.get("evaluation_score"),
+                "feedback": latest_sub.get("evaluator_feedback") or latest_sub.get("feedback"),
+                "evaluated_at": latest_sub.get("evaluated_at") or latest_sub.get("last_evaluated_at")
             }
         else:
             # Fallback to legacy scores_col
@@ -510,15 +510,15 @@ async def get_event_dashboard_data(
         raise HTTPException(status_code=500, detail=f"Error gathering data: {str(e)}")
 
     def _score_sum(sc: dict) -> float:
+        total = sc.get("total_score")
+        if total is not None:
+            return float(total)
         rubric = sc.get("scores") or sc.get("criteria_scores") or {}
         if isinstance(rubric, dict) and rubric:
             try:
                 return sum(float(v) for v in rubric.values())
             except (TypeError, ValueError):
                 pass
-        total = sc.get("total_score")
-        if total is not None:
-            return float(total)
         score = sc.get("score")
         return float(score) if score is not None else 0.0
 
@@ -538,22 +538,91 @@ async def get_event_dashboard_data(
             or_sub.append({"submission_id": ObjectId(sid)})
         except Exception:
             pass
-        if tid:
-            or_sub.append({"team_id": tid})
         totals = []
+        judges_feedback = []
         async for sc in scores_col.find({"$or": or_sub}):
-            totals.append(_score_sum(sc))
-        if totals:
-            row["total_score"] = round(sum(totals) / len(totals), 1)
+            judge_id = str(sc.get("judge_id") or "").strip()
+            judge_email = str(sc.get("judge_email") or "").strip().lower()
+            score_val = _score_sum(sc)
+            # Check if this judge (by either ID or email) already has feedback
+            found_idx = None
+            for idx, entry in enumerate(judges_feedback):
+                if (judge_id and entry.get("judge_id") == judge_id) or (judge_email and entry.get("judge_email") == judge_email):
+                    found_idx = idx
+                    break
+            if found_idx is not None:
+                judges_feedback[found_idx]["score"] = score_val
+                judges_feedback[found_idx]["feedback"] = sc.get("feedback") or sc.get("comments") or ""
+                judges_feedback[found_idx]["comments"] = sc.get("comments") or sc.get("feedback") or ""
+            else:
+                judges_feedback.append({
+                    "judge_name": sc.get("judge_name") or sc.get("judge") or "",
+                    "judge_email": sc.get("judge_email") or "",
+                    "judge_id": sc.get("judge_id") or "",
+                    "feedback": sc.get("feedback") or sc.get("comments") or "",
+                    "comments": sc.get("comments") or sc.get("feedback") or "",
+                    "score": score_val,
+                })
+        # Keep only the highest-scoring judge feedback (single judge per submission)
+        if judges_feedback:
+            judges_feedback.sort(key=lambda fb: fb.get("score", 0), reverse=True)
+            judges_feedback = judges_feedback[:1]
+            row["total_score"] = judges_feedback[0]["score"]
         elif row.get("total_score") is not None:
             row["total_score"] = float(row["total_score"])
+        row["judges_feedback"] = judges_feedback
         assigned = row.get("assigned_judges") or []
         if assigned and not row.get("assigned_judge_id"):
             first = assigned[0] if isinstance(assigned[0], dict) else {}
             row["assigned_judge_id"] = first.get("judge_id") or ""
         enriched_stage_submissions.append(row)
 
-    for collection_rows in (participants, quizzes, teams, submissions):
+    # Enrich regular submissions with average scores from scores_col
+    enriched_submissions = []
+    for doc in submissions:
+        row = dict(doc)
+        sid = str(row.get("_id", ""))
+        row["_id"] = sid
+        or_sub = [{"submission_id": sid}]
+        try:
+            or_sub.append({"submission_id": ObjectId(sid)})
+        except Exception:
+            pass
+        totals = []
+        judges_feedback = []
+        seen_judges = set()
+        async for sc in scores_col.find({"$or": or_sub}):
+            judge_id = str(sc.get("judge_id") or "").strip()
+            judge_email = str(sc.get("judge_email") or "").strip().lower()
+            dedup_key = judge_id or judge_email
+            score_val = _score_sum(sc)
+            if dedup_key:
+                if dedup_key in seen_judges:
+                    for entry in judges_feedback:
+                        if entry.get("judge_id") == judge_id or entry.get("judge_email") == judge_email:
+                            entry["score"] = score_val
+                            entry["feedback"] = sc.get("feedback") or sc.get("comments") or ""
+                            entry["comments"] = sc.get("comments") or sc.get("feedback") or ""
+                            break
+                    continue
+                seen_judges.add(dedup_key)
+            totals.append(score_val)
+            judges_feedback.append({
+                "judge_name": sc.get("judge_name") or sc.get("judge") or "",
+                "judge_email": sc.get("judge_email") or "",
+                "judge_id": sc.get("judge_id") or "",
+                "feedback": sc.get("feedback") or sc.get("comments") or "",
+                "comments": sc.get("comments") or sc.get("feedback") or "",
+                "score": score_val,
+            })
+        if totals:
+            row["total_score"] = round(sum(totals) / len(totals), 1)
+        elif row.get("total_score") is not None:
+            row["total_score"] = float(row["total_score"])
+        row["judges_feedback"] = judges_feedback
+        enriched_submissions.append(row)
+
+    for collection_rows in (participants, quizzes, teams):
         for row in collection_rows:
             if row.get("_id"):
                 row["_id"] = str(row["_id"])
@@ -563,7 +632,7 @@ async def get_event_dashboard_data(
         "participants": participants,
         "quizzes": quizzes,
         "teams": teams,
-        "submissions": submissions,
+        "submissions": enriched_submissions,
         "stage_submissions": enriched_stage_submissions,
         "counts": {
             "participants": counts[0],

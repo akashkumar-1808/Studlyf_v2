@@ -268,9 +268,9 @@ const EvaluationPage: React.FC = () => {
 
                     {submission.thresholds && (
                         <div className="mb-6 grid grid-cols-3 gap-3 text-center text-xs">
-                            <div className="p-3 bg-emerald-50 rounded-xl"><span className="font-black text-emerald-700">Shortlist ≥ {submission.thresholds.shortlist_min}%</span></div>
-                            <div className="p-3 bg-amber-50 rounded-xl"><span className="font-black text-amber-700">Waitlist ≥ {submission.thresholds.waitlist_min}%</span></div>
-                            <div className="p-3 bg-red-50 rounded-xl"><span className="font-black text-red-700">Reject &lt; {submission.thresholds.reject_below}%</span></div>
+                            <div className="p-3 bg-emerald-50 rounded-xl"><span className="font-black text-emerald-700">Shortlist ≥ {submission.thresholds.shortlist_min}</span></div>
+                            <div className="p-3 bg-amber-50 rounded-xl"><span className="font-black text-amber-700">Waitlist ≥ {submission.thresholds.waitlist_min}</span></div>
+                            <div className="p-3 bg-red-50 rounded-xl"><span className="font-black text-red-700">Reject &lt; {submission.thresholds.reject_below}</span></div>
                         </div>
                     )}
 

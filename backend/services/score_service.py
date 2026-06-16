@@ -27,25 +27,39 @@ async def submit_score(submission_id: str, judge_id: str, scores: dict, comments
         upsert=True
     )
     
-    # Update submission with the score — try submission_data_col first, then legacy submissions_col
+    # Update submission_data_col with the score
     from db import submission_data_col
-    updated = False
     try:
-        res = await submission_data_col.update_one(
+        await submission_data_col.update_one(
             {"_id": ObjectId(submission_id)},
             {"$set": {"total_score": rubric_sum, "status": "Scored", "evaluation_score": rubric_sum}},
         )
-        updated = res.matched_count > 0
     except Exception:
         pass
-    if not updated:
-        try:
-            await submissions_col.update_one(
-                {"_id": ObjectId(submission_id)},
-                {"$set": {"status": "Reviewed", "total_score": rubric_sum, "assigned_judge_id": judge_id}},
-            )
-        except Exception:
-            pass
+
+    # Always update legacy submissions_col too (for EventHub + legacy endpoints)
+    try:
+        await submissions_col.update_one(
+            {"_id": ObjectId(submission_id)},
+            {"$set": {"status": "Reviewed", "total_score": rubric_sum, "assigned_judge_id": judge_id}},
+        )
+    except Exception:
+        pass
+
+    # Also update hackathon_submissions_col if this submission exists there
+    try:
+        from db import hackathon_submissions_col
+        await hackathon_submissions_col.update_one(
+            {"_id": ObjectId(submission_id)},
+            {"$set": {
+                "totalScore": rubric_sum,
+                "rubricScores": scores,
+                "status": "Evaluated",
+                "updatedAt": now,
+            }},
+        )
+    except Exception:
+        pass
     
     # Retrieve the document to return the _id
     score_doc = await scores_col.find_one(
