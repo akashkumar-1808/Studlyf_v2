@@ -1049,3 +1049,118 @@ async def check_stage_access(event_id: str, user_id: str, stage_index: int = Non
             )
     
     return {"stage": stage, "participant": participant}
+
+
+async def auto_advance_participant_on_score(
+    event_id: str,
+    submission_id: str,
+    total_score: float,
+) -> None:
+    """
+    Auto-advance participant to next stage when their score meets the shortlist threshold.
+    Called automatically after any judge evaluation or scoring completes.
+    Works for all event types — thresholds come from event config.
+    """
+    if not event_id or not submission_id or total_score <= 0:
+        return
+
+    try:
+        event = await events_col.find_one({"_id": ObjectId(event_id)})
+        if not event:
+            return
+
+        thresholds = (event or {}).get("evaluation_thresholds") or {}
+        shortlist_min = float(thresholds.get("shortlist_min") or 70)
+
+        if total_score < shortlist_min:
+            return
+
+        # Find participant from the submission — try all 3 collections
+        sub_user_id = None
+        sub_team_id = None
+
+        sub_doc = await submission_data_col.find_one(
+            {"_id": ObjectId(submission_id)},
+            {"user_id": 1, "team_id": 1}
+        )
+        if sub_doc:
+            sub_user_id = sub_doc.get("user_id")
+            sub_team_id = sub_doc.get("team_id")
+        else:
+            try:
+                from db import hackathon_submissions_col
+                hack_doc = await hackathon_submissions_col.find_one(
+                    {"_id": ObjectId(submission_id)},
+                    {"submittedBy": 1, "team_id": 1, "teamType": 1}
+                )
+                if hack_doc:
+                    sub_user_id = hack_doc.get("submittedBy")
+                    sub_team_id = hack_doc.get("team_id")
+            except Exception:
+                pass
+
+        if not sub_user_id and not sub_team_id:
+            try:
+                from db import submissions_col
+                legacy_doc = await submissions_col.find_one(
+                    {"_id": ObjectId(submission_id)},
+                    {"user_id": 1, "team_id": 1}
+                )
+                if legacy_doc:
+                    sub_user_id = legacy_doc.get("user_id")
+                    sub_team_id = legacy_doc.get("team_id")
+            except Exception:
+                pass
+
+        if not sub_user_id and not sub_team_id:
+            return
+
+        participant_query = {"event_id": str(event_id)}
+        if sub_team_id:
+            participant_query["$or"] = [
+                {"team_id": str(sub_team_id)},
+                {"team_id": ObjectId(sub_team_id)},
+            ]
+        elif sub_user_id:
+            participant_query["user_id"] = str(sub_user_id)
+        else:
+            return
+
+        participant = await participants_col.find_one(participant_query)
+        if not participant:
+            return
+
+        # Skip if already shortlisted
+        if str(participant.get("status") or "").lower() == "shortlisted":
+            return
+
+        stages = event.get("stages") or []
+        current_stage = participant.get("current_stage") or ""
+        next_stage_id = None
+
+        # Find next stage after current
+        for idx, s in enumerate(stages):
+            sid = str(s.get("id") or s.get("name") or "")
+            if sid == current_stage or str(s.get("name") or "") == current_stage:
+                if idx + 1 < len(stages):
+                    ns = stages[idx + 1]
+                    next_stage_id = str(ns.get("id") or ns.get("name") or "")
+                break
+
+        now = datetime.now(timezone.utc)
+        update = {"status": "shortlisted", "last_updated": now}
+        if next_stage_id and current_stage:
+            update["current_stage"] = next_stage_id
+            update["last_stage_submitted"] = current_stage
+            await participants_col.update_one(
+                {"_id": participant["_id"]},
+                {"$set": update, "$push": {"completed_stages": current_stage}},
+            )
+        else:
+            await participants_col.update_one(
+                {"_id": participant["_id"]},
+                {"$set": update},
+            )
+    except Exception as e:
+        import logging
+        logging.getLogger("auto_advance").error(f"Failed to auto-advance participant: {e}")

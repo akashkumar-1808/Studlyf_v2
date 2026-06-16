@@ -93,16 +93,33 @@ async def score_submission(
     team_id: str = Body(default=""),
     event_id: str = Body(default=""),
 ):
-    # Integration Enhancement: Refresh leaderboard in background
     import asyncio
-    from db import submissions_col
+    from db import submissions_col, submission_data_col
     from services.leaderboard_service import leaderboard_service
+    from stage_access_control import auto_advance_participant_on_score
+
+    # 1. Submit the score
+    result = await submit_score(submission_id, judge_id, scores, comments, team_id=team_id, event_id=event_id)
+    rubric_sum = float(result.get("total_score") or 0)
+
+    # 2. Resolve event_id if not provided in request
+    if not event_id:
+        for col in (submission_data_col, submissions_col):
+            doc = await col.find_one({"_id": ObjectId(submission_id)}, {"event_id": 1})
+            if doc and doc.get("event_id"):
+                event_id = str(doc["event_id"])
+                break
+
+    # 3. Auto-advance participant if score meets shortlist threshold
+    await auto_advance_participant_on_score(event_id, submission_id, rubric_sum)
+
+    # 4. Refresh leaderboard in background
     async def _refresh():
         sub = await submissions_col.find_one({"_id": ObjectId(submission_id)})
         if sub: await leaderboard_service.calculate_event_leaderboard(sub.get("event_id"))
     asyncio.create_task(_refresh())
 
-    return await submit_score(submission_id, judge_id, scores, comments, team_id=team_id, event_id=event_id)
+    return result
 
 @router.get("/scores/{submission_id}")
 async def view_scores(submission_id: str):

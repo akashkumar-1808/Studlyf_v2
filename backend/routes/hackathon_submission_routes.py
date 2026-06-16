@@ -307,13 +307,20 @@ async def assign_judge(data: dict = Body(...)):
 @router.patch("/submissions/{submission_id}/evaluate")
 async def evaluate_submission(submission_id: str, data: dict = Body(...)):
     """Evaluate a submission with rubric scores."""
+    from db import scores_col, submission_data_col, submissions_col
+    from stage_access_control import auto_advance_participant_on_score
+    import asyncio
+    from services.leaderboard_service import leaderboard_service
+
     rubric_scores = data.get("rubricScores", {})
     feedback = data.get("feedback", "")
     
     # Calculate total score
     total_score = sum(rubric_scores.values()) if rubric_scores else 0.0
+    now = datetime.utcnow()
     
     try:
+        # 1. Update hackathon_submissions_col
         await hackathon_submissions_col.update_one(
             {"_id": ObjectId(submission_id)},
             {
@@ -322,10 +329,79 @@ async def evaluate_submission(submission_id: str, data: dict = Body(...)):
                     "totalScore": total_score,
                     "feedback": feedback,
                     "status": "Evaluated",
-                    "updatedAt": datetime.utcnow()
+                    "updatedAt": now,
                 }
             }
         )
+
+        # 2. Update scores_col
+        judge_id = data.get("judgeId") or ""
+        upsert_filter = {"submission_id": submission_id}
+        if judge_id:
+            upsert_filter["judge_id"] = judge_id
+        await scores_col.update_one(
+            upsert_filter,
+            {"$set": {
+                "submission_id": submission_id,
+                "judge_id": judge_id,
+                "total_score": total_score,
+                "criteria_scores": rubric_scores,
+                "scores": rubric_scores,
+                "feedback": feedback,
+                "comments": feedback,
+                "evaluated_at": now,
+                "updated_at": now,
+            }, "$setOnInsert": {"created_at": now}},
+            upsert=True
+        )
+
+        # 3. Update submission_data_col
+        try:
+            await submission_data_col.update_one(
+                {"_id": ObjectId(submission_id)},
+                {"$set": {
+                    "status": "Scored",
+                    "total_score": total_score,
+                    "evaluation_score": total_score,
+                    "last_evaluated_at": now,
+                }},
+            )
+        except Exception:
+            pass
+
+        # 4. Update legacy submissions_col
+        try:
+            await submissions_col.update_one(
+                {"_id": ObjectId(submission_id)},
+                {"$set": {
+                    "status": "Reviewed",
+                    "total_score": total_score,
+                    "evaluation_score": total_score,
+                }},
+            )
+        except Exception:
+            pass
+
+        # 5. Auto-advance participant if shortlisted
+        try:
+            sub_doc = await hackathon_submissions_col.find_one(
+                {"_id": ObjectId(submission_id)},
+                {"eventId": 1}
+            )
+            event_id = (sub_doc or {}).get("eventId") or ""
+            if event_id:
+                await auto_advance_participant_on_score(event_id, submission_id, total_score)
+        except Exception:
+            pass
+
+        # 6. Refresh leaderboard in background
+        async def _refresh_lb():
+            try:
+                await leaderboard_service.calculate_event_leaderboard(str(event_id))
+            except Exception:
+                pass
+        asyncio.create_task(_refresh_lb())
+
         return {"status": "success", "totalScore": total_score}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
