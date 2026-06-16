@@ -68,7 +68,7 @@ const TermsAndConditions: React.FC<TermsAndConditions> = ({ onClose }) => {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6"
       style={{ background: "rgba(10, 5, 30, 0.75)", backdropFilter: "blur(12px)" }}
     >
       <motion.div
@@ -76,7 +76,7 @@ const TermsAndConditions: React.FC<TermsAndConditions> = ({ onClose }) => {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.94, y: 24 }}
         transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-6xl max-h-[95vh] overflow-hidden rounded-[2rem] shadow-2xl flex flex-col lg:flex-row"
+        className="relative w-full max-w-6xl max-h-[95vh] overflow-hidden rounded-3xl lg:rounded-[2rem] shadow-2xl flex flex-col lg:flex-row"
         style={{
           background: "linear-gradient(135deg, #fafbff 0%, #f3f0ff 40%, #eaf6ff 100%)",
         }}
@@ -101,7 +101,7 @@ const TermsAndConditions: React.FC<TermsAndConditions> = ({ onClose }) => {
           whileHover={{ scale: 1.1, rotate: 90 }}
           whileTap={{ scale: 0.9 }}
           transition={{ type: "spring", stiffness: 400, damping: 20 }}
-          className="absolute top-5 right-5 z-30 p-2 rounded-xl bg-white/80 backdrop-blur-sm border border-white/60 shadow-md text-gray-500 hover:text-gray-800"
+          className="absolute top-4 right-4 sm:top-5 sm:right-5 z-30 p-2 rounded-xl bg-white/80 backdrop-blur-sm border border-white/60 shadow-md text-gray-500 hover:text-gray-800"
         >
           <X size={18} />
         </motion.button>
@@ -109,7 +109,7 @@ const TermsAndConditions: React.FC<TermsAndConditions> = ({ onClose }) => {
         {/* ══════════════════════════════
             LEFT PANEL
         ══════════════════════════════ */}
-        <div className="relative z-10 flex flex-col justify-between w-full lg:w-[52%] px-7 py-8 sm:px-10 sm:py-10 overflow-y-auto"
+        <div className="relative z-10 flex flex-col justify-start lg:justify-between w-full lg:w-[52%] px-5 sm:px-10 py-6 sm:py-10 overflow-y-auto custom-scrollbar"
           style={{
             scrollbarWidth: "thin",
             scrollbarColor: "#c4b5fd #f5f3ff",
@@ -119,7 +119,7 @@ const TermsAndConditions: React.FC<TermsAndConditions> = ({ onClose }) => {
           <motion.button
             onClick={onClose}
             whileHover={{ x: -3 }}
-            className="flex items-center gap-2 text-sm text-purple-600 font-medium mb-8 w-fit group"
+            className="flex items-center gap-2 text-sm text-purple-600 font-medium mb-5 sm:mb-8 w-fit group"
           >
             <span className="p-1.5 rounded-lg bg-purple-100 group-hover:bg-purple-200 transition-colors">
               <ArrowLeft size={14} />
@@ -132,7 +132,7 @@ const TermsAndConditions: React.FC<TermsAndConditions> = ({ onClose }) => {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide mb-5 w-fit"
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide mb-4 sm:mb-5 w-fit"
             style={{
               background: "linear-gradient(90deg, #ede9fe, #dbeafe)",
               color: "#5b21b6",
@@ -148,10 +148,10 @@ const TermsAndConditions: React.FC<TermsAndConditions> = ({ onClose }) => {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="mb-5"
+            className="mb-4 sm:mb-5"
           >
             <h1
-              className="text-5xl sm:text-6xl font-black leading-[1.05] tracking-tight text-gray-900"
+              className="text-3xl sm:text-5xl lg:text-6xl font-black leading-[1.05] tracking-tight text-gray-900"
               style={{ fontFamily: "'Poppins', sans-serif" }}
             >
               Terms &<br />
@@ -168,7 +168,7 @@ const TermsAndConditions: React.FC<TermsAndConditions> = ({ onClose }) => {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25 }}
-            className="text-gray-500 text-[15px] leading-relaxed mb-8 max-w-md"
+            className="text-gray-500 text-[15px] leading-relaxed mb-6 sm:mb-8 max-w-md"
           >
             Before using our AI platform, please review our commitments to you.
             These terms govern how we protect your data, your rights, and your experience.
@@ -179,7 +179,7 @@ const TermsAndConditions: React.FC<TermsAndConditions> = ({ onClose }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="space-y-3 mb-8"
+            className="space-y-3 mb-6 sm:mb-8"
           >
             {SECTIONS.map((section, i) => {
               const Icon = section.icon;
@@ -194,8 +194,8 @@ const TermsAndConditions: React.FC<TermsAndConditions> = ({ onClose }) => {
                   className="cursor-pointer rounded-2xl border bg-white/70 backdrop-blur-sm overflow-hidden group transition-all duration-200 hover:shadow-md hover:border-purple-200"
                   style={{ border: isOpen ? "1px solid #c4b5fd" : "1px solid #e9e7f5" }}
                 >
-                  <div className="flex items-center gap-3.5 p-4">
-                    <div className={`p-2.5 rounded-xl ${section.bg} ${section.iconColor} flex-shrink-0`}>
+                  <div className="flex items-center gap-3 sm:gap-3.5 p-3.5 sm:p-4">
+                    <div className={`p-2 sm:p-2.5 rounded-xl ${section.bg} ${section.iconColor} flex-shrink-0`}>
                       <Icon size={18} />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -236,7 +236,7 @@ const TermsAndConditions: React.FC<TermsAndConditions> = ({ onClose }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.55 }}
-            className="flex items-start gap-3 cursor-pointer mb-7 group"
+            className="flex items-start gap-3 cursor-pointer mb-5 sm:mb-7 group"
           >
             <div
               onClick={() => setAccepted(!accepted)}
@@ -265,13 +265,13 @@ const TermsAndConditions: React.FC<TermsAndConditions> = ({ onClose }) => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="flex flex-wrap gap-3"
+            className="flex flex-col sm:flex-row gap-3 w-full"
           >
             <motion.button
               whileHover={{ scale: accepted ? 1.03 : 1, y: accepted ? -1 : 0 }}
               whileTap={{ scale: accepted ? 0.97 : 1 }}
               disabled={!accepted}
-              className="px-7 py-3 rounded-2xl text-sm font-semibold text-white shadow-lg transition-all duration-200"
+              className="w-full sm:w-auto px-7 py-3 rounded-2xl text-sm font-semibold text-white shadow-lg transition-all duration-200 text-center flex items-center justify-center"
               style={{
                 background: accepted
                   ? "linear-gradient(135deg, #7c3aed, #3b82f6)"
@@ -286,7 +286,7 @@ const TermsAndConditions: React.FC<TermsAndConditions> = ({ onClose }) => {
             <motion.button
               whileHover={{ scale: 1.03, y: -1 }}
               whileTap={{ scale: 0.97 }}
-              className="px-7 py-3 rounded-2xl text-sm font-semibold text-purple-700 bg-purple-50 border border-purple-200 hover:bg-purple-100 transition-colors"
+              className="w-full sm:w-auto px-7 py-3 rounded-2xl text-sm font-semibold text-purple-700 bg-purple-50 border border-purple-200 hover:bg-purple-100 transition-colors text-center flex items-center justify-center"
             >
               Read Full Policy
             </motion.button>

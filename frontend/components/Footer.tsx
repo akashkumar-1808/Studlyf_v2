@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Instagram, Linkedin, Twitter, Github, Send, Mail } from 'lucide-react';
+import { Instagram, Linkedin, Send, Mail } from 'lucide-react';
 import TermsOverlay from './TermsOverlay';
 
 // Custom WhatsApp icon (not available in lucide-react)
@@ -27,9 +27,7 @@ const Footer: React.FC = () => {
     const socialLinks = [
         { icon: <Instagram size={22} />, href: "https://www.instagram.com/stuudent.lyf?igsh=bDIwYzIxaDFyeWd3", label: "Instagram" },
         { icon: <Linkedin size={22} />, href: "https://www.linkedin.com/company/studlyf/", label: "LinkedIn" },
-        { icon: <Twitter size={22} />, href: "https://twitter.com", label: "Twitter" },
         { icon: <WhatsAppIcon size={22} />, href: "https://whatsapp.com/channel/0029VbCHsjAHVvTRqLfOau24/113 ", label: "WhatsApp" },
-        { icon: <Github size={22} />, href: "https://github.com", label: "GitHub" },
     ];
 
     return (
