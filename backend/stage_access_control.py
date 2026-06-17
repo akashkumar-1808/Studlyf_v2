@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from bson import ObjectId
 from services.stage_service import get_event_stages
 from typing import Optional, List, Dict, Any
+import asyncio
 
 
 async def _event_id_variants(event_id: str, resolved_id: Optional[str] = None, event_doc: Optional[dict] = None) -> List[str]:
@@ -692,16 +693,22 @@ async def get_all_stages_access(event_id: str, user_id: str) -> Dict[str, Any]:
         state["type"] = stype
         access_list.append(state)
 
+        # Prefer the first unlocked stage that has NO submission yet (next action needed).
+        # Only fall back to a stage with submission if no submission-free stage exists.
         if active_stage_id is None and state.get("is_unlocked") and state.get("can_submit") and not state.get("has_submission"):
-            active_stage_id = state.get("stage_id")
-        elif active_stage_id is None and state.get("is_unlocked") and state.get("can_submit"):
             active_stage_id = state.get("stage_id")
 
     if active_stage_id is None:
-        for state in access_list:
-            if state.get("is_unlocked"):
+        # All unlocked stages have submissions — pick the last one (most recent active)
+        for state in reversed(access_list):
+            if state.get("is_unlocked") and state.get("can_submit"):
                 active_stage_id = state.get("stage_id")
                 break
+        if active_stage_id is None:
+            for state in access_list:
+                if state.get("is_unlocked"):
+                    active_stage_id = state.get("stage_id")
+                    break
 
     team_name = None
     if team_doc:

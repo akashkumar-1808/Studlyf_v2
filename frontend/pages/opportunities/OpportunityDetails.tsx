@@ -51,6 +51,7 @@ import { useRegistrationState } from '../../utils/useRegistrationState';
 import { API_BASE_URL, authHeaders } from '../../apiConfig';
 import { useAuth } from '../../AuthContext';
 import SubmissionForm from '../../components/opportunities/SubmissionForm';
+import StageSubmissionsPanel from '../../components/opportunities/StageSubmissionsPanel';
 import AvatarImage from '../../components/AvatarImage';
 import TeamManager from '../../components/opportunities/TeamManager';
 import {
@@ -1070,9 +1071,14 @@ const OpportunityDetails: React.FC = () => {
         // 1. Must be the current stage or a previous stage
         // Removed `if (isAuthorized && participantStageIndex < stageIndex)` to allow status and depends_on to govern unlocks correctly
 
-        // 2. Depends on rules (if provided by DB)
+        // Depends on rules (if provided by DB)
+        // Shortlisted/Approved participants bypass dependency checks (backend auto-fulfills)
         const dependsOn = s.depends_on || s.config?.depends_on || [];
         if (isAuthorized && Array.isArray(dependsOn) && dependsOn.length > 0) {
+            const bypassStatuses = ['shortlisted', 'accepted', 'approved'];
+            if (bypassStatuses.includes(regStatusStrLower)) {
+                return true;
+            }
             for (const depId of dependsOn) {
                 const depStage = stages.find((st: any) => st.id === depId || st.name === depId);
                 if (depStage) {
@@ -1444,49 +1450,11 @@ const OpportunityDetails: React.FC = () => {
                 ) : activeTab === 'submissions' && opportunity ? (
                     <div className="my-8">
                         {eventId && submittableStages.length > 0 ? (
-                            <div className="space-y-8">
-                                {submittableStages.map((stage: any, idx: number) => {
-                                    // Use the hardened database-driven authorization check
-                                    const isStageAuthorized = checkStageAuthorization(stage);
-
-
-                                    return (
-                                        <div key={stage.id || idx} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                                            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-                                                <div>
-                                                    <h3 className="text-lg font-black text-slate-900">{stage.name || stage.type || `Stage ${idx + 1}`}</h3>
-                                                    {stage.description && (
-                                                        <p className="text-sm text-slate-500 mt-0.5">{stage.description}</p>
-                                                    )}
-                                                </div>
-                                                <span className={`text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full ${
-                                                    isStageAuthorized
-                                                        ? 'bg-emerald-50 text-emerald-700'
-                                                        : 'bg-amber-50 text-amber-700'
-                                                }`}>
-                                                    {isStageAuthorized ? 'Open' : 'Locked'}
-                                                </span>
-                                            </div>
-                                            <div className="p-5">
-                                                {isStageAuthorized ? (
-                                                    <SubmissionForm eventId={eventId} stage={stage} participationType={opportunity?.participationType} />
-                                                ) : (
-                                                    <div className="bg-slate-50 rounded-xl p-6 text-center">
-                                                        <p className="text-sm font-bold text-slate-500">
-                                                            This stage is locked. You must be shortlisted or approved to proceed.
-                                                        </p>
-                                                        {stage.depends_on && stage.depends_on.length > 0 && (
-                                                            <p className="text-xs text-slate-400 mt-1">
-                                                                Complete the previous stages to unlock this one.
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                            <StageSubmissionsPanel
+                                eventId={eventId}
+                                participationType={opportunity?.participationType}
+                                stagesFromOpportunity={stagesList}
+                            />
                         ) : (
                             <div className="bg-white p-6 rounded-lg shadow-md text-slate-600">
                                 No submission stages configured for this event yet.
