@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "npm install --prefix frontend && npm install --omit=dev",
-  "buildCommand": "cd frontend && node scripts/optimize_images.js && cd .. && npm run build --prefix frontend && rm -rf dist && cp -r frontend/dist dist",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
