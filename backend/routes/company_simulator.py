@@ -1,10 +1,11 @@
 import os
 import json
 import uuid
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Depends
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 from groq import Groq
+from auth_institution import get_auth_user
 
 router = APIRouter()
 
@@ -82,7 +83,7 @@ async def start_simulator(req: SimulatorStartRequest, x_groq_api_key: Optional[s
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/chat")
-async def chat_simulator(req: SimulatorChatRequest, x_groq_api_key: Optional[str] = Header(None)):
+async def chat_simulator(req: SimulatorChatRequest, x_groq_api_key: Optional[str] = Header(None), user: dict = Depends(get_auth_user)):
     current_client = Groq(api_key=x_groq_api_key) if x_groq_api_key else client
     if not current_client:
         raise HTTPException(status_code=500, detail="Groq API key not configured")

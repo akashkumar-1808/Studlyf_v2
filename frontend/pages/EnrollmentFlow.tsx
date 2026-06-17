@@ -544,7 +544,12 @@ const EnrollmentFlow: React.FC = () => {
                                         <div className="bg-gray-50 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-500">{isSingleCourse ? 'Single Course' : `${selectedPlan} Plan`}</div>
                                     </div>
                                     <div className="flex justify-between items-center mb-4">
-                                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">{isSingleCourse ? targetCourse.title : `${track.title} Track`}</h3>
+                                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">
+                                            {isSingleCourse 
+                                                ? (targetCourse ? targetCourse.title : 'Loading...') 
+                                                : `${track ? track.title : 'Track'} Track`
+                                            }
+                                        </h3>
                                         <span className="text-xl font-black text-gray-900">₹{isSingleCourse ? coursePrice.toLocaleString('en-IN') : (selectedPlan === 'yearly' ? '14,999' : '1,999')}.00</span>
                                     </div>
                                     <div className="flex justify-between items-center text-sm text-gray-400 mb-8">

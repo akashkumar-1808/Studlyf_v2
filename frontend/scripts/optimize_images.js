@@ -34,6 +34,14 @@ async function processDirectory(dir) {
             await sharp(fullPath)
                 .webp({ quality: 80 })
                 .toFile(targetPath);
+        } else if (file.match(/\.webp$/)) {
+            const relDir = path.relative(inputDir, dir);
+            const targetPath = path.join(outputDir, relDir, file);
+            
+            if (!fs.existsSync(targetPath)) {
+                console.log(`Copying webp: ${fullPath} -> ${targetPath}`);
+                fs.copyFileSync(fullPath, targetPath);
+            }
         }
     }
 }

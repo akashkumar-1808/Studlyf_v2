@@ -55,7 +55,7 @@ const HackathonWelcomePopup: React.FC<Props> = ({ open, onClose, onProblemStatem
                             {/* Image */}
                             <div className="bg-slate-50">
                                 <img
-                                    src="/images-optimized/popup.webp"
+                                    src="/popup.png"
                                     alt="AI Hackathon"
                                     loading="lazy"
                                     className="w-full h-auto block select-none"

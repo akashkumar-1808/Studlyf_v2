@@ -13,7 +13,6 @@ dist-ssr
 .env
 
 # Generated optimized images (build artifacts from scripts/optimize_images.js)
-frontend/public/images-optimized/
 frontend/public/avatars/catalog.webp
 
 # Editor directories and files

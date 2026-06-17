@@ -191,7 +191,6 @@ backend/generated_portfolios/
 backend/tmp_admin_event_submissions.json
 
 # Generated/optimized asset files
-frontend/public/images-optimized/
 frontend/public/avatars/catalog.webp
 
 # Root-level temp scripts & audit files
